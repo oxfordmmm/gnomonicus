@@ -136,3 +136,6 @@ dmypy.json
 variants.csv
 mutations.csv
 effects.csv
+
+#Block vscode config files
+.vscode

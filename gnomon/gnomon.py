@@ -1,18 +1,18 @@
-'''Gnomon is a script which pulls together output VCF of the Lodestone TB pipeline
-    with a reference genome and a resistance catalogue, and utilises gumpy and 
+'''gnomon.py is a library providing functions which pull together output VCF of the Lodestone TB pipeline
+    with a reference genome and a resistance catalogue, and utilise gumpy and
     piezo to produce variants, mutations and an antibiogram.
 
 Based on sp3predict
 '''
-import argparse
 import logging
 import os
 import pickle
 
 import gumpy
-import pandas as pd
 import numpy as np
+import pandas as pd
 import piezo
+
 
 class MissingFieldException(Exception):
     '''Custom exception for when required fields are missing from a given table
@@ -57,6 +57,7 @@ def loadGenome(path: str) -> gumpy.Genome:
     Returns:
         gumpy.Genome: Genome object of the reference genome
     '''
+    logging.debug(f"Using file {path}")
     #Remove trailing '/' if required
     if path[-1] == '/':
         path = path[:-1]
@@ -254,9 +255,8 @@ def countNucleotideChanges(row: pd.Series) -> int:
         int: The number of mutations which occured to cause this mutation
     '''
     if row['REF'] is not None and len(row['REF'])==3:
-        return numpy.sum([i!=j for (i,j) in zip(row['REF'],row['ALT'] ) ])
-    else:
-        return 0
+        return np.sum([i!=j for (i,j) in zip(row['REF'],row['ALT'] ) ])
+    return 0
 
 def populateEffects(sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue, mutations: pd.DataFrame, referenceGenes: dict) -> dict:
     '''Populate and save the effects DataFrame as a CSV
@@ -315,7 +315,7 @@ def populateEffects(sample: gumpy.Genome, outputDir: str, resistanceCatalogue: p
         effectsCounter += 1
     
     #Build the DataFrame
-    effects = pandas.DataFrame.from_dict(effects, 
+    effects = pd.DataFrame.from_dict(effects, 
                                         orient="index", 
                                         columns=["UNIQUEID", "GENE", "MUTATION", 
                                             "CATALOGUE_NAME", "DRUG", "PREDICTION"]
@@ -329,92 +329,3 @@ def populateEffects(sample: gumpy.Genome, outputDir: str, resistanceCatalogue: p
 
     #Return  the metadata dict to log later
     return {"WGS_PREDICTION_"+drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs}
-
-                
-
-    
-
-
-if __name__ == "__main__":
-    #Argparser setup
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--vcf_file",required=True,help="the path to a single VCF file")
-    parser.add_argument("--genome_object",default="H37Rv_3.gbk",help="the path to a compressed gumpy Genome object or a genbank file")
-    parser.add_argument("--catalogue_file",default=None,required=False,help="the path to the resistance catalogue")
-    parser.add_argument("--ignore_vcf_status",action='store_true',default=False,help="whether to ignore the STATUS field in the vcf (e.g. necessary for some versions of Clockwork VCFs)")
-    parser.add_argument("--ignore_vcf_filter",action='store_true',default=False,help="whether to ignore the FILTER field in the vcf (e.g. necessary for some versions of Clockwork VCFs)")
-    parser.add_argument("--progress",action='store_true',default=False,help="whether to show progress using tqdm")
-    parser.add_argument("--output_dir", action="store_true", required=False, default=".", help="Directory to save output files to. Defaults to wherever the script is run from.")
-    options = parser.parse_args()
-
-    #Make the output directory if it doesn't already exist
-    os.makedirs(options.output_dir, exist_ok=True)
-
-    #Logging setup
-    logging.basicConfig(filename=os.path.join(options.output_dir, 'gnomon.log'), filemode='w', format='%(asctime)s -  %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.DEBUG)
-    logging.info(f"Gnomon starting with output directory {options.output_dir}")
-
-    #Get reference genome
-    reference = loadGenome(options.genome_object)
-    logging.debug("Loaded reference genome")
-
-    #Build the mutated genome using gumpy
-    vcf = gumpy.VCFFile(options.vcf_file)
-    sample = reference + vcf
-    logging.debug("Applied the VCF to the reference")
-
-    #Get the stem of the VCF filename for use as a unique ID
-    vcfStem = os.path.split(options.vcf_file)[-1].split(".")[0]
-    logging.debug("Got VCF stem")
-
-    #Get resistance catalogue
-    if options.catalogue_file:
-        resistanceCatalogue = piezo.ResistanceCatalogue(options.catalogue_file, prediction_subset_only=True)
-        logging.debug("Loaded resistance catalogue")
-    else:
-        resistanceCatalogue = None
-        logging.info("No resistance catalogue provided, producing variants and mutations only")
-
-    #Get the GenomeDifference for extracting genome level mutations
-    diff = reference - sample
-    logging.debug("Got the genome difference")
-
-    #Complain if there are no variants
-    if diff.variants is None:
-        logging.error("No variants detected!")
-        raise NoVariantsException()
-
-    #Get the variations and mutations
-    populateVariants(vcfStem, options.output_dir, diff)
-    logging.debug("Populated and saved variants.csv")
-
-    mutations, referenceGenes = populateMutations(vcfStem, options.output_dir, diff, 
-                        reference, sample, resistanceCatalogue)
-    if not mutations:
-        logging.info("No mutations found - probably due to exclusively inter-gene variation or no variation.\n\t\t\t\t\t\t\t No effects.csv written")
-    else:
-        logging.debug("Populated and saved mutatons.csv")
-
-    #Get the effects of the mutations
-    if resistanceCatalogue and mutations:
-        metadata = populateEffects(sample, options.output_dir, resistanceCatalogue, mutations, referenceGenes)
-        logging.debug("Populated and saved effects.csv")
-    else:
-        metadata = {}
-        logging.info("Skipped effects.csv due to lack of resistance catalogue or mutations")
-
-    #Add data to the log
-    logging.info("********** Successfully completed **********")
-    
-    logging.info(f"VCF file: {options.vcf_file}")
-    logging.info(f"Reference genome file: {options.genome_object}")
-
-    if resistanceCatalogue:
-        logging.info(f"Catalogue reference genome: {resistanceCatalogue.catalogue.genbank_reference}")
-        logging.info(f"Catalogue name: {resistanceCatalogue.catalogue.name}")
-        logging.info(f"Catalogue version: {resistanceCatalogue.catalogue.version}")
-        logging.info(f"Catalogue grammar: {resistanceCatalogue.catalogue.grammar}")
-        logging.info(f"Catalogue values: {resistanceCatalogue.catalogue.values}")
-        logging.info(f"Catalogue path: {options.catalogue_file}")
-    for drug in sorted(metadata.keys()):
-        logging.info(f"{drug} {metadata[drug]}")
