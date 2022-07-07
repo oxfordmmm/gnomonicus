@@ -11,4 +11,4 @@ Python code to integrate results of tb-pipeline and provide an antibiogram, muta
 
 ## Unit testing
 
-For speed, rather than use NC_000962.3 (i.e. H37Rv *M. tuberculosis*), we shall use SARS-CoV-2 and create a fictious drug resistance catalogue. PWF to do and provide `vcf` files, the catalogue and the expected results.
+For speed, rather than use NC_000962.3 (i.e. H37Rv *M. tuberculosis*), we shall use SARS-CoV-2 and have created a fictious drug resistance catalogue, along with some `vcf` files and the expected outputs in `tests/`.
