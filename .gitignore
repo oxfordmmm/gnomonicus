@@ -139,3 +139,6 @@ effects.csv
 
 #Block vscode config files
 .vscode
+
+#Keep the tests output folders from being tracked
+tests/outputs/*

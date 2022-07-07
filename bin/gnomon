@@ -36,7 +36,7 @@ if __name__ == "__main__":
     logging.debug("Loaded reference genome")
 
     #Build the mutated genome using gumpy
-    vcf = gumpy.VCFFile(options.vcf_file)
+    vcf = gumpy.VCFFile(options.vcf_file, options.ignore_vcf_filter, options.ignore_vcf_status)
     sample = reference + vcf
     logging.debug("Applied the VCF to the reference")
 
