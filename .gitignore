@@ -127,3 +127,15 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#Ensure pickles are not tracked for security
+**/*.pkl
+**/*.pickle
+
+#Ensure no output csvs are tracked
+variants.csv
+mutations.csv
+effects.csv
+
+#Block vscode config files
+.vscode
