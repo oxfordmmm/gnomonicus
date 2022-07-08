@@ -48,12 +48,13 @@ class InvalidMutationException(Exception):
         super().__init__(self.message)
 
 
-def loadGenome(path: str) -> gumpy.Genome:
+def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     '''Load a genome from a given path. Checks if path is to a pickle dump, or if a pickle dump of the path's file exists
     Instanciates a new gumpy Genome and dumps to pickle as a last resort
 
     Args:
         path (str): Path to the genbank file or pickle dump. If previously run, a genbank file's Genome object is pickled and dumped for speed
+        progress (bool): Boolean as whether to show progress bar for gumpy
 
     Returns:
         gumpy.Genome: Genome object of the reference genome
@@ -76,7 +77,7 @@ def loadGenome(path: str) -> gumpy.Genome:
         logging.info("No pickled version of genome object, instanciating and dumping")
     
     #Create new gumpy.Genome and pickle dump for speed later
-    reference = gumpy.Genome(path, show_progress_bar=True)
+    reference = gumpy.Genome(path, show_progress_bar=progress)
     pickle.dump(reference, open(path+'.pkl', 'wb'))
     return reference
 

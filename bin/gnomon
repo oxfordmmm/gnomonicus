@@ -50,7 +50,7 @@ if __name__ == "__main__":
     logging.info(f"Output filetype {options.filetype}")
 
     #Get reference genome
-    reference = loadGenome(options.genome_object)
+    reference = loadGenome(options.genome_object, options.progress)
     logging.debug("Loaded reference genome")
 
     #Build the mutated genome using gumpy
