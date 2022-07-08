@@ -80,13 +80,14 @@ def loadGenome(path: str) -> gumpy.Genome:
     pickle.dump(reference, open(path+'.pkl', 'wb'))
     return reference
 
-def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference) -> None:
+def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, filetype: str) -> None:
     '''Populate and save the variants DataFrame as a CSV
 
     Args:
         vcfStem (str): The stem of the filename for the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
         diff (gumpy.GenomeDifference): GenomeDifference object between reference and the sample
+        filetype (str): Requested output filetype. One of [csv, json]
     '''
     #Populate variants table directly from GenomeDifference
     vals = {
@@ -115,13 +116,20 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference)
             logging.error("IS_SNP not in variant table!")
             raise MissingFieldException('IS_SNP', 'variant')
 
-        #Set the index
-        variants.set_index(['UNIQUEID', 'VARIANT', 'IS_SNP'], inplace=True, verify_integrity=True)
+        if filetype == "csv":
+            #Set the index
+            variants.set_index(['UNIQUEID', 'VARIANT', 'IS_SNP'], inplace=True, verify_integrity=True)
+            #Save CSV
+            variants.to_csv(os.path.join(outputDir, 'variants.csv'), header=True)
+        elif filetype == "json":
+            #Save JSON
+            variants.to_json(os.path.join(outputDir, 'variants.json'), orient='records', indent=2)
+        else:
+            logging.error(f"Filetype not in [csv, json]: {filetype}")
 
-        #Save CSV
-        variants.to_csv(os.path.join(outputDir, 'variants.csv'), header=True)
-
-def populateMutations(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome, sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue) -> (pd.DataFrame, dict):
+def populateMutations(
+        vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome,
+        sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue, filetype: str) -> (pd.DataFrame, dict):
     '''Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
 
     Args:
@@ -131,6 +139,7 @@ def populateMutations(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference
         reference (gumpy.Genome): Reference genome
         sample (gumpy.Genome): Sample genome
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue (used to find which genes to check)
+        filetype (str): Requested output filetype. One of [csv, json]
 
     Raises:
         MissingFieldException: Raised when the mutations DataFrame does not contain the required fields
@@ -223,8 +232,14 @@ def populateMutations(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference
         #Set the index
         mutations.set_index(['UNIQUEID', 'GENE', 'MUTATION'], inplace=True, verify_integrity=True)
 
-        #Save it as CSV
-        mutations.to_csv(os.path.join(outputDir, 'mutations.csv'))
+        if filetype == "csv":
+            #Save it as CSV
+            mutations.to_csv(os.path.join(outputDir, 'mutations.csv'))
+        elif filetype == "json":
+            #Save it as JSON
+            mutations.to_json(os.path.join(outputDir, 'mutations.json'), orient='records', indent=2)
+        else:
+            logging.error(f"Filetype not in [csv, json]: {filetype}")
 
         #Remove index to return
         mutations.reset_index(inplace=True)
@@ -316,7 +331,9 @@ def countNucleotideChanges(row: pd.Series) -> int:
         return np.sum([i!=j for (i,j) in zip(row['REF'],row['ALT'] ) ])
     return 0
 
-def populateEffects(sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue, mutations: pd.DataFrame, referenceGenes: dict) -> dict:
+def populateEffects(
+        sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
+        mutations: pd.DataFrame, referenceGenes: dict, filetype: str) -> dict:
     '''Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -325,6 +342,7 @@ def populateEffects(sample: gumpy.Genome, outputDir: str, resistanceCatalogue: p
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue for predictions
         mutations (pd.DataFrame): Mutations dataframe
         referenceGenes (dict): Dictionary mapping gene name --> reference gumpy.Gene objects
+        filetype (str): Requested output filetype. One of [csv, json]
 
     Raises:
         InvalidMutationException: Raised if an invalid mutation is detected
@@ -382,8 +400,14 @@ def populateEffects(sample: gumpy.Genome, outputDir: str, resistanceCatalogue: p
     #Set the index
     effects.set_index(["UNIQUEID", "DRUG", "GENE", "MUTATION", "CATALOGUE_NAME"], inplace=True)
     
-    #Save as CSV
-    effects.to_csv(os.path.join(outputDir, 'effects.csv'))
+    if filetype == "csv":
+        #Save as CSV
+        effects.to_csv(os.path.join(outputDir, 'effects.csv'))
+    elif filetype == "json":
+        #Save it as JSON
+        effects.to_json(os.path.join(outputDir, 'effects.json'), orient='records', indent=2)
+    else:
+        logging.error(f"Filetype not in [csv, json]: {filetype}")
 
     #Return  the metadata dict to log later
     return {"WGS_PREDICTION_"+drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs}
