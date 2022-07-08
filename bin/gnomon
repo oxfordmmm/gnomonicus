@@ -6,13 +6,15 @@
 import argparse
 import logging
 import os
+import time
 
 import gumpy
 import piezo
 
-from gnomon import *
+from gnomon import loadGenome, NoVariantsException, populateVariants, populateMutations, populateEffects
 
 if __name__ == "__main__":
+    start = time.time()
     #Argparser setup
     parser = argparse.ArgumentParser()
     parser.add_argument("--vcf_file",required=True,help="the path to a single VCF file")
@@ -36,7 +38,7 @@ if __name__ == "__main__":
     logging.debug("Loaded reference genome")
 
     #Build the mutated genome using gumpy
-    vcf = gumpy.VCFFile(options.vcf_file, options.ignore_vcf_filter, options.ignore_vcf_status)
+    vcf = gumpy.VCFFile(options.vcf_file, ignore_filter=options.ignore_vcf_filter)
     sample = reference + vcf
     logging.debug("Applied the VCF to the reference")
 
@@ -95,3 +97,4 @@ if __name__ == "__main__":
         logging.info(f"Catalogue path: {options.catalogue_file}")
     for drug in sorted(metadata.keys()):
         logging.info(f"{drug} {metadata[drug]}")
+    logging.info(f"Completed in {time.time()-start}s")

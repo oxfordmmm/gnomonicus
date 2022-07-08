@@ -1,10 +1,16 @@
-import pytest
+'''Suite of unit tests matching the test cases defined in tests/NC_045512.2-README.md
+
+Run from root of git dir with `pytest -vv`
+'''
 import os
 import shutil
 
-import piezo
-import gumpy
 import pandas as pd
+
+import gumpy
+import piezo
+import pytest
+
 import gnomon
 
 
