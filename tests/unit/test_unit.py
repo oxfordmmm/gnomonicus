@@ -26,7 +26,7 @@ def setupOutput(testID: str):
 
 def test_1():
     '''Input:
-            NC_045512.2-S_N484K-minos.vcf
+            NC_045512.2-S_E484K-minos.vcf
         Expect output:
             variants:    23012g>a
             mutations:   S@E484K
@@ -37,8 +37,8 @@ def test_1():
     reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
-    vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_N484K-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
-    vcfStem = "NC_045512.2-S_N484K-minos"
+    vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_E484K-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
+    vcfStem = "NC_045512.2-S_E484K-minos"
 
     sample = reference + vcf
 
@@ -68,10 +68,10 @@ def test_1():
 
 def test_2():
     '''Input:
-            NC_045512.2-S_N484K-samtools.vcf
+            NC_045512.2-S_E484K-samtools.vcf
         Expect output:
             variants:    23012g>a
-            mutations:   S@N484K
+            mutations:   S@E484K
             predictions: {'AAA': 'R', 'BBB': 'S'}
     '''
     #Setup
@@ -79,8 +79,8 @@ def test_2():
     reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
-    vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_N484K-samtools.vcf", ignore_filter=True, bypass_reference_calls=True)
-    vcfStem = "NC_045512.2-S_N484K-samtools"
+    vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_E484K-samtools.vcf", ignore_filter=True, bypass_reference_calls=True)
+    vcfStem = "NC_045512.2-S_E484K-samtools"
 
     sample = reference + vcf
 
