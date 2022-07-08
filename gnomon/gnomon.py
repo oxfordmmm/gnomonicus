@@ -7,6 +7,7 @@ Based on sp3predict
 import logging
 import os
 import pickle
+from collections.abc import Iterable
 
 import gumpy
 import numpy as np
@@ -88,7 +89,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference)
         diff (gumpy.GenomeDifference): GenomeDifference object between reference and the sample
     '''
     #Populate variants table directly from GenomeDifference
-    variants = pd.DataFrame({
+    vals = {
             'VARIANT': diff.variants, 
             'NUCLEOTIDE_INDEX': diff.nucleotide_index,
             'IS_INDEL': diff.is_indel,
@@ -97,7 +98,9 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference)
             'IS_SNP': diff.is_snp,
             'INDEL_LENGTH': diff.indel_length,
             'INDEL_NUCLEOTIDES': diff.indel_nucleotides
-            })
+            }
+    vals = handleIndels(vals)
+    variants = pd.DataFrame(vals)
 
     #If there are variants, save them to a csv
     if not variants.empty:
@@ -136,6 +139,7 @@ def populateMutations(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference
         pd.DataFrame: The mutations DataFrame
         dict: Dictionary mapping gene name --> reference gumpy.Gene object
     '''
+    #TODO: Determine if all mutations will be required - currently cuts back to just genes in the catalogue
     if resistanceCatalogue:
         #Find the resistance associated genes which also have mutations in this sample
         #This considerably cuts back on the number of genes which have to be explored
@@ -158,8 +162,9 @@ def populateMutations(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference
             referenceGenes[gene] = refGene
             #Get gene difference
             diff = refGene - sample.build_gene(gene)
+
             #Pull the data out of the gumpy object
-            geneMutations = pd.DataFrame({
+            vals = {
                 'MUTATION': diff.mutations,
                 'NUCLEOTIDE_NUMBER': diff.nucleotide_number,
                 'NUCLEOTIDE_INDEX': diff.nucleotide_index,
@@ -176,13 +181,16 @@ def populateMutations(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference
                 'IS_SNP': diff.is_snp,
                 'AMINO_ACID_NUMBER': diff.amino_acid_number,
                 'AMINO_ACID_SEQUENCE': diff.amino_acid_sequence
-                })
+                }
+            vals = handleIndels(vals)
+            
+            geneMutations = pd.DataFrame(vals)
             #Add gene name
             geneMutations['GENE'] = gene
 
             #Add this gene's mutations to the total dataframe
             if not geneMutations.empty:
-                if mutations:
+                if mutations is not None:
                     mutations = pd.concat([mutations, geneMutations])
                 else:
                     mutations = geneMutations
@@ -221,6 +229,56 @@ def populateMutations(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference
         #Remove index to return
         mutations.reset_index(inplace=True)
     return mutations, referenceGenes
+
+def handleIndels(vals: dict) -> dict:
+    '''Due to how piezo works, we need to add alternative representations for indels
+        Gumpy returns indel mutations as <pos>_(ins|del)_<nucleotides>
+        Piezo catalogues may be that specific, or may require <pos>_indel or <pos>_(ins|del)_<n bases>
+
+    Args:
+        vals (dict): Initial mutation/variant values
+
+    Returns:
+        dict: Mutation/variant values with added indels as required
+    '''
+    #Determine if these are values from variants or mutations (as they have different struct)
+    if 'MUTATION' in vals.keys():
+        access = 'MUTATION'
+    elif 'VARIANT' in vals.keys():
+        access = 'VARIANT'
+    else:
+        raise NoVariantsException()
+
+    toAdd = {key: [] for key in vals.keys() if isinstance(vals[key], Iterable)}
+    toRemove = []
+    for (n, mutation) in enumerate(vals[access]):
+        if 'ins' in mutation or 'del' in mutation:
+            #Is an indel so prepare extras to add and remove this
+            toRemove.append(n)
+            pos, indel, bases = mutation.split("_")
+            indels = [
+                pos + "_" + indel + "_" + bases,
+                pos + "_indel", 
+                pos + "_" + indel + "_" + str(len(bases))
+                ]
+            #Add the extras to `toAdd`
+            for i in indels:
+                for key in toAdd.keys():
+                    #Add the extra to the MUTATION/VARIANT field
+                    if key == access:
+                        toAdd[key].append(i)
+                    #Leave the other fields unchanged
+                    else:
+                        toAdd[key].append(vals[key][n])
+    
+    #Concat the two dicts
+    for key in toAdd.keys():
+        vals[key] = vals[key].tolist()
+        for n in toRemove:
+            del vals[key][n]
+        vals[key] = vals[key] + toAdd[key]
+        # print(key, vals[key])
+    return vals
     
 
 def assignMutationBools(row: pd.Series) -> pd.Series:
