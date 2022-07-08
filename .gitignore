@@ -141,4 +141,7 @@ effects.csv
 .vscode
 
 #Keep the tests output folders from being tracked
-tests/outputs/*
+tests/outputs/**
+
+#Ensure that otherwise empty folders are tracked if they have a .gitkeep
+!*/**/.gitkeep
