@@ -421,7 +421,7 @@ def saveJSON(path: str, guid: str, values: list, gnomonVersion: str) -> None:
             'fields': Dictionary of data fields for parsing
         },
         'data': {
-            'VARAINTS': [
+            'VARIANTS': [
                 {
                     'VARIANT': Genome level variant in GARC,
                     'NUCLEOTIDE_INDEX': Genome index of variant
@@ -448,7 +448,7 @@ def saveJSON(path: str, guid: str, values: list, gnomonVersion: str) -> None:
             }
         }
     }
-    Where fields with a preceeding '?' are not consistent
+    Where fields with a preceeding '?' are not always present depending on data
 
     Args:
         path (str): Path to the directory where the variant/mutation/effect CSV files are saved. Also the output dir for this.
@@ -494,7 +494,7 @@ def saveJSON(path: str, guid: str, values: list, gnomonVersion: str) -> None:
 
     _effects = defaultdict(list)
     if effects is not None:
-        meta['fields']['EFFECTS'] = []
+        meta['fields']['EFFECTS'] = dict()
         for _, effect in effects.iterrows():
             prediction = {
                 'GENE': effect['GENE'],
@@ -512,9 +512,7 @@ def saveJSON(path: str, guid: str, values: list, gnomonVersion: str) -> None:
                     #The prediction is closer to the start of the values list, so should take priority
                     phenotype = prediction['PREDICTION']
             _effects[drug].append({'PHENOTYPE': phenotype})
-            meta['fields']['EFFECTS'].append({
-                drug: [['GENE', 'MUTATION', 'PREDICTION'], 'PHENOTYPE']
-            })
+            meta['fields']['EFFECTS'][drug] = [['GENE', 'MUTATION', 'PREDICTION'], 'PHENOTYPE']
         data['EFFECTS'] = _effects
 
     #Convert fields to a list so it can be json serialised

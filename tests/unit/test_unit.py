@@ -4,8 +4,10 @@ Run from root of git dir with `pytest -vv`
 '''
 import os
 import shutil
+import json
 
 import pandas as pd
+import numpy
 
 import gumpy
 import piezo
@@ -29,6 +31,43 @@ def setupOutput(testID: str):
         #Not empty, so delete and recreate
         shutil.rmtree(path)
         os.makedirs(path, exist_ok=True)
+
+def check_eq(arr1: list|dict|tuple, arr2: list|dict|tuple, check: bool) -> bool:
+    '''Recursive helper function to determine if 2 arrays are equal. Borrowed from the gumpy unit tests
+    Checks all sub-arrays (if exist). Will work with list, tuple, dict (and numpy.array)
+    Used to check for JSON equality with nested lists etc
+
+    Args:
+        arr1 (list|dict|tuple): Array 1
+        arr2 (list|dict|tuple): Array 2
+        check (bool): Boolean accumulator. Start with True
+
+    Returns:
+        bool: True when the two arrays are equal
+    '''
+    if not check:
+        return False
+    if type(arr1) == dict:
+        if arr1.keys() != arr2.keys():
+            return False
+        else:
+            for key in arr1.keys():
+                e1 = arr1[key]
+                e2 = arr2[key]
+                if type(e1) in [list, tuple, dict, type(numpy.array([]))]:
+                    check = check and check_eq(e1, e2, check)
+                else:
+                    check = check and (e1 == e2)
+    else:
+        if len(arr1) != len(arr2):
+            return False
+        else:
+            for (e1, e2) in zip(arr1, arr2):
+                if type(e1) in [list, tuple, dict, type(numpy.array([]))]:
+                    check = check and check_eq(e1, e2, check)
+                else:
+                    check = check and (e1 == e2)
+    return check
 
 def test_1():
     '''Input:
@@ -70,6 +109,73 @@ def test_1():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
 
+    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+
+    expectedJSON = {
+        'meta': {
+            'version': gnomon.__version__,
+            'guid': vcfStem,
+            'fields': {
+                "EFFECTS": [
+                    {
+                        "AAA": [
+                        [
+                            "GENE",
+                            "MUTATION",
+                            "PREDICTION"
+                        ],
+                        "PHENOTYPE"
+                        ]
+                    }
+                    ],
+                "MUTATIONS": [
+                    "MUTATION",
+                    "GENE",
+                    "GENE_POSITION"
+                    ],
+                "VARIANTS": [
+                    "VARIANT",
+                    "NUCLEOTIDE_INDEX"
+                    ]
+            }
+        },
+        'data': {
+            'VARIANTS': [
+                {
+                    'VARIANT': '23012g>a',
+                    'NUCLEOTIDE_INDEX': 23012
+                }
+            ],
+            'MUTATIONS': [
+                {
+                    'MUTATION': 'E484K',
+                    'GENE': 'S',
+                    'GENE_POSITION':484
+                }
+            ],
+            'EFFECTS': {
+                'AAA': [
+                    {
+                        'GENE': 'S',
+                        'MUTATION': 'E484K',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'PHENOTYPE': 'R'
+                    }
+                ],
+            }
+        }
+    }
+
+    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Remove datetime as this is unreplicable
+    del actualJSON['meta']['UTC-datetime-run']
+
+    for key in actualJSON['data'].keys():
+        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
+    assert check_eq(expectedJSON, actualJSON, True)
+
 def test_2():
     '''Input:
             NC_045512.2-S_E484K-samtools.vcf
@@ -109,6 +215,73 @@ def test_2():
 
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
+
+    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+
+    expectedJSON = {
+        'meta': {
+            'version': gnomon.__version__,
+            'guid': vcfStem,
+            'fields': {
+                "EFFECTS": [
+                    {
+                        "AAA": [
+                        [
+                            "GENE",
+                            "MUTATION",
+                            "PREDICTION"
+                        ],
+                        "PHENOTYPE"
+                        ]
+                    }
+                    ],
+                "MUTATIONS": [
+                    "MUTATION",
+                    "GENE",
+                    "GENE_POSITION"
+                    ],
+                "VARIANTS": [
+                    "VARIANT",
+                    "NUCLEOTIDE_INDEX"
+                    ]
+            }
+        },
+        'data': {
+            'VARIANTS': [
+                {
+                    'VARIANT': '23012g>a',
+                    'NUCLEOTIDE_INDEX': 23012
+                }
+            ],
+            'MUTATIONS': [
+                {
+                    'MUTATION': 'E484K',
+                    'GENE': 'S',
+                    'GENE_POSITION':484
+                }
+            ],
+            'EFFECTS': {
+                'AAA': [
+                    {
+                        'GENE': 'S',
+                        'MUTATION': 'E484K',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'PHENOTYPE': 'R'
+                    }
+                ],
+            }
+        }
+    }
+
+    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Remove datetime as this is unreplicable
+    del actualJSON['meta']['UTC-datetime-run']
+
+    for key in actualJSON['data'].keys():
+        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
+    assert check_eq(expectedJSON, actualJSON, True)
 
 def test_3():
     '''Input:
@@ -150,6 +323,73 @@ def test_3():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'S'
 
+    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+
+    expectedJSON = {
+        'meta': {
+            'version': gnomon.__version__,
+            'guid': vcfStem,
+            'fields': {
+                "EFFECTS": [
+                    {
+                        "AAA": [
+                        [
+                            "GENE",
+                            "MUTATION",
+                            "PREDICTION"
+                        ],
+                        "PHENOTYPE"
+                        ]
+                    }
+                    ],
+                "MUTATIONS": [
+                    "MUTATION",
+                    "GENE",
+                    "GENE_POSITION"
+                    ],
+                "VARIANTS": [
+                    "VARIANT",
+                    "NUCLEOTIDE_INDEX"
+                    ]
+            }
+        },
+        'data': {
+            'VARIANTS': [
+                {
+                    'VARIANT': '21568t>c',
+                    'NUCLEOTIDE_INDEX': 21568
+                }
+            ],
+            'MUTATIONS': [
+                {
+                    'MUTATION': 'F2F',
+                    'GENE': 'S',
+                    'GENE_POSITION':2
+                }
+            ],
+            'EFFECTS': {
+                'AAA': [
+                    {
+                        'GENE': 'S',
+                        'MUTATION': 'F2F',
+                        'PREDICTION': 'S'
+                    },
+                    {
+                        'PHENOTYPE': 'S'
+                    }
+                ],
+            }
+        }
+    }
+
+    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Remove datetime as this is unreplicable
+    del actualJSON['meta']['UTC-datetime-run']
+
+    for key in actualJSON['data'].keys():
+        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
+    assert check_eq(expectedJSON, actualJSON, True)
+
 
 def test_4():
     '''Input:
@@ -190,6 +430,73 @@ def test_4():
 
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'U'
+
+    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+
+    expectedJSON = {
+        'meta': {
+            'version': gnomon.__version__,
+            'guid': vcfStem,
+            'fields': {
+                "EFFECTS": [
+                    {
+                        "AAA": [
+                        [
+                            "GENE",
+                            "MUTATION",
+                            "PREDICTION"
+                        ],
+                        "PHENOTYPE"
+                        ]
+                    }
+                    ],
+                "MUTATIONS": [
+                    "MUTATION",
+                    "GENE",
+                    "GENE_POSITION"
+                    ],
+                "VARIANTS": [
+                    "VARIANT",
+                    "NUCLEOTIDE_INDEX"
+                    ]
+            }
+        },
+        'data': {
+            'VARIANTS': [
+                {
+                    'VARIANT': '21566t>c',
+                    'NUCLEOTIDE_INDEX': 21566
+                }
+            ],
+            'MUTATIONS': [
+                {
+                    'MUTATION': 'F2L',
+                    'GENE': 'S',
+                    'GENE_POSITION':2
+                }
+            ],
+            'EFFECTS': {
+                'AAA': [
+                    {
+                        'GENE': 'S',
+                        'MUTATION': 'F2L',
+                        'PREDICTION': 'S'
+                    },
+                    {
+                        'PHENOTYPE': 'U'
+                    }
+                ],
+            }
+        }
+    }
+
+    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Remove datetime as this is unreplicable
+    del actualJSON['meta']['UTC-datetime-run']
+
+    for key in actualJSON['data'].keys():
+        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
+    assert check_eq(expectedJSON, actualJSON, True)    
 
 
 def test_5():
@@ -241,6 +548,91 @@ def test_5():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
 
+    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+
+    expectedJSON = {
+        'meta': {
+            'version': gnomon.__version__,
+            'guid': vcfStem,
+            'fields': {
+                "EFFECTS": [
+                    {
+                        "AAA": [
+                        [
+                            "GENE",
+                            "MUTATION",
+                            "PREDICTION"
+                        ],
+                        "PHENOTYPE"
+                        ]
+                    }
+                    ],
+                "MUTATIONS": [
+                    "MUTATION",
+                    "GENE",
+                    "GENE_POSITION"
+                    ],
+                "VARIANTS": [
+                    "VARIANT",
+                    "NUCLEOTIDE_INDEX"
+                    ]
+            }
+        },
+        'data': {
+            'VARIANTS': [
+                {
+                    'VARIANT': '21762_indel',
+                    'NUCLEOTIDE_INDEX': 21762
+                },
+                {
+                    'VARIANT': '200_ins_1',
+                    'NUCLEOTIDE_INDEX': 21762
+                },
+                {
+                    'VARIANT': '200_ins_c',
+                    'NUCLEOTIDE_INDEX': 21762
+                },
+            ],
+            'MUTATIONS': [
+                {
+                    'MUTATION': '200_indel',
+                    'GENE': 'S',
+                    'GENE_POSITION':200
+                },
+                {
+                    'MUTATION': '200_ins_1',
+                    'GENE': 'S',
+                    'GENE_POSITION':200
+                },
+                {
+                    'MUTATION': '200_ins_c',
+                    'GENE': 'S',
+                    'GENE_POSITION':200
+                },
+            ],
+            'EFFECTS': {
+                'AAA': [
+                    {
+                        'GENE': 'S',
+                        'MUTATION': 'F2F',
+                        'PREDICTION': 'S'
+                    },
+                    {
+                        'PHENOTYPE': 'S'
+                    }
+                ],
+            }
+        }
+    }
+
+    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Remove datetime as this is unreplicable
+    del actualJSON['meta']['UTC-datetime-run']
+
+    for key in actualJSON['data'].keys():
+        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
+    assert check_eq(expectedJSON, actualJSON, True)
+
 def test_6():
     '''Input:
             NC_045512.2-double-minos.vcf
@@ -287,3 +679,93 @@ def test_6():
     
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('BBB')] == 'R'
+
+    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+
+    expectedJSON = {
+        'meta': {
+            'version': gnomon.__version__,
+            'guid': vcfStem,
+            'fields': {
+                "EFFECTS": [
+                    {
+                        "AAA": [
+                        [
+                            "GENE",
+                            "MUTATION",
+                            "PREDICTION"
+                        ],
+                        "PHENOTYPE"
+                        ], 
+                        "BBB": [
+                        [
+                            "GENE",
+                            "MUTATION",
+                            "PREDICTION"
+                        ],
+                        "PHENOTYPE"
+                        ], 
+                    }
+                    ],
+                "MUTATIONS": [
+                    "MUTATION",
+                    "GENE",
+                    "GENE_POSITION"
+                    ],
+                "VARIANTS": [
+                    "VARIANT",
+                    "NUCLEOTIDE_INDEX"
+                    ]
+            }
+        },
+        'data': {
+            'VARIANTS': [
+                {
+                    'VARIANT': '27758g>c',
+                    'NUCLEOTIDE_INDEX': 27758
+                }
+            ],
+            'MUTATIONS': [
+                {
+                    'MUTATION': '!122S',
+                    'GENE': 'ORF7a',
+                    'GENE_POSITION': 122
+                },
+                {
+                    'MUTATION': 'M1I',
+                    'GENE': 'ORF7b',
+                    'GENE_POSITION': 1
+                },
+            ],
+            'EFFECTS': {
+                'AAA': [
+                    {
+                        'GENE': 'ORF7a',
+                        'MUTATION': '!122S',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'PHENOTYPE': 'R'
+                    }
+                ],
+                'BBB': [
+                    {
+                        'GENE': 'ORF7b',
+                        'MUTATION': 'M1I',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'PHENOTYPE': 'R'
+                    }
+                ],
+            }
+        }
+    }
+
+    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Remove datetime as this is unreplicable
+    del actualJSON['meta']['UTC-datetime-run']
+
+    for key in actualJSON['data'].keys():
+        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
+    assert check_eq(expectedJSON, actualJSON, True)
