@@ -11,16 +11,8 @@ import time
 import gumpy
 import piezo
 
-from gnomon import loadGenome, NoVariantsException, populateVariants, populateMutations, populateEffects
-
-
-class InvalidArgument(Exception):
-    '''Custom exception to be raised if invalid arguments are given
-    '''
-    def __init__(self, flag: str, value: str) -> None:
-        self.message = f"Invalid value '{value}' for argument '{flag}'"
-        super().__init__(self.message)
-
+from gnomon import loadGenome, NoVariantsException, populateVariants, populateMutations, populateEffects, saveJSON
+import gnomon
 
 if __name__ == "__main__":
     start = time.time()
@@ -32,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--ignore_vcf_filter",action='store_true',default=False,help="whether to ignore the FILTER field in the vcf (e.g. necessary for some versions of Clockwork VCFs)")
     parser.add_argument("--progress",action='store_true',default=False,help="whether to show progress using tqdm")
     parser.add_argument("--output_dir", required=False, default=".", help="Directory to save output files to. Defaults to wherever the script is run from.")
-    parser.add_argument("--filetype", required=False, default="csv", help="Required output filetype. Must be one of [csv, json]. Defaults to csv.")
+    parser.add_argument("--json", required=False, action='store_true', default=False, help="Flag to create a single JSON output as well as the CSVs")
     options = parser.parse_args()
 
     #Make the output directory if it doesn't already exist
@@ -42,12 +34,6 @@ if __name__ == "__main__":
     logging.basicConfig(filename=os.path.join(options.output_dir, 'gnomon.log'), filemode='w', format='%(asctime)s -  %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.DEBUG)
     logging.info(f"Gnomon starting with output directory {options.output_dir}")
 
-    #Check for valid filetype
-    if options.filetype not in ['csv', 'json']:
-        logging.error(f"Invalid output filetype (--filetype): {options.filetype}.")
-        raise InvalidArgument('--filetype', options.filetype)
-    
-    logging.info(f"Output filetype {options.filetype}")
 
     #Get reference genome
     reference = loadGenome(options.genome_object, options.progress)
@@ -80,19 +66,19 @@ if __name__ == "__main__":
         raise NoVariantsException()
 
     #Get the variations and mutations
-    populateVariants(vcfStem, options.output_dir, diff, options.filetype)
+    populateVariants(vcfStem, options.output_dir, diff)
     logging.debug("Populated and saved variants.csv")
 
     mutations, referenceGenes = populateMutations(vcfStem, options.output_dir, diff, 
-                        reference, sample, resistanceCatalogue, options.filetype)
-    if not mutations:
+                        reference, sample, resistanceCatalogue)
+    if mutations is not None:
         logging.info("No mutations found - probably due to exclusively inter-gene variation or no variation.\n\t\t\t\t\t\t\t No effects.csv written")
     else:
         logging.debug("Populated and saved mutatons.csv")
 
     #Get the effects of the mutations
-    if resistanceCatalogue and mutations:
-        metadata = populateEffects(sample, options.output_dir, resistanceCatalogue, mutations, referenceGenes, options.filetype)
+    if resistanceCatalogue is not None and mutations is not None:
+        metadata = populateEffects(sample, options.output_dir, resistanceCatalogue, mutations, referenceGenes)
         logging.debug("Populated and saved effects.csv")
     else:
         metadata = {}
@@ -114,3 +100,10 @@ if __name__ == "__main__":
     for drug in sorted(metadata.keys()):
         logging.info(f"{drug} {metadata[drug]}")
     logging.info(f"Completed in {time.time()-start}s")
+
+    if options.json:
+        #Default prediction values are RFUS but use piezo catalogue's values if existing
+        values = resistanceCatalogue.catalogue.values
+        if not values:
+            values = list("RFUS")
+        saveJSON(options.output_dir, vcfStem, values, gnomon.__version__)

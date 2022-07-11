@@ -7,7 +7,10 @@ Based on sp3predict
 import logging
 import os
 import pickle
+import datetime
+import json
 from collections.abc import Iterable
+from collections import defaultdict
 
 import gumpy
 import numpy as np
@@ -81,14 +84,13 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     pickle.dump(reference, open(path+'.pkl', 'wb'))
     return reference
 
-def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, filetype: str) -> None:
+def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference) -> None:
     '''Populate and save the variants DataFrame as a CSV
 
     Args:
         vcfStem (str): The stem of the filename for the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
         diff (gumpy.GenomeDifference): GenomeDifference object between reference and the sample
-        filetype (str): Requested output filetype. One of [csv, json]
     '''
     #Populate variants table directly from GenomeDifference
     vals = {
@@ -117,20 +119,14 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             logging.error("IS_SNP not in variant table!")
             raise MissingFieldException('IS_SNP', 'variant')
 
-        if filetype == "csv":
-            #Set the index
-            variants.set_index(['UNIQUEID', 'VARIANT', 'IS_SNP'], inplace=True, verify_integrity=True)
-            #Save CSV
-            variants.to_csv(os.path.join(outputDir, 'variants.csv'), header=True)
-        elif filetype == "json":
-            #Save JSON
-            variants.to_json(os.path.join(outputDir, 'variants.json'), orient='records', indent=2)
-        else:
-            logging.error(f"Filetype not in [csv, json]: {filetype}")
+        #Set the index
+        variants.set_index(['UNIQUEID', 'VARIANT', 'IS_SNP'], inplace=True, verify_integrity=True)
+        #Save CSV
+        variants.to_csv(os.path.join(outputDir, 'variants.csv'), header=True)
 
 def populateMutations(
         vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome,
-        sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue, filetype: str) -> (pd.DataFrame, dict):
+        sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue) -> (pd.DataFrame, dict):
     '''Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
 
     Args:
@@ -140,7 +136,6 @@ def populateMutations(
         reference (gumpy.Genome): Reference genome
         sample (gumpy.Genome): Sample genome
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue (used to find which genes to check)
-        filetype (str): Requested output filetype. One of [csv, json]
 
     Raises:
         MissingFieldException: Raised when the mutations DataFrame does not contain the required fields
@@ -233,14 +228,8 @@ def populateMutations(
         #Set the index
         mutations.set_index(['UNIQUEID', 'GENE', 'MUTATION'], inplace=True, verify_integrity=True)
 
-        if filetype == "csv":
-            #Save it as CSV
-            mutations.to_csv(os.path.join(outputDir, 'mutations.csv'))
-        elif filetype == "json":
-            #Save it as JSON
-            mutations.to_json(os.path.join(outputDir, 'mutations.json'), orient='records', indent=2)
-        else:
-            logging.error(f"Filetype not in [csv, json]: {filetype}")
+        #Save it as CSV
+        mutations.to_csv(os.path.join(outputDir, 'mutations.csv'))
 
         #Remove index to return
         mutations.reset_index(inplace=True)
@@ -334,7 +323,7 @@ def countNucleotideChanges(row: pd.Series) -> int:
 
 def populateEffects(
         sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
-        mutations: pd.DataFrame, referenceGenes: dict, filetype: str) -> dict:
+        mutations: pd.DataFrame, referenceGenes: dict) -> dict:
     '''Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -343,7 +332,6 @@ def populateEffects(
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue for predictions
         mutations (pd.DataFrame): Mutations dataframe
         referenceGenes (dict): Dictionary mapping gene name --> reference gumpy.Gene objects
-        filetype (str): Requested output filetype. One of [csv, json]
 
     Raises:
         InvalidMutationException: Raised if an invalid mutation is detected
@@ -401,14 +389,98 @@ def populateEffects(
     #Set the index
     effects.set_index(["UNIQUEID", "DRUG", "GENE", "MUTATION", "CATALOGUE_NAME"], inplace=True)
     
-    if filetype == "csv":
-        #Save as CSV
-        effects.to_csv(os.path.join(outputDir, 'effects.csv'))
-    elif filetype == "json":
-        #Save it as JSON
-        effects.to_json(os.path.join(outputDir, 'effects.json'), orient='records', indent=2)
-    else:
-        logging.error(f"Filetype not in [csv, json]: {filetype}")
+    #Save as CSV
+    effects.to_csv(os.path.join(outputDir, 'effects.csv'))
 
     #Return  the metadata dict to log later
     return {"WGS_PREDICTION_"+drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs}
+    
+def getCSV(path: str, csv: str) -> None | pd.DataFrame:
+    '''Get the specified CSV from a specified path as a DataFrame
+
+    Args:
+        path (str): Path to the directory
+        csv (str): Name of the CSV file
+
+    Returns:
+        None | pd.DataFrame: Either None or a DataFrame depending if the file exists
+    '''
+    #Find the files which exist
+    if os.path.exists(os.path.join(path, csv)):
+        with open(os.path.join(path, csv), 'r') as f:
+            return pd.read_csv(f)
+    return None
+
+def saveJSON(path: str, guid: str, values: list, gnomonVersion: str) -> None:
+    '''Create and save a single JSON output file for use within GPAS
+
+    Args:
+        path (str): Path to the directory where the variant/mutation/effect CSV files are saved. Also the output dir for this.
+        guid (str): Sample GUID
+        values (str): Prediction values for the resistance catalogue in priority order (values[0] is highest priority)
+        gnomonVersion (str): Semantic versioning string for the gnomon module. Can be accessed by `gnomon.__version__`
+    '''
+    variants = getCSV(path, 'variants.csv')
+    mutations = getCSV(path, 'mutations.csv')
+    effects = getCSV(path, 'effects.csv')
+
+    #Define some metadata for the json
+    meta = {
+        'version': gnomonVersion, #Gnomon version used
+        'guid': guid, #Sample GUID
+        'UTC-datetime-run': datetime.datetime.utcnow().isoformat(), #ISO datetime run
+        'fields': dict() #Fields included. These vary according to existance of mutations/effects
+        }
+    data = {}
+    #Variants field
+    _variants = []
+    meta['fields']['VARIANTS'] = ['VARIANT', 'NUCLEOTIDE_INDEX']
+    for _, variant in variants.iterrows():
+        row = {
+            'VARIANT': variant['VARIANT'],
+            'NUCLEOTIDE_INDEX': variant['NUCLEOTIDE_INDEX'],
+        }
+        _variants.append(row)
+    data['VARIANTS'] = _variants
+
+    #Depending on mutations/effects, populate
+    _mutations = []
+    if mutations is not None:
+        meta['fields']['MUTATIONS'] = ['MUTATION', 'GENE', 'GENE_POSITION']
+        for _, mutation in mutations.iterrows():
+            row = {
+                'MUTATION': mutation['MUTATION'],
+                'GENE': mutation['GENE'],
+                'GENE_POSITION': mutation['GENE_POSITION']
+            }
+            _mutations.append(row)
+        data['MUTATIONS'] = _mutations
+
+    _effects = defaultdict(list)
+    if effects is not None:
+        meta['fields']['EFFECTS'] = []
+        for _, effect in effects.iterrows():
+            prediction = {
+                'GENE': effect['GENE'],
+                'MUTATION': effect['MUTATION'],
+                'PREDICTION': effect['PREDICTION']
+            }
+            _effects[effect['DRUG']].append(prediction)
+        
+        #Get the overall predictions for each drug
+        for drug, predictions in _effects.items():
+            phenotype = 'S'
+            for prediction in predictions:
+                #Use the prediction heierarchy to use most signifiant prediction
+                if values.index(prediction['PREDICTION']) < values.index(phenotype):
+                    #The prediction is closer to the start of the values list, so should take priority
+                    phenotype = prediction['PREDICTION']
+            _effects[drug].append({'PHENOTYPE': phenotype})
+            meta['fields']['EFFECTS'].append({
+                drug: [['GENE', 'MUTATION', 'PREDICTION'], 'PHENOTYPE']
+            })
+        data['EFFECTS'] = _effects
+
+    #Convert fields to a list so it can be json serialised
+    with open(os.path.join(path, 'gnomon-out.json'), 'w') as f:
+        print(json.dumps({'meta': meta, 'data': data}, indent=2, sort_keys=True), file=f)

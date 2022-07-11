@@ -40,7 +40,7 @@ def test_1():
     '''
     #Setup
     setupOutput('1')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk")
+    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_E484K-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -82,7 +82,7 @@ def test_2():
     '''
     #Setup
     setupOutput('2')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk")
+    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_E484K-samtools.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -122,7 +122,7 @@ def test_3():
     '''
     #Setup
     setupOutput('3')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk")
+    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_F2F-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -163,7 +163,7 @@ def test_4():
     '''
     #Setup
     setupOutput('4')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk")
+    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_F2L-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -204,7 +204,7 @@ def test_5():
     '''
     #Setup
     setupOutput('5')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk")
+    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_200_indel-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -253,7 +253,7 @@ def test_6():
     '''
     #Setup
     setupOutput('6')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk")
+    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-double-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
