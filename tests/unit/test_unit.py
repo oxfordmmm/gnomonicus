@@ -68,9 +68,7 @@ def test_1():
     assert mutations['MUTATION'][0] == 'E484K'
 
     assert 'AAA' in effects['DRUG'].to_list()
-    # assert 'BBB' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
-    # assert effects.loc(effects['DRUG'] == 'BBB')[0] == 'S'    
 
 def test_2():
     '''Input:

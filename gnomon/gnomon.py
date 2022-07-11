@@ -412,7 +412,43 @@ def getCSV(path: str, csv: str) -> None | pd.DataFrame:
     return None
 
 def saveJSON(path: str, guid: str, values: list, gnomonVersion: str) -> None:
-    '''Create and save a single JSON output file for use within GPAS
+    '''Create and save a single JSON output file for use within GPAS. JSON structure:
+    {
+        'meta': {
+            'version': gnomon version,
+            'guid': sample GUID,
+            'UTC-datetime-run': ISO formatted UTC datetime run,
+            'fields': Dictionary of data fields for parsing
+        },
+        'data': {
+            'VARAINTS': [
+                {
+                    'VARIANT': Genome level variant in GARC,
+                    'NUCLEOTIDE_INDEX': Genome index of variant
+                }, ...
+            ],
+            ?'MUTATIONS': [
+                {
+                    'MUTATION': Gene level mutation in GARC,
+                    'GENE': Gene name,
+                    'GENE_POSITION': Position within the gene. Amino acid or nucleotide index depending on which is appropriate
+                }
+            ],
+            ?'EFFECTS': {
+                Drug name: [
+                    {
+                        'GENE': Gene name of the mutation,
+                        'MUTATION': Gene level mutation in GARC,
+                        'PREDICTION': Prediction caused by this mutation
+                    }, ...,
+                    {
+                        'PHENOTYPE': Resultant prediction for this drug based on prediciton heirarchy
+                    }
+                ], ...
+            }
+        }
+    }
+    Where fields with a preceeding '?' are not consistent
 
     Args:
         path (str): Path to the directory where the variant/mutation/effect CSV files are saved. Also the output dir for this.
