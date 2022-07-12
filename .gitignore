@@ -136,9 +136,9 @@ dmypy.json
 variants.csv
 mutations.csv
 effects.csv
-variants.json
-mutations.json
-effects.json
+gnomon-out.json
+*-fixed.fasta
+*-variable.fasta
 
 #Block vscode config files
 .vscode
