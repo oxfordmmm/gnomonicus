@@ -7,7 +7,10 @@ Based on sp3predict
 import logging
 import os
 import pickle
+import datetime
+import json
 from collections.abc import Iterable
+from collections import defaultdict
 
 import gumpy
 import numpy as np
@@ -48,12 +51,13 @@ class InvalidMutationException(Exception):
         super().__init__(self.message)
 
 
-def loadGenome(path: str) -> gumpy.Genome:
+def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     '''Load a genome from a given path. Checks if path is to a pickle dump, or if a pickle dump of the path's file exists
     Instanciates a new gumpy Genome and dumps to pickle as a last resort
 
     Args:
         path (str): Path to the genbank file or pickle dump. If previously run, a genbank file's Genome object is pickled and dumped for speed
+        progress (bool): Boolean as whether to show progress bar for gumpy
 
     Returns:
         gumpy.Genome: Genome object of the reference genome
@@ -76,7 +80,7 @@ def loadGenome(path: str) -> gumpy.Genome:
         logging.info("No pickled version of genome object, instanciating and dumping")
     
     #Create new gumpy.Genome and pickle dump for speed later
-    reference = gumpy.Genome(path, show_progress_bar=True)
+    reference = gumpy.Genome(path, show_progress_bar=progress)
     pickle.dump(reference, open(path+'.pkl', 'wb'))
     return reference
 
@@ -117,11 +121,12 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference)
 
         #Set the index
         variants.set_index(['UNIQUEID', 'VARIANT', 'IS_SNP'], inplace=True, verify_integrity=True)
-
         #Save CSV
         variants.to_csv(os.path.join(outputDir, 'variants.csv'), header=True)
 
-def populateMutations(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome, sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue) -> (pd.DataFrame, dict):
+def populateMutations(
+        vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome,
+        sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue) -> (pd.DataFrame, dict):
     '''Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
 
     Args:
@@ -316,7 +321,9 @@ def countNucleotideChanges(row: pd.Series) -> int:
         return np.sum([i!=j for (i,j) in zip(row['REF'],row['ALT'] ) ])
     return 0
 
-def populateEffects(sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue, mutations: pd.DataFrame, referenceGenes: dict) -> dict:
+def populateEffects(
+        sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
+        mutations: pd.DataFrame, referenceGenes: dict) -> dict:
     '''Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -387,3 +394,127 @@ def populateEffects(sample: gumpy.Genome, outputDir: str, resistanceCatalogue: p
 
     #Return  the metadata dict to log later
     return {"WGS_PREDICTION_"+drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs}
+    
+def getCSV(path: str, csv: str) -> None | pd.DataFrame:
+    '''Get the specified CSV from a specified path as a DataFrame
+
+    Args:
+        path (str): Path to the directory
+        csv (str): Name of the CSV file
+
+    Returns:
+        None | pd.DataFrame: Either None or a DataFrame depending if the file exists
+    '''
+    #Find the files which exist
+    if os.path.exists(os.path.join(path, csv)):
+        with open(os.path.join(path, csv), 'r') as f:
+            return pd.read_csv(f)
+    return None
+
+def saveJSON(path: str, guid: str, values: list, gnomonVersion: str) -> None:
+    '''Create and save a single JSON output file for use within GPAS. JSON structure:
+    {
+        'meta': {
+            'version': gnomon version,
+            'guid': sample GUID,
+            'UTC-datetime-run': ISO formatted UTC datetime run,
+            'fields': Dictionary of data fields for parsing
+        },
+        'data': {
+            'VARIANTS': [
+                {
+                    'VARIANT': Genome level variant in GARC,
+                    'NUCLEOTIDE_INDEX': Genome index of variant
+                }, ...
+            ],
+            ?'MUTATIONS': [
+                {
+                    'MUTATION': Gene level mutation in GARC,
+                    'GENE': Gene name,
+                    'GENE_POSITION': Position within the gene. Amino acid or nucleotide index depending on which is appropriate
+                }
+            ],
+            ?'EFFECTS': {
+                Drug name: [
+                    {
+                        'GENE': Gene name of the mutation,
+                        'MUTATION': Gene level mutation in GARC,
+                        'PREDICTION': Prediction caused by this mutation
+                    }, ...,
+                    {
+                        'PHENOTYPE': Resultant prediction for this drug based on prediciton heirarchy
+                    }
+                ], ...
+            }
+        }
+    }
+    Where fields with a preceeding '?' are not always present depending on data
+
+    Args:
+        path (str): Path to the directory where the variant/mutation/effect CSV files are saved. Also the output dir for this.
+        guid (str): Sample GUID
+        values (str): Prediction values for the resistance catalogue in priority order (values[0] is highest priority)
+        gnomonVersion (str): Semantic versioning string for the gnomon module. Can be accessed by `gnomon.__version__`
+    '''
+    variants = getCSV(path, 'variants.csv')
+    mutations = getCSV(path, 'mutations.csv')
+    effects = getCSV(path, 'effects.csv')
+
+    #Define some metadata for the json
+    meta = {
+        'version': gnomonVersion, #Gnomon version used
+        'guid': guid, #Sample GUID
+        'UTC-datetime-run': datetime.datetime.utcnow().isoformat(), #ISO datetime run
+        'fields': dict() #Fields included. These vary according to existance of mutations/effects
+        }
+    data = {}
+    #Variants field
+    _variants = []
+    meta['fields']['VARIANTS'] = ['VARIANT', 'NUCLEOTIDE_INDEX']
+    for _, variant in variants.iterrows():
+        row = {
+            'VARIANT': variant['VARIANT'],
+            'NUCLEOTIDE_INDEX': variant['NUCLEOTIDE_INDEX'],
+        }
+        _variants.append(row)
+    data['VARIANTS'] = _variants
+
+    #Depending on mutations/effects, populate
+    _mutations = []
+    if mutations is not None:
+        meta['fields']['MUTATIONS'] = ['MUTATION', 'GENE', 'GENE_POSITION']
+        for _, mutation in mutations.iterrows():
+            row = {
+                'MUTATION': mutation['MUTATION'],
+                'GENE': mutation['GENE'],
+                'GENE_POSITION': mutation['GENE_POSITION']
+            }
+            _mutations.append(row)
+        data['MUTATIONS'] = _mutations
+
+    _effects = defaultdict(list)
+    if effects is not None:
+        meta['fields']['EFFECTS'] = dict()
+        for _, effect in effects.iterrows():
+            prediction = {
+                'GENE': effect['GENE'],
+                'MUTATION': effect['MUTATION'],
+                'PREDICTION': effect['PREDICTION']
+            }
+            _effects[effect['DRUG']].append(prediction)
+        
+        #Get the overall predictions for each drug
+        for drug, predictions in _effects.items():
+            phenotype = 'S'
+            for prediction in predictions:
+                #Use the prediction heierarchy to use most signifiant prediction
+                if values.index(prediction['PREDICTION']) < values.index(phenotype):
+                    #The prediction is closer to the start of the values list, so should take priority
+                    phenotype = prediction['PREDICTION']
+            _effects[drug].append({'PHENOTYPE': phenotype})
+            meta['fields']['EFFECTS'][drug] = [['GENE', 'MUTATION', 'PREDICTION'], 'PHENOTYPE']
+        data['EFFECTS'] = _effects
+
+    #Convert fields to a list so it can be json serialised
+    with open(os.path.join(path, 'gnomon-out.json'), 'w') as f:
+        print(json.dumps({'meta': meta, 'data': data}, indent=2, sort_keys=True), file=f)
