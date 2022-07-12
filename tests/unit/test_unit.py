@@ -7,7 +7,8 @@ import shutil
 import json
 
 import pandas as pd
-import numpy
+#Helpful function import for testing nested JSON equality but does not handle [{}, {}] well
+from recursive_diff import recursive_eq
 
 import gumpy
 import piezo
@@ -15,8 +16,14 @@ import pytest
 
 import gnomon
 
+'''
+Due to complications testing equalities of nested jsons of lists/dicts, there is a lot of 
+code specificially dedicated to ensuring the lists are in the same order (they differ due to
+a mixture of dictionary behaviour and different positions within files). However, we only care that
+the contents of the JSON is there for these tests rather than caring about order.
+'''
 
-def setupOutput(testID: str):
+def setupOutput(testID: str) -> None:
     '''Ensure that the output folder exists and is empty in preparation for a test
 
     Args:
@@ -32,42 +39,39 @@ def setupOutput(testID: str):
         shutil.rmtree(path)
         os.makedirs(path, exist_ok=True)
 
-def check_eq(arr1: list|dict|tuple, arr2: list|dict|tuple, check: bool) -> bool:
-    '''Recursive helper function to determine if 2 arrays are equal. Borrowed from the gumpy unit tests
-    Checks all sub-arrays (if exist). Will work with list, tuple, dict (and numpy.array)
-    Used to check for JSON equality with nested lists etc
+def concatFields(d: dict) -> str:
+    '''Concat the value of a dictionary in the order of the sorted keys
 
     Args:
-        arr1 (list|dict|tuple): Array 1
-        arr2 (list|dict|tuple): Array 2
-        check (bool): Boolean accumulator. Start with True
+        d (dict): Dictionary input
 
     Returns:
-        bool: True when the two arrays are equal
+        str: String of values
     '''
-    if not check:
-        return False
-    if type(arr1) == dict:
-        if arr1.keys() != arr2.keys():
-            return False
-        else:
-            for key in arr1.keys():
-                e1 = arr1[key]
-                e2 = arr2[key]
-                if type(e1) in [list, tuple, dict, type(numpy.array([]))]:
-                    check = check and check_eq(e1, e2, check)
-                else:
-                    check = check and (e1 == e2)
-    else:
-        if len(arr1) != len(arr2):
-            return False
-        else:
-            for (e1, e2) in zip(arr1, arr2):
-                if type(e1) in [list, tuple, dict, type(numpy.array([]))]:
-                    check = check and check_eq(e1, e2, check)
-                else:
-                    check = check and (e1 == e2)
-    return check
+    return ''.join([str(d[key]) for key in sorted(list(d.keys()))])
+
+def sortValues(json: dict) -> dict:
+    '''Sort the values within the VARIANTS, MUTATIONS and EFFECTS lists in a JSON.
+    THis allows to test for contents equality as order is not particularly important here
+
+    Args:
+        json (dict): JSON in
+
+    Returns:
+        dict: JSON with VARIANTS, MUTATIONS and EFFECTS lists in reproducable orders for equality checks
+    '''
+    variants = json['data']['VARIANTS']
+    mutations = json['data'].get('MUTATIONS', None)
+    effects = json['data'].get('EFFECTS', None)
+    
+    json['data']['VARIANTS'] = sorted(variants, key=concatFields)
+    if mutations is not None:
+        json['data']['MUTATIONS'] = sorted(mutations, key=concatFields)
+    if effects is not None:
+        for drug in effects.keys():
+            json['data']['EFFECTS'][drug] = sorted(effects[drug], key=concatFields)
+    
+    return json
 
 def test_1():
     '''Input:
@@ -116,8 +120,7 @@ def test_1():
             'version': gnomon.__version__,
             'guid': vcfStem,
             'fields': {
-                "EFFECTS": [
-                    {
+                "EFFECTS": {
                         "AAA": [
                         [
                             "GENE",
@@ -126,8 +129,7 @@ def test_1():
                         ],
                         "PHENOTYPE"
                         ]
-                    }
-                    ],
+                    },
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
@@ -168,13 +170,16 @@ def test_1():
         }
     }
 
-    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Ensure the same key ordering as actual by running through json dumping and loading
+    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
+    expectedJSON = sortValues(json.loads(strJSON))
+
+    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
-    for key in actualJSON['data'].keys():
-        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
-    assert check_eq(expectedJSON, actualJSON, True)
+    #This already asserts that the inputs are equal so no need for assert
+    recursive_eq(expectedJSON, actualJSON)
 
 def test_2():
     '''Input:
@@ -223,8 +228,7 @@ def test_2():
             'version': gnomon.__version__,
             'guid': vcfStem,
             'fields': {
-                "EFFECTS": [
-                    {
+                "EFFECTS": {
                         "AAA": [
                         [
                             "GENE",
@@ -233,8 +237,7 @@ def test_2():
                         ],
                         "PHENOTYPE"
                         ]
-                    }
-                    ],
+                    },
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
@@ -275,13 +278,16 @@ def test_2():
         }
     }
 
-    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Ensure the same key ordering as actual by running through json dumping and loading
+    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
+    expectedJSON = sortValues(json.loads(strJSON))
+
+    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
-    for key in actualJSON['data'].keys():
-        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
-    assert check_eq(expectedJSON, actualJSON, True)
+    #This already asserts that the inputs are equal so no need for assert
+    recursive_eq(expectedJSON, actualJSON)
 
 def test_3():
     '''Input:
@@ -330,8 +336,7 @@ def test_3():
             'version': gnomon.__version__,
             'guid': vcfStem,
             'fields': {
-                "EFFECTS": [
-                    {
+                "EFFECTS": {
                         "AAA": [
                         [
                             "GENE",
@@ -340,8 +345,7 @@ def test_3():
                         ],
                         "PHENOTYPE"
                         ]
-                    }
-                    ],
+                    },
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
@@ -382,13 +386,16 @@ def test_3():
         }
     }
 
-    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Ensure the same key ordering as actual by running through json dumping and loading
+    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
+    expectedJSON = sortValues(json.loads(strJSON))
+
+    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
-    for key in actualJSON['data'].keys():
-        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
-    assert check_eq(expectedJSON, actualJSON, True)
+    #This already asserts that the inputs are equal so no need for assert
+    recursive_eq(expectedJSON, actualJSON)
 
 
 def test_4():
@@ -438,8 +445,7 @@ def test_4():
             'version': gnomon.__version__,
             'guid': vcfStem,
             'fields': {
-                "EFFECTS": [
-                    {
+                "EFFECTS": {
                         "AAA": [
                         [
                             "GENE",
@@ -448,8 +454,7 @@ def test_4():
                         ],
                         "PHENOTYPE"
                         ]
-                    }
-                    ],
+                    },
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
@@ -480,7 +485,7 @@ def test_4():
                     {
                         'GENE': 'S',
                         'MUTATION': 'F2L',
-                        'PREDICTION': 'S'
+                        'PREDICTION': 'U'
                     },
                     {
                         'PHENOTYPE': 'U'
@@ -490,13 +495,16 @@ def test_4():
         }
     }
 
-    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Ensure the same key ordering as actual by running through json dumping and loading
+    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
+    expectedJSON = sortValues(json.loads(strJSON))
+
+    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
-    for key in actualJSON['data'].keys():
-        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
-    assert check_eq(expectedJSON, actualJSON, True)    
+    #This already asserts that the inputs are equal so no need for assert
+    recursive_eq(expectedJSON, actualJSON)    
 
 
 def test_5():
@@ -555,8 +563,7 @@ def test_5():
             'version': gnomon.__version__,
             'guid': vcfStem,
             'fields': {
-                "EFFECTS": [
-                    {
+                "EFFECTS": {
                         "AAA": [
                         [
                             "GENE",
@@ -565,8 +572,7 @@ def test_5():
                         ],
                         "PHENOTYPE"
                         ]
-                    }
-                    ],
+                    },
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
@@ -585,11 +591,11 @@ def test_5():
                     'NUCLEOTIDE_INDEX': 21762
                 },
                 {
-                    'VARIANT': '200_ins_1',
+                    'VARIANT': '21762_ins_1',
                     'NUCLEOTIDE_INDEX': 21762
                 },
                 {
-                    'VARIANT': '200_ins_c',
+                    'VARIANT': '21762_ins_c',
                     'NUCLEOTIDE_INDEX': 21762
                 },
             ],
@@ -614,24 +620,40 @@ def test_5():
                 'AAA': [
                     {
                         'GENE': 'S',
-                        'MUTATION': 'F2F',
-                        'PREDICTION': 'S'
+                        'MUTATION': '200_indel',
+                        'PREDICTION': 'U'
                     },
                     {
-                        'PHENOTYPE': 'S'
+                        'GENE': 'S',
+                        'MUTATION': '200_ins_1',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '200_ins_c',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'PHENOTYPE': 'R'
                     }
                 ],
             }
         }
     }
 
-    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Ensure the same key ordering as actual by running through json dumping and loading
+    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
+    expectedJSON = sortValues(json.loads(strJSON))
+
+    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
-    for key in actualJSON['data'].keys():
-        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
-    assert check_eq(expectedJSON, actualJSON, True)
+    # for diff in recursive_diff(expectedJSON, actualJSON):
+    #     print(diff)
+
+    #This already asserts that the inputs are equal so no need for assert
+    recursive_eq(expectedJSON, actualJSON)
 
 def test_6():
     '''Input:
@@ -687,8 +709,7 @@ def test_6():
             'version': gnomon.__version__,
             'guid': vcfStem,
             'fields': {
-                "EFFECTS": [
-                    {
+                "EFFECTS": {
                         "AAA": [
                         [
                             "GENE",
@@ -705,8 +726,7 @@ def test_6():
                         ],
                         "PHENOTYPE"
                         ], 
-                    }
-                    ],
+                    },
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
@@ -762,10 +782,13 @@ def test_6():
         }
     }
 
-    actualJSON = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    #Ensure the same key ordering as actual by running through json dumping and loading
+    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
+    expectedJSON = sortValues(json.loads(strJSON))
+
+    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
-    for key in actualJSON['data'].keys():
-        print(key,":", actualJSON['data'][key], ' | ',expectedJSON['data'][key])
-    assert check_eq(expectedJSON, actualJSON, True)
+    #This already asserts that the inputs are equal so no need for assert
+    recursive_eq(expectedJSON, actualJSON)
