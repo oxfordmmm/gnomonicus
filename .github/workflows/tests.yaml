@@ -1,0 +1,31 @@
+name: Tests
+on: [push]
+
+jobs:
+  build:
+    name: Run Python Tests
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - name: Setup timezone
+      uses: zcong1993/setup-timezone@master
+      with:
+        timezone: UTC
+
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+
+    - name: Install Python dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        pip3 install .
+
+    - name: Test with pytest
+      run: |
+        pytest --exitfirst --verbose --failed-first \
+        --cov=. --cov-report html
