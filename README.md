@@ -1,3 +1,5 @@
+[![Tests](https://github.com/oxfordmmm/gnomon/actions/workflows/tests.yaml/badge.svg)](https://github.com/oxfordmmm/gnomon/actions/workflows/tests.yaml)
+
 # gnomon
 Python code to integrate results of tb-pipeline and provide an antibiogram, mutations and variations
 
