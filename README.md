@@ -26,3 +26,9 @@ pip install .
 For speed, rather than use NC_000962.3 (i.e. H37Rv *M. tuberculosis*), we shall use SARS-CoV-2 and have created a fictious drug resistance catalogue, along with some `vcf` files and the expected outputs in `tests/`.
 
 These can be run with `pytest -vv`
+
+## Known issues
+
+1. When running with NextFlow, the output directory must be manually created beforehand due to how NextFlow creates projects interfering with paths.
+
+2. If the output directory specified already has a populated `mutations.csv` and/or `effects.csv`, if this gnomon run does not produce these files, their values will still be included in the `gnomon-out.json` if created.
