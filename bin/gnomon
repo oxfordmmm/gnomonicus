@@ -28,6 +28,8 @@ if __name__ == "__main__":
     parser.add_argument("--fasta", required=False, default=None, help="Use to output a FASTA file of the resultant genome. Specify either 'fixed' or 'variable' for fixed length and variable length FASTA respectively.")
     options = parser.parse_args()
 
+    options.output_dir = os.path.realpath(options.output_dir)
+
     #Make the output directory if it doesn't already exist
     os.makedirs(options.output_dir, exist_ok=True)
 
