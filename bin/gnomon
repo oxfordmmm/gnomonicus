@@ -67,7 +67,7 @@ if __name__ == "__main__":
         raise NoVariantsException()
 
     #Get the variations and mutations
-    populateVariants(vcfStem, options.output_dir, diff)
+    variants = populateVariants(vcfStem, options.output_dir, diff)
     logging.debug("Populated and saved variants.csv")
 
     mutations, referenceGenes = populateMutations(vcfStem, options.output_dir, diff, 
@@ -79,10 +79,11 @@ if __name__ == "__main__":
 
     #Get the effects of the mutations
     if resistanceCatalogue is not None and mutations is not None:
-        metadata = populateEffects(sample, options.output_dir, resistanceCatalogue, mutations, referenceGenes)
+        effects, metadata = populateEffects(sample, options.output_dir, resistanceCatalogue, mutations, referenceGenes)
         logging.debug("Populated and saved effects.csv")
     else:
         metadata = {}
+        effects = None
         logging.info("Skipped effects.csv due to lack of resistance catalogue or mutations")
 
     #Add data to the log
@@ -107,7 +108,7 @@ if __name__ == "__main__":
         values = resistanceCatalogue.catalogue.values
         if not values:
             values = list("RFUS")
-        saveJSON(options.output_dir, vcfStem, values, gnomon.__version__)
+        saveJSON(variants, mutations, effects, options.output_dir, vcfStem, values, gnomon.__version__)
 
     if options.fasta and options.fasta.lower() in ['fixed', 'variable']:
         fixed = options.fasta.lower() == 'fixed'

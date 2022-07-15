@@ -113,7 +113,7 @@ def test_1():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
 
-    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
 
     expectedJSON = {
         'meta': {
@@ -221,7 +221,7 @@ def test_2():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
 
-    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
 
     expectedJSON = {
         'meta': {
@@ -329,7 +329,7 @@ def test_3():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'S'
 
-    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
 
     expectedJSON = {
         'meta': {
@@ -438,7 +438,7 @@ def test_4():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'U'
 
-    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
 
     expectedJSON = {
         'meta': {
@@ -556,7 +556,7 @@ def test_5():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
 
-    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
 
     expectedJSON = {
         'meta': {
@@ -702,7 +702,7 @@ def test_6():
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('BBB')] == 'R'
 
-    gnomon.saveJSON(path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
 
     expectedJSON = {
         'meta': {

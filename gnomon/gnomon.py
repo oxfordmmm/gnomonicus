@@ -123,6 +123,8 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference)
         variants.set_index(['UNIQUEID', 'VARIANT', 'IS_SNP'], inplace=True, verify_integrity=True)
         #Save CSV
         variants.to_csv(os.path.join(outputDir, 'variants.csv'), header=True)
+    variants.reset_index(inplace=True)
+    return variants
 
 def populateMutations(
         vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome,
@@ -392,27 +394,12 @@ def populateEffects(
     #Save as CSV
     effects.to_csv(os.path.join(outputDir, 'effects.csv'))
 
+    effects.reset_index(inplace=True)
+
     #Return  the metadata dict to log later
-    return {"WGS_PREDICTION_"+drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs}
-    
-def getCSV(path: str, csv: str):
-    '''Get the specified CSV from a specified path as a DataFrame.
-    Return type hinting removed due to union type for compatability with python 3.9
+    return effects, {"WGS_PREDICTION_"+drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs}
 
-    Args:
-        path (str): Path to the directory
-        csv (str): Name of the CSV file
-
-    Returns:
-        None | pd.DataFrame: Either None or a DataFrame depending if the file exists
-    '''
-    #Find the files which exist
-    if os.path.exists(os.path.join(path, csv)):
-        with open(os.path.join(path, csv), 'r') as f:
-            return pd.read_csv(f)
-    return None
-
-def saveJSON(path: str, guid: str, values: list, gnomonVersion: str) -> None:
+def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, gnomonVersion: str) -> None:
     '''Create and save a single JSON output file for use within GPAS. JSON structure:
     {
         'meta': {
@@ -457,9 +444,6 @@ def saveJSON(path: str, guid: str, values: list, gnomonVersion: str) -> None:
         values (str): Prediction values for the resistance catalogue in priority order (values[0] is highest priority)
         gnomonVersion (str): Semantic versioning string for the gnomon module. Can be accessed by `gnomon.__version__`
     '''
-    variants = getCSV(path, 'variants.csv')
-    mutations = getCSV(path, 'mutations.csv')
-    effects = getCSV(path, 'effects.csv')
 
     #Define some metadata for the json
     meta = {
