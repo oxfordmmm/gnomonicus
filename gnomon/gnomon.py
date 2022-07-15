@@ -395,8 +395,9 @@ def populateEffects(
     #Return  the metadata dict to log later
     return {"WGS_PREDICTION_"+drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs}
     
-def getCSV(path: str, csv: str) -> None | pd.DataFrame:
-    '''Get the specified CSV from a specified path as a DataFrame
+def getCSV(path: str, csv: str):
+    '''Get the specified CSV from a specified path as a DataFrame.
+    Return type hinting removed due to union type for compatability with python 3.9
 
     Args:
         path (str): Path to the directory
