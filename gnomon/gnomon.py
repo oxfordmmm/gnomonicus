@@ -70,14 +70,14 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     #Try to load as a pickle
     try:
         return pickle.load(open(path, "rb"))
-    except:
-        logging.info("Genome object not a pickle, checking if pickled version exists")
+    except Exception as e:
+        logging.info(f"Genome object not a pickle, checking if pickled version exists. Error: {e}")
 
     #Try pickled version created by this (path+'.pkl')
     try:
         return pickle.load(open(path+'.pkl', 'rb'))
-    except:
-        logging.info("No pickled version of genome object, instanciating and dumping")
+    except Exception as e:
+        logging.info(f"No pickled version of genome object, instanciating and dumping. Error: {e}")
     
     #Create new gumpy.Genome and pickle dump for speed later
     reference = gumpy.Genome(path, show_progress_bar=progress)
