@@ -84,13 +84,16 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     pickle.dump(reference, open(path+'.pkl', 'wb'))
     return reference
 
-def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference) -> None:
+def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference) -> pd.DataFrame:
     '''Populate and save the variants DataFrame as a CSV
 
     Args:
         vcfStem (str): The stem of the filename for the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
         diff (gumpy.GenomeDifference): GenomeDifference object between reference and the sample
+    
+    Returns:
+        pd.DataFrame: DataFrame of the variants
     '''
     #Populate variants table directly from GenomeDifference
     vals = {
@@ -325,7 +328,7 @@ def countNucleotideChanges(row: pd.Series) -> int:
 
 def populateEffects(
         sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
-        mutations: pd.DataFrame, referenceGenes: dict) -> dict:
+        mutations: pd.DataFrame, referenceGenes: dict) -> (pd.DataFrame, dict):
     '''Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -339,7 +342,7 @@ def populateEffects(
         InvalidMutationException: Raised if an invalid mutation is detected
 
     Returns:
-        dict: A metadata dictionary mapping drugs to their predictions
+        (pd.DataFrame, dict): (DataFrame containing the effects data, A metadata dictionary mapping drugs to their predictions)
     '''
     #Assume wildtype behaviour unless otherwise specified
     phenotype = {drug: 'S' for drug in resistanceCatalogue.catalogue.drugs}
