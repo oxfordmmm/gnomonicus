@@ -1,0 +1,20 @@
+#!/usr/bin/python3
+'''
+gbkToPkl is a simple script which instanciates a gumpy.Genome object from a specified
+genbank file, and saves it as a pickle. Due to the security implications of 
+pickle, use at your own risk!!
+
+Designed to be run once on the host to provide significant speed up for containerised
+workflows. Resultant pickles should not be sent/recieved!!
+'''
+import sys
+import pickle
+import gumpy
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: gbkToPkl <genbank path>")
+    else:
+        g = gumpy.Genome(sys.argv[1], show_progress_bar=True)
+        pickle.dump(g, open(sys.argv[1]+".pkl", 'wb'))
+
