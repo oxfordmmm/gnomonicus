@@ -588,4 +588,5 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
         }
     }
 
-    print(json.dumps(out, indent=2))
+    with open(os.path.join(path, 'alt-gnomon-out.json'), 'w') as f:
+        print(json.dumps(out, indent=2), file=f)
