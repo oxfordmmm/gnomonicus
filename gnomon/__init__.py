@@ -24,4 +24,4 @@ __version__ = "0.1.0"
 
 from .gnomon import (loadGenome, populateVariants, populateMutations, populateEffects, assignMutationBools,
                         countNucleotideChanges, MissingFieldException, NoVariantsException, InvalidMutationException,
-                        saveJSON)
+                        saveJSON, toAltJSON)

@@ -287,7 +287,6 @@ def handleIndels(vals: dict) -> dict:
         for n in toRemove:
             del vals[key][n]
         vals[key] = vals[key] + toAdd[key]
-        # print(key, vals[key])
     return vals
     
 
@@ -323,7 +322,8 @@ def countNucleotideChanges(row: pd.Series) -> int:
         int: The number of mutations which occured to cause this mutation
     '''
     if row['REF'] is not None and len(row['REF'])==3:
-        return np.sum([i!=j for (i,j) in zip(row['REF'],row['ALT'] ) ])
+        #Numpy sum is considerably slower for this...
+        return sum(i!=j for (i,j) in zip(row['REF'],row['ALT'] ))
     return 0
 
 def populateEffects(
@@ -506,3 +506,86 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
     #Convert fields to a list so it can be json serialised
     with open(os.path.join(path, 'gnomon-out.json'), 'w') as f:
         print(json.dumps({'meta': meta, 'data': data}, indent=2, sort_keys=True), file=f)
+
+def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) -> None:
+    '''Convert the output JSON into a similar format to the COVID workflows:
+    {
+        <guid>: {
+            'WorkflowInformation': {
+                'gnomonVersion': Version,
+                'referenceIdentifier': ID of the reference,
+                'sampleIdentifier': ID of the sample (VCF stem),
+                'catalogueName': Name of the prediction catalogue
+            },
+            'Gnomon': {
+                'aaDeletions': [GARC of aa deletions],
+                'aaInsertions': [GARC of aa insertions],
+                'aaSubsitutions': [GARC of aa SNPs],
+                'deletions': [GARC of deletions], #Inclusive of AA deletions
+                'insertions': [GARC of insertions], #Inclusive of AA insertions
+                'substitutions': [GARC of SNPs], #Inclusive of AA SNPs
+                'effects': {
+                    <drug name>: [
+                        {
+                            'GENE': Gene name,
+                            'MUTATION': Mutation in GARC,
+                            'PREDICTION': Prediction caused by this mutation
+                        }, ...,
+                        {
+                            'PHENOTYPE': Resultant prediction following catalogue heirarchy
+                        }
+                    ], ...
+                }
+            },
+            'GnomonOutputJSON': Full original output JSON
+        }
+    }
+
+    Args:
+        path (str): Path to the directory containing the original JSON
+        reference (gumpy.Genome): Reference gumpy Genome object
+        vcfStem (str): Stem of the VCF file. Should be the sample GUID
+        catalogue (str): Name of the catalogue
+    '''
+    original = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+
+    variants = [x['VARIANT'] for x in original['data']['VARIANTS']]
+    #Only insertions of form <pos>_ins_<bases>
+    insertions = [x for x in variants if "ins" in x and x[-1].isalpha()]
+    #Only deletions of form <pos>_del_<bases>
+    deletions = [x for x in variants if "del" in x and "indel" not in x and x[-1].isalpha()]
+    #Should just be SNPs left
+    snps = [x for x in variants if "ins" not in x and "del" not in x]
+
+    mutations = [x['MUTATION'] for x in original['data'].get('MUTATIONS', {})]
+    #Only insertions of form <gene>@<pos>_ins_<bases>
+    aaInsertions = [x for x in mutations if "ins" in x and x[-1].isalpha()] 
+    #Only deletions of form <gene>@<pos>_del_<bases>
+    aaDeletions = [x for x in mutations if "del" in x and "indel" not in x and x[-1].isalpha()]
+    #Should just be SNPs left
+    aaSnps = [x for x in mutations if "ins" not in x and "del" not in x]
+
+    effects = original['data'].get('EFFECTS', {})
+
+    out = {
+        vcfStem: {
+            'WorkflowInformation': {
+                'gnomonVersion': original['meta']['version'],
+                'referenceIdentifier': reference.name,
+                'sampleIdentifier': vcfStem,
+                'catalogueName': catalogue
+            },
+            'Gnomon': {
+                'aaDeletions': aaDeletions,
+                'aaInsertions': aaInsertions,
+                'aaSubsitutions': aaSnps,
+                'deletions': deletions,
+                'insertions': insertions,
+                'substitutions': snps,
+                'effects': effects
+            },
+            'GnomonOutputJSON': original
+        }
+    }
+
+    print(json.dumps(out, indent=2))

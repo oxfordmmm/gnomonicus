@@ -148,3 +148,5 @@ tests/outputs/**
 
 #Ensure that otherwise empty folders are tracked if they have a .gitkeep
 !*/**/.gitkeep
+
+*.json
