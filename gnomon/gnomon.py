@@ -524,6 +524,7 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
                 'deletions': [GARC of deletions], #Inclusive of AA deletions
                 'insertions': [GARC of insertions], #Inclusive of AA insertions
                 'substitutions': [GARC of SNPs], #Inclusive of AA SNPs
+                'frameshifts': Number of frameshifting mutations (excluding non cds regions)
                 'effects': {
                     <drug name>: [
                         {
@@ -564,6 +565,12 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
     aaDeletions = [x for x in mutations if "del" in x and "indel" not in x and x[-1].isalpha()]
     #Should just be SNPs left
     aaSnps = [x for x in mutations if "ins" not in x and "del" not in x]
+    #Count frameshifting mutations
+    frameshifts = len([
+        x for x in mutations 
+            if ('ins' in x or 'del' in x) and 'indel' not in x 
+                and x[-1].isnumeric() and int(x.split("_")[-1]) % 3 != 0
+        ])
 
     effects = original['data'].get('EFFECTS', {})
 
@@ -579,6 +586,7 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
                 'aaDeletions': aaDeletions,
                 'aaInsertions': aaInsertions,
                 'aaSubsitutions': aaSnps,
+                'frameshifts': frameshifts,
                 'deletions': deletions,
                 'insertions': insertions,
                 'substitutions': snps,
