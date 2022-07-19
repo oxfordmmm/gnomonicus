@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     mutations, referenceGenes = populateMutations(vcfStem, options.output_dir, diff, 
                         reference, sample, resistanceCatalogue)
-    if mutations is not None:
+    if mutations is None:
         logging.info("No mutations found - probably due to exclusively inter-gene variation or no variation.\n\t\t\t\t\t\t\t No effects.csv written")
     else:
         logging.debug("Populated and saved mutatons.csv")
