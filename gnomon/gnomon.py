@@ -557,7 +557,7 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
     #Should just be SNPs left
     snps = [x for x in variants if "ins" not in x and "del" not in x]
 
-    mutations = [x['MUTATION'] for x in original['data'].get('MUTATIONS', {})]
+    mutations = [x['GENE']+'@'+x['MUTATION'] for x in original['data'].get('MUTATIONS', {})]
     #Only insertions of form <gene>@<pos>_ins_<bases>
     aaInsertions = [x for x in mutations if "ins" in x and x[-1].isalpha()] 
     #Only deletions of form <gene>@<pos>_del_<bases>
