@@ -4,13 +4,14 @@
 
 Based on sp3predict
 '''
+import datetime
+import gzip
+import json
 import logging
 import os
 import pickle
-import datetime
-import json
-from collections.abc import Iterable
 from collections import defaultdict
+from collections.abc import Iterable
 
 import gumpy
 import numpy as np
@@ -50,6 +51,22 @@ class InvalidMutationException(Exception):
         self.message = f"{gene}@{mutation} is not a valid mutation!"
         super().__init__(self.message)
 
+def checkGzip(path: str) -> bool:
+    '''Check if a given path is a gzipped file
+
+    Args:
+        path (str): Path to the file
+
+    Returns:
+        bool: True if the file is gzipped
+    '''
+    try:
+        with gzip.open(path) as f:
+            f.read()
+        return True
+    except:
+        return False
+
 
 def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     '''Load a genome from a given path. Checks if path is to a pickle dump, or if a pickle dump of the path's file exists
@@ -67,17 +84,35 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     if path[-1] == '/':
         path = path[:-1]
 
+    #Check if the file is gzipped
+    gzipped = checkGzip(path)
+
     #Try to load as a pickle
     try:
-        return pickle.load(open(path, "rb"))
+        if gzipped:
+            logging.info("Path was to a gzipped file. Decompressing...")
+            f = gzip.open(path, 'rb')
+        else:
+            logging.info("Path was not to a gzipped file. Defaulting to normal reading")
+            f = open(path, 'rb')
+        return pickle.load(f)
     except Exception as e:
         logging.info(f"Genome object not a pickle, checking if pickled version exists. Error: {e}")
 
     #Try pickled version created by this (path+'.pkl')
+    #Check if this file is gzipped
+    gzipped = checkGzip(path+".pkl")
     try:
-        return pickle.load(open(path+'.pkl', 'rb'))
+        if gzipped:
+            logging.info("Path was to a gzipped file. Decompressing...")
+            f = gzip.open(path+".pkl", 'rb')
+        else:
+            logging.info("Path was not to a gzipped file. Defaulting to normal reading")
+            f = open(path+".pkl", 'rb')
+        return pickle.load(f)
     except Exception as e:
         logging.info(f"No pickled version of genome object, instanciating and dumping. Error: {e}")
+    f.close()
     
     #Create new gumpy.Genome and pickle dump for speed later
     reference = gumpy.Genome(path, show_progress_bar=progress)

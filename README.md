@@ -28,6 +28,14 @@ options:
                         for fixed length and variable length FASTA respectively.
 ```
 
+## Helper usage
+As the main script can utilise pickled `gumpy.Genome` objects, there is a supplied helper script. This converts a Genbank file into a pickled gumpy.Genome for significant time saving.
+Due to the security implications of the pickle module, **DO NOT SEND/RECEIVE PICKLES**. This script should be used on a host VM before running nextflow to avoid reinstanciation.
+Supports gzip compression to reduce file size significantly (using the `--compress` flag).
+```
+usage: gbkToPkl FILENAME [--compress]
+```
+
 ## Install
 Currently there may be some issues with versions of [gumpy](https://github.com/oxfordmmm/gumpy)/[piezo](https://github.com/oxfordmmm/piezo) on pypi, so these may need to be installed from git beforehand.
 ```
