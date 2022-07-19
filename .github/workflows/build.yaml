@@ -5,7 +5,7 @@ on: [release]
 
 jobs:
   pypi-release:
-      name: Publish release to PyPi
+    name: Publish release to PyPi
     runs-on: ubuntu-latest
 
     steps:
