@@ -5,6 +5,29 @@ Python code to integrate results of tb-pipeline and provide an antibiogram, muta
 
 Provides a library of functions for use within scripts, as well as a CLI tool for linking the functions together to produce output
 
+## Usage
+```
+usage: gnomon [-h] --vcf_file VCF_FILE --genome_object GENOME_OBJECT [--catalogue_file CATALOGUE_FILE]
+              [--ignore_vcf_filter] [--progress] [--output_dir OUTPUT_DIR] [--json] [--alt_json] [--fasta FASTA]
+
+options:
+  -h, --help            show this help message and exit
+  --vcf_file VCF_FILE   the path to a single VCF file
+  --genome_object GENOME_OBJECT
+                        the path to a compressed gumpy Genome object or a genbank file
+  --catalogue_file CATALOGUE_FILE
+                        the path to the resistance catalogue
+  --ignore_vcf_filter   whether to ignore the FILTER field in the vcf (e.g. necessary for some versions of
+                        Clockwork VCFs)
+  --progress            whether to show progress using tqdm
+  --output_dir OUTPUT_DIR
+                        Directory to save output files to. Defaults to wherever the script is run from.
+  --json                Flag to create a single JSON output as well as the CSVs
+  --alt_json            Whether to produce the alternate JSON format. Requires the --json flag too
+  --fasta FASTA         Use to output a FASTA file of the resultant genome. Specify either 'fixed' or 'variable'
+                        for fixed length and variable length FASTA respectively.
+```
+
 ## Install
 Currently there may be some issues with versions of [gumpy](https://github.com/oxfordmmm/gumpy)/[piezo](https://github.com/oxfordmmm/piezo) on pypi, so these may need to be installed from git beforehand.
 ```
