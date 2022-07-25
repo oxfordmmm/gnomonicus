@@ -224,9 +224,15 @@ def populateMutations(
                 'IS_NULL': diff.is_null,
                 'IS_PROMOTER': diff.is_promoter,
                 'IS_SNP': diff.is_snp,
-                'AMINO_ACID_NUMBER': diff.amino_acid_number,
-                'AMINO_ACID_SEQUENCE': diff.amino_acid_sequence
                 }
+            #As diff does not populate amino acid items for non-coding genes,
+            #pull out the sequence or default to None
+            if refGene.codes_protein:
+                vals['AMINO_ACID_NUMBER'] = diff.amino_acid_number
+                vals['AMINO_ACID_SEQUENCE'] = diff.amino_acid_sequence
+            else:
+                vals['AMINO_ACID_NUMBER'] = None
+                vals['AMINO_ACID_SEQUENCE'] = None
             vals = handleIndels(vals)
             
             geneMutations = pd.DataFrame(vals)
