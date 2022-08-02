@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:latest
 
 #Install requirements
 RUN apt update && apt install -y git python3 python3-pip
