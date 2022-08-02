@@ -183,24 +183,24 @@ def populateMutations(
         pd.DataFrame: The mutations DataFrame
         dict: Dictionary mapping gene name --> reference gumpy.Gene object
     '''
-    #TODO: Determine if all mutations will be required - currently cuts back to just genes in the catalogue
+    #For the sake of consistency, moving towards including all genes with mutations (not just those in the catalogue)
     if resistanceCatalogue:
-        #Find the resistance associated genes which also have mutations in this sample
-        #This considerably cuts back on the number of genes which have to be explored
+        #Find the genes which have mutations regardless of being in the catalogue
+        #Still cuts back time considerably, and ensures all mutations are included in outputs
         mask = np.isin(reference.stacked_nucleotide_index, diff.nucleotide_index)
         genesWithMutations = np.unique(reference.stacked_gene_name[mask])
-        detectedResistanceGenes = set(resistanceCatalogue.catalogue.genes).intersection(set(genesWithMutations))
     else:
         #No catalogue, so just stick to genes in the sample
-        detectedResistanceGenes = sample.genes
+        genesWithMutations = sample.genes
 
     #Iter resistance genes with variation to produce gene level mutations - concating into a single dataframe
     mutations = None
     referenceGenes = {}
     #TODO: Might be worth optimising this to avoid concating dfs as they are expensive to work with?
-    for gene in detectedResistanceGenes:
+    #Currently takes ~2.7s for this function with a TB genome and full catalogue
+    for gene in genesWithMutations:
         if gene:
-            logging.debug(f"Found a resistance gene with mutation: {gene}")
+            logging.debug(f"Found a gene with mutation: {gene}")
             #Save the reference genes for use later in effects.csv
             refGene = reference.build_gene(gene)
             referenceGenes[gene] = refGene
