@@ -201,7 +201,7 @@ def populateMutations(
     #Currently takes ~2.7s for this function with a TB genome and full catalogue
     for gene in genesWithMutations:
         if gene:
-            logging.debug(f"Found a resistance gene with mutation: {gene}")
+            logging.debug(f"Found a gene with mutation: {gene}")
             #Save the reference genes for use later in effects.csv
             refGene = reference.build_gene(gene)
             referenceGenes[gene] = refGene

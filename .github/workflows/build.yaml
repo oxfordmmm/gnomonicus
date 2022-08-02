@@ -1,55 +1,8 @@
-name: Build Gnomon PyPi and Docker images
+name: Build Gnomon Docker images
 # Heavily based on the build action for SARS-CoV2_Workflows (https://github.com/oxfordmmm/SARS-CoV2_workflows/blob/main/.github/workflows/build.yaml)
-# And PyPi action for gumpy (https://github.com/oxfordmmm/gumpy/blob/master/.github/workflows/pypi.yaml)
 on: [release]
 
 jobs:
-  pypi-release:
-    name: Publish release to PyPi
-    runs-on: ubuntu-latest
-
-    steps:
-
-    - uses: actions/checkout@v2
-
-    - name: Setup timezone
-      uses: zcong1993/setup-timezone@master
-      with:
-        timezone: UTC
-
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.9
-
-    - name: Install Python dependencies
-      run: |
-        python3 -m pip install --upgrade pip
-        pip3 install .
-    - name: Test with pytest
-      run: |
-        pytest --exitfirst --verbose --failed-first \
-        --cov=. --cov-report html
-    - name: Install pypa/build
-      run: >-
-        python -m
-        pip install
-        build
-        --user
-    - name: Build a binary wheel and a source tarball
-      run: >-
-        python -m
-        build
-        --sdist
-        --wheel
-        --outdir dist/
-        .
-    - name: Publish a Python distribution to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
-
   build-docker:
     runs-on: ubuntu-latest
     steps:
