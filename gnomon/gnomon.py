@@ -17,6 +17,7 @@ import gumpy
 import numpy as np
 import pandas as pd
 import piezo
+from tqdm import tqdm
 
 
 class MissingFieldException(Exception):
@@ -197,8 +198,8 @@ def populateMutations(
     mutations = None
     referenceGenes = {}
     #TODO: Might be worth optimising this to avoid concating dfs as they are expensive to work with?
-    #Currently takes ~2.7s for this function with a TB genome and full catalogue
-    for gene in genesWithMutations:
+    #Currently takes up to ~2m30s depending on VCF size so is probably worth optimising...
+    for gene in tqdm(genesWithMutations):
         if gene:
             logging.debug(f"Found a gene with mutation: {gene}")
             #Save the reference genes for use later in effects.csv
@@ -324,8 +325,9 @@ def handleIndels(vals: dict) -> dict:
     #Concat the two dicts
     for key in toAdd.keys():
         vals[key] = vals[key].tolist()
-        for n in toRemove:
-            del vals[key][n]
+        #Delete the values, offsetting the index as required to refer to the correct item
+        for (i, n) in enumerate(toRemove):
+            del vals[key][n-i]
         vals[key] = vals[key] + toAdd[key]
     return vals
     
@@ -366,6 +368,35 @@ def countNucleotideChanges(row: pd.Series) -> int:
         return sum(i!=j for (i,j) in zip(row['REF'],row['ALT'] ))
     return 0
 
+def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue) -> [[str, str]]:
+    '''Get all of the mutations (including multi-mutations) from the mutations df
+    Multi-mutations currently only exist within the converted WHO catalogue, and are a highly specific combination 
+        of mutations which must all be present for a single resistance value.
+
+    Args:
+        mutations (pd.DataFrame): Mutations dataframe
+        catalogue (piezo.catalogue): The resistance catalogue. Used to find which multi-mutations we care about
+
+    Returns:
+        [[str, str]]: List of [gene, mutation] or in the case of multi-mutations, [None, multi-mutation]
+    '''
+    mutations = list(zip(mutations['GENE'], mutations['MUTATION']))
+    #Grab the multi-mutations from the catalogue
+    #By doing this, we can check a fixed sample space rather than every permutation of the mutations
+    #This makes the problem tractable, but does not address a possible issue with multi-mutations not encapsulating full codons
+    multis = catalogue.catalogue.rules[catalogue.catalogue.rules['MUTATION_TYPE']=='MULTI']['MUTATION']
+    if len(multis) > 0:
+        #We have a catalogue including multi rules, so check if any of these are present in the mutations
+        joined = [gene+'@'+mut for (gene, mut) in mutations]
+        for multi in multis:
+            check = True
+            for mutation in multi.split("&"):
+                check = check and mutation in joined
+            if check:
+                #This exact multi mutation exists, so add it to the mutations list
+                mutations.append((None, multi))
+    return mutations
+
 def populateEffects(
         sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
         mutations: pd.DataFrame, referenceGenes: dict) -> (pd.DataFrame, dict):
@@ -395,14 +426,18 @@ def populateEffects(
     if not values:
         values = list("RFUS")
 
-    for (gene, mutation) in zip(mutations['GENE'], mutations['MUTATION']):
+    for (gene, mutation) in tqdm(getMutations(mutations, resistanceCatalogue)):
         #Ensure its a valid mutation
-        if not referenceGenes[gene].valid_variant(mutation):
+        if gene is not None and not referenceGenes[gene].valid_variant(mutation):
             logging.error(f"Not a valid mutation {gene}@{mutation}")
             raise InvalidMutationException(gene, mutation)
         
         #Get the prediction
-        prediction = resistanceCatalogue.predict(gene+'@'+mutation)
+        if gene is not None:
+            prediction = resistanceCatalogue.predict(gene+'@'+mutation)
+        else:
+            #This is a multi-mutation so is already of required format
+            prediction = resistanceCatalogue.predict(mutation)
 
         #If the prediction is interesting, iter through drugs to find predictions
         if prediction != 'S':

@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     #Get resistance catalogue
     if options.catalogue_file:
-        resistanceCatalogue = piezo.ResistanceCatalogue(options.catalogue_file, prediction_subset_only=True)
+        resistanceCatalogue = piezo.ResistanceCatalogue(options.catalogue_file)
         logging.debug("Loaded resistance catalogue")
     else:
         resistanceCatalogue = None
