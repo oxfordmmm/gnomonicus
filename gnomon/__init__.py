@@ -19,8 +19,9 @@ Functions:
     countNucleotideChanges
     saveJSON
 '''
+import importlib.metadata
 
-__version__ = "0.1.0"
+__version__ = importlib.metadata.version("gnomon")
 
 from .gnomon import (loadGenome, populateVariants, populateMutations, populateEffects, assignMutationBools,
                         countNucleotideChanges, MissingFieldException, NoVariantsException, InvalidMutationException,
