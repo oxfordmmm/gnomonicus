@@ -453,11 +453,8 @@ def populateEffects(
 
                 #Add to the dict
                 effects[effectsCounter] = [sample.name, gene, mutation, resistanceCatalogue.catalogue.name, drug, prediction[drug]]
-        else:
-            #Add the no effect to the dict
-            effects[effectsCounter] = [sample.name, gene, mutation, resistanceCatalogue.catalogue.name, "UNK", "S"]
-        #Increment counter
-        effectsCounter += 1
+            #Increment counter
+            effectsCounter += 1
     
     #Build the DataFrame
     effects = pd.DataFrame.from_dict(effects, 
