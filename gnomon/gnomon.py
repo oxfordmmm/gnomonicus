@@ -577,7 +577,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
 
     #Convert fields to a list so it can be json serialised
     with open(os.path.join(path, 'gnomon-out.json'), 'w') as f:
-        print(json.dumps({'meta': meta, 'data': data}, indent=2, sort_keys=True), file=f)
+        f.write(json.dumps({'meta': meta, 'data': data}, indent=2, sort_keys=True))
 
 def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) -> None:
     '''Convert the output JSON into a similar format to the COVID workflows:
@@ -669,4 +669,4 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
     }
 
     with open(os.path.join(path, 'alt-gnomon-out.json'), 'w') as f:
-        print(json.dumps(out, indent=2), file=f)
+        f.write(json.dumps(out, indent=2))

@@ -649,9 +649,6 @@ def test_5():
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
-    # for diff in recursive_diff(expectedJSON, actualJSON):
-    #     print(diff)
-
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON, actualJSON)
 
