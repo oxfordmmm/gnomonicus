@@ -160,7 +160,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference)
         #Set the index
         variants.set_index(['UNIQUEID', 'VARIANT', 'IS_SNP'], inplace=True, verify_integrity=True)
         #Save CSV
-        variants.to_csv(os.path.join(outputDir, 'variants.csv'), header=True)
+        variants.to_csv(os.path.join(outputDir, f'{vcfStem}.variants.csv'), header=True)
     variants.reset_index(inplace=True)
     return variants
 
@@ -275,7 +275,7 @@ def populateMutations(
         mutations.set_index(['UNIQUEID', 'GENE', 'MUTATION'], inplace=True, verify_integrity=True)
 
         #Save it as CSV
-        mutations.to_csv(os.path.join(outputDir, 'mutations.csv'))
+        mutations.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'))
 
         #Remove index to return
         mutations.reset_index(inplace=True)
@@ -399,7 +399,7 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue) -> [[str, 
 
 def populateEffects(
         sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
-        mutations: pd.DataFrame, referenceGenes: dict) -> (pd.DataFrame, dict):
+        mutations: pd.DataFrame, referenceGenes: dict, vcfStem: str) -> (pd.DataFrame, dict):
     '''Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -408,6 +408,7 @@ def populateEffects(
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue for predictions
         mutations (pd.DataFrame): Mutations dataframe
         referenceGenes (dict): Dictionary mapping gene name --> reference gumpy.Gene objects
+        vcfStem (str): The basename of the given VCF - used as the sample name
 
     Raises:
         InvalidMutationException: Raised if an invalid mutation is detected
@@ -467,7 +468,7 @@ def populateEffects(
     effects.set_index(["UNIQUEID", "DRUG", "GENE", "MUTATION", "CATALOGUE_NAME"], inplace=True)
     
     #Save as CSV
-    effects.to_csv(os.path.join(outputDir, 'effects.csv'))
+    effects.to_csv(os.path.join(outputDir, f'{vcfStem}.effects.csv'))
 
     effects.reset_index(inplace=True)
 
@@ -576,7 +577,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
         data['EFFECTS'] = _effects
 
     #Convert fields to a list so it can be json serialised
-    with open(os.path.join(path, 'gnomon-out.json'), 'w') as f:
+    with open(os.path.join(path, f'{guid}.gnomon-out.json'), 'w') as f:
         f.write(json.dumps({'meta': meta, 'data': data}, indent=2, sort_keys=True))
 
 def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) -> None:
@@ -668,5 +669,5 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
         }
     }
 
-    with open(os.path.join(path, 'alt-gnomon-out.json'), 'w') as f:
+    with open(os.path.join(path, f'{vcfStem}.alt-gnomon-out.json'), 'w') as f:
         f.write(json.dumps(out, indent=2))

@@ -98,12 +98,12 @@ def test_1():
     gnomon.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes)
+    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
-    variants = pd.read_csv(path+"variants.csv")
-    mutations = pd.read_csv(path+"mutations.csv")
-    effects = pd.read_csv(path+"effects.csv")
+    variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
+    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
 
     assert variants['VARIANT'][0] == '23012g>a'
 
@@ -174,7 +174,7 @@ def test_1():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
@@ -206,12 +206,12 @@ def test_2():
     gnomon.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes)
+    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
-    variants = pd.read_csv(path+"variants.csv")
-    mutations = pd.read_csv(path+"mutations.csv")
-    effects = pd.read_csv(path+"effects.csv")
+    variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
+    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
 
     assert variants['VARIANT'][0] == '23012g>a'
 
@@ -282,7 +282,7 @@ def test_2():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
@@ -314,12 +314,12 @@ def test_3():
     gnomon.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes)
+    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
-    variants = pd.read_csv(path+"variants.csv")
-    mutations = pd.read_csv(path+"mutations.csv")
-    effects = pd.read_csv(path+"effects.csv")
+    variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
+    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
 
     assert variants['VARIANT'][0] == '21568t>c'
 
@@ -390,7 +390,7 @@ def test_3():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
@@ -423,12 +423,12 @@ def test_4():
     gnomon.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes)
+    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
-    variants = pd.read_csv(path+"variants.csv")
-    mutations = pd.read_csv(path+"mutations.csv")
-    effects = pd.read_csv(path+"effects.csv")
+    variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
+    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
 
     assert variants['VARIANT'][0] == '21566t>c'
 
@@ -499,7 +499,7 @@ def test_4():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
@@ -532,12 +532,12 @@ def test_5():
     gnomon.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes)
+    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
-    variants = pd.read_csv(path+"variants.csv")
-    mutations = pd.read_csv(path+"mutations.csv")
-    effects = pd.read_csv(path+"effects.csv")
+    variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
+    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
 
     variantGARC = variants['VARIANT'].to_list()
     assert '21762_indel' in variantGARC
@@ -645,7 +645,7 @@ def test_5():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
@@ -677,12 +677,12 @@ def test_6():
     gnomon.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes)
+    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
-    variants = pd.read_csv(path+"variants.csv")
-    mutations = pd.read_csv(path+"mutations.csv")
-    effects = pd.read_csv(path+"effects.csv")
+    variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
+    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
 
     assert variants['VARIANT'][0] == '27758g>c'
 
@@ -783,7 +783,7 @@ def test_6():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, 'gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
