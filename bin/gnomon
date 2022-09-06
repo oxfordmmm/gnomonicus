@@ -36,7 +36,6 @@ if __name__ == "__main__":
 
     #Get the stem of the VCF filename for use as a unique ID
     vcfStem = os.path.split(options.vcf_file)[-1].split(".")[0]
-    logging.debug("Got VCF stem")
 
     #Logging setup
     logging.basicConfig(filename=os.path.join(options.output_dir, f'{vcfStem}.gnomon.log'), filemode='w', format='%(asctime)s -  %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.DEBUG)
