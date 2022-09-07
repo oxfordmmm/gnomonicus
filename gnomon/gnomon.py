@@ -468,7 +468,8 @@ def populateEffects(
     effects.set_index(["UNIQUEID", "DRUG", "GENE", "MUTATION", "CATALOGUE_NAME"], inplace=True)
     
     #Save as CSV
-    effects.to_csv(os.path.join(outputDir, f'{vcfStem}.effects.csv'))
+    if len(effects) > 0:
+        effects.to_csv(os.path.join(outputDir, f'{vcfStem}.effects.csv'))
 
     effects.reset_index(inplace=True)
 
@@ -554,7 +555,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
         data['MUTATIONS'] = _mutations
 
     _effects = defaultdict(list)
-    if effects is not None:
+    if effects is not None and len(effects) > 0:
         meta['fields']['EFFECTS'] = dict()
         for _, effect in effects.iterrows():
             prediction = {
@@ -621,7 +622,7 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
         vcfStem (str): Stem of the VCF file. Should be the sample GUID
         catalogue (str): Name of the catalogue
     '''
-    original = json.load(open(os.path.join(path, 'gnomon-out.json'), 'r'))
+    original = json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r'))
 
     variants = [x['VARIANT'] for x in original['data']['VARIANTS']]
     #Only insertions of form <pos>_ins_<bases>
