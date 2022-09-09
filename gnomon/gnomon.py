@@ -453,7 +453,7 @@ def populateEffects(
                     phenotype[drug] = prediction[drug]
 
                 #Add to the dict
-                effects[effectsCounter] = [sample.name, gene, mutation, resistanceCatalogue.catalogue.name, drug, prediction[drug]]
+                effects[effectsCounter] = [vcfStem, gene, mutation, resistanceCatalogue.catalogue.name, drug, prediction[drug]]
             #Increment counter
             effectsCounter += 1
     
