@@ -454,8 +454,8 @@ def populateEffects(
 
                 #Add to the dict
                 effects[effectsCounter] = [vcfStem, gene, mutation, resistanceCatalogue.catalogue.name, drug, prediction[drug]]
-            #Increment counter
-            effectsCounter += 1
+                #Increment counter
+                effectsCounter += 1
     
     #Build the DataFrame
     effects = pd.DataFrame.from_dict(effects, 
