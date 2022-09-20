@@ -1,10 +1,10 @@
-name: Build gnomonicus Docker images
+name: Build and release Docker
 # Heavily based on the build action for SARS-CoV2_Workflows (https://github.com/oxfordmmm/SARS-CoV2_workflows/blob/main/.github/workflows/build.yaml)
 
 #We only want to build this container if we have a successful PyPI package
 on:
   workflow_run:
-    workflows: ["Build and release on PyPI"]
+    workflows: ["Build and release PyPI"]
     types:
       - completed
 
@@ -20,7 +20,6 @@ jobs:
           repository: oxfordmmm/gnomonicus  # The repository to scan.
           releases-only: true  # We know that all relevant tags have a GitHub release for them.
         id: gnomonicus  # The step ID to refer to later.
-      -  run: echo ${{steps.gnomonicus.outputs.tag}} #Debugging...
       -
         name: Login to DockerHub
         uses: docker/login-action@v1 

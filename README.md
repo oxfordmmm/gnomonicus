@@ -1,4 +1,4 @@
-[![Tests](https://github.com/oxfordmmm/gnomonicus/actions/workflows/tests.yaml/badge.svg)](https://github.com/oxfordmmm/gnomonicus/actions/workflows/tests.yaml)
+[![Tests](https://github.com/oxfordmmm/gnomonicus/actions/workflows/tests.yaml/badge.svg)](https://github.com/oxfordmmm/gnomonicus/actions/workflows/tests.yaml)[![PyPI version](https://badge.fury.io/py/gnomonicus.svg)](https://badge.fury.io/py/gnomonicus)
 
 # gnomonicus
 Python code to integrate results of tb-pipeline and provide an antibiogram, mutations and variations
@@ -37,13 +37,17 @@ usage: gbkToPkl FILENAME [--compress]
 ```
 
 ## Install
-Currently there may be some issues with versions of [gumpy](https://github.com/oxfordmmm/gumpy)/[piezo](https://github.com/oxfordmmm/piezo) on pypi, so these may need to be installed from git beforehand.
+Simple install using pip for the latest release
 ```
-git clone git@github.com:GlobalPathogenAnalysisService/gnomonicus.git
+pip install gnomonicus
+```
+
+Install from source
+```
+git clone https://github.com/oxfordmmm/gnomonicus.git
 cd gnomonicus
-pip install .
+pip install -e .
 ```
-TODO: PyPi
 
 ## Docker
 A Docker image should be built on releases. To open a shell with gnomonicus installed:

@@ -1,4 +1,4 @@
-name: Build and release on PyPI
+name: Build and release PyPI
 #Based on the similar action for `gumpy`
 
 #Ensure this only runs when (pre)released
