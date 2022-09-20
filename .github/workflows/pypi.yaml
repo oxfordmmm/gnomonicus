@@ -1,6 +1,6 @@
-name: BuildAndReleaseOnPyPi
+name: Build and release on PyPI
 on: [release]
-
+#Based on the similar action for `gumpy`
 jobs:
   build:
     name: Publish release to PyPi
