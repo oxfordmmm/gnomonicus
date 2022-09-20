@@ -20,7 +20,7 @@ jobs:
           repository: oxfordmmm/gnomonicus  # The repository to scan.
           releases-only: true  # We know that all relevant tags have a GitHub release for them.
         id: gnomonicus  # The step ID to refer to later.
-        run: echo ${{steps.gnomonicus.outputs.tag}}
+      -  run: echo ${{steps.gnomonicus.outputs.tag}} #Debugging...
       -
         name: Login to DockerHub
         uses: docker/login-action@v1 
