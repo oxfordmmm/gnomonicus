@@ -1,13 +1,13 @@
-[![Tests](https://github.com/oxfordmmm/gnomon/actions/workflows/tests.yaml/badge.svg)](https://github.com/oxfordmmm/gnomon/actions/workflows/tests.yaml)
+[![Tests](https://github.com/oxfordmmm/gnomonicus/actions/workflows/tests.yaml/badge.svg)](https://github.com/oxfordmmm/gnomonicus/actions/workflows/tests.yaml)
 
-# gnomon
+# gnomonicus
 Python code to integrate results of tb-pipeline and provide an antibiogram, mutations and variations
 
 Provides a library of functions for use within scripts, as well as a CLI tool for linking the functions together to produce output
 
 ## Usage
 ```
-usage: gnomon [-h] --vcf_file VCF_FILE --genome_object GENOME_OBJECT [--catalogue_file CATALOGUE_FILE]
+usage: gnomonicus [-h] --vcf_file VCF_FILE --genome_object GENOME_OBJECT [--catalogue_file CATALOGUE_FILE]
               [--ignore_vcf_filter] [--progress] [--output_dir OUTPUT_DIR] [--json] [--alt_json] [--fasta FASTA]
 
 options:
@@ -39,22 +39,22 @@ usage: gbkToPkl FILENAME [--compress]
 ## Install
 Currently there may be some issues with versions of [gumpy](https://github.com/oxfordmmm/gumpy)/[piezo](https://github.com/oxfordmmm/piezo) on pypi, so these may need to be installed from git beforehand.
 ```
-git clone git@github.com:GlobalPathogenAnalysisService/gnomon.git
-cd gnomon
+git clone git@github.com:GlobalPathogenAnalysisService/gnomonicus.git
+cd gnomonicus
 pip install .
 ```
 TODO: PyPi
 
 ## Docker
-A Docker image should be built on releases. To open a shell with Gnomon installed:
+A Docker image should be built on releases. To open a shell with gnomonicus installed:
 ```
-docker run -it oxfordmmm/gnomon:latest
+docker run -it oxfordmmm/gnomonicus:latest
 ```
 ## User stories
 
-1. As a bioinformatician, I want to be able to run `gnomon` on the command line, passing it (i) a GenBank file (or pickled `gumpy.Genome` object), (ii) a resistance catalogue and (iii) a VCF file, and get back `pandas.DataFrames` of the genetic variants, mutations, effects and predictions/antibiogram. The latter is for all the drugs described in the passed resistance catalogue.
+1. As a bioinformatician, I want to be able to run `gnomonicus` on the command line, passing it (i) a GenBank file (or pickled `gumpy.Genome` object), (ii) a resistance catalogue and (iii) a VCF file, and get back `pandas.DataFrames` of the genetic variants, mutations, effects and predictions/antibiogram. The latter is for all the drugs described in the passed resistance catalogue.
 
-2. As a GPAS developer, I want to be able to embed `gnomon` in a Docker image/NextFlow pipeline that consumes the outputs of [tb-pipeline](https://github.com/Pathogen-Genomics-Cymru/tb-pipeline) and emits a structured, well-designed `JSON` object describing the genetic variants, mutations, effects and predictions/antibiogram.
+2. As a GPAS developer, I want to be able to embed `gnomonicus` in a Docker image/NextFlow pipeline that consumes the outputs of [tb-pipeline](https://github.com/Pathogen-Genomics-Cymru/tb-pipeline) and emits a structured, well-designed `JSON` object describing the genetic variants, mutations, effects and predictions/antibiogram.
 
 3. In general, I would also like the option to output fixed- and variable-length FASTA files (the latter takes into account insertions and deletions described in any input VCF file).
 

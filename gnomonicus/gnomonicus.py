@@ -1,4 +1,4 @@
-'''gnomon.py is a library providing functions which pull together output VCF of the Lodestone TB pipeline
+'''gnomonicus.py is a library providing functions which pull together output VCF of the Lodestone TB pipeline
     with a reference genome and a resistance catalogue, and utilise gumpy and
     piezo to produce variants, mutations and an antibiogram.
 
@@ -476,11 +476,11 @@ def populateEffects(
     #Return  the metadata dict to log later
     return effects, {"WGS_PREDICTION_"+drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs}
 
-def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, gnomonVersion: str) -> None:
+def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, gnomonicusVersion: str) -> None:
     '''Create and save a single JSON output file for use within GPAS. JSON structure:
     {
         'meta': {
-            'version': gnomon version,
+            'version': gnomonicus version,
             'guid': sample GUID,
             'UTC-datetime-run': ISO formatted UTC datetime run,
             'fields': Dictionary of data fields for parsing
@@ -519,12 +519,12 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
         path (str): Path to the directory where the variant/mutation/effect CSV files are saved. Also the output dir for this.
         guid (str): Sample GUID
         values (str): Prediction values for the resistance catalogue in priority order (values[0] is highest priority)
-        gnomonVersion (str): Semantic versioning string for the gnomon module. Can be accessed by `gnomon.__version__`
+        gnomonicusVersion (str): Semantic versioning string for the gnomonicus module. Can be accessed by `gnomonicus.__version__`
     '''
 
     #Define some metadata for the json
     meta = {
-        'version': gnomonVersion, #Gnomon version used
+        'version': gnomonicusVersion, #gnomonicus version used
         'guid': guid, #Sample GUID
         'UTC-datetime-run': datetime.datetime.utcnow().isoformat(), #ISO datetime run
         'fields': dict() #Fields included. These vary according to existance of mutations/effects
@@ -578,7 +578,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
         data['EFFECTS'] = _effects
 
     #Convert fields to a list so it can be json serialised
-    with open(os.path.join(path, f'{guid}.gnomon-out.json'), 'w') as f:
+    with open(os.path.join(path, f'{guid}.gnomonicus-out.json'), 'w') as f:
         f.write(json.dumps({'meta': meta, 'data': data}, indent=2, sort_keys=True))
 
 def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) -> None:
@@ -586,12 +586,12 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
     {
         <guid>: {
             'WorkflowInformation': {
-                'gnomonVersion': Version,
+                'gnomonicusVersion': Version,
                 'referenceIdentifier': ID of the reference,
                 'sampleIdentifier': ID of the sample (VCF stem),
                 'catalogueName': Name of the prediction catalogue
             },
-            'Gnomon': {
+            'gnomonicus': {
                 'aaDeletions': [GARC of aa deletions],
                 'aaInsertions': [GARC of aa insertions],
                 'aaSubsitutions': [GARC of aa SNPs],
@@ -612,7 +612,7 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
                     ], ...
                 }
             },
-            'GnomonOutputJSON': Full original output JSON
+            'gnomonicusOutputJSON': Full original output JSON
         }
     }
 
@@ -622,7 +622,7 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
         vcfStem (str): Stem of the VCF file. Should be the sample GUID
         catalogue (str): Name of the catalogue
     '''
-    original = json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r'))
+    original = json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r'))
 
     variants = [x['VARIANT'] for x in original['data']['VARIANTS']]
     #Only insertions of form <pos>_ins_<bases>
@@ -651,12 +651,12 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
     out = {
         vcfStem: {
             'WorkflowInformation': {
-                'gnomonVersion': original['meta']['version'],
+                'gnomonicusVersion': original['meta']['version'],
                 'referenceIdentifier': reference.name,
                 'sampleIdentifier': vcfStem,
                 'catalogueName': catalogue
             },
-            'Gnomon': {
+            'gnomonicus': {
                 'aaDeletions': aaDeletions,
                 'aaInsertions': aaInsertions,
                 'aaSubsitutions': aaSnps,
@@ -666,9 +666,9 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
                 'substitutions': snps,
                 'effects': effects
             },
-            'GnomonOutputJSON': original
+            'gnomonicusOutputJSON': original
         }
     }
 
-    with open(os.path.join(path, f'{vcfStem}.alt-gnomon-out.json'), 'w') as f:
+    with open(os.path.join(path, f'{vcfStem}.alt-gnomonicus-out.json'), 'w') as f:
         f.write(json.dumps(out, indent=2))

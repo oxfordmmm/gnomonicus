@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-'''gnomon is a script which links together the functions defined in gnomon.py as a CLI script to 
+'''gnomonicus is a script which links together the functions defined in gnomonicus.py as a CLI script to 
     produce variants, mutations and an antibiogram from a minos VCF, reference genome and a resistance
     catalogue
 '''
@@ -11,8 +11,8 @@ import time
 import gumpy
 import piezo
 
-from gnomon import loadGenome, NoVariantsException, populateVariants, populateMutations, populateEffects, saveJSON, toAltJSON
-import gnomon
+from gnomonicus import loadGenome, NoVariantsException, populateVariants, populateMutations, populateEffects, saveJSON, toAltJSON
+import gnomonicus
 
 if __name__ == "__main__":
     start = time.time()
@@ -38,8 +38,8 @@ if __name__ == "__main__":
     vcfStem = os.path.split(options.vcf_file)[-1].split(".")[0]
 
     #Logging setup
-    logging.basicConfig(filename=os.path.join(options.output_dir, f'{vcfStem}.gnomon.log'), filemode='w', format='%(asctime)s -  %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.DEBUG)
-    logging.info(f"Gnomon starting with output directory {options.output_dir}")
+    logging.basicConfig(filename=os.path.join(options.output_dir, f'{vcfStem}.gnomonicus.log'), filemode='w', format='%(asctime)s -  %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.DEBUG)
+    logging.info(f"gnomonicus starting with output directory {options.output_dir}")
 
 
     #Get reference genome
@@ -110,10 +110,10 @@ if __name__ == "__main__":
         values = resistanceCatalogue.catalogue.values
         if not values:
             values = list("RFUS")
-        logging.info(f"Saving a JSON... See {options.output_dir}/gnomon-out.json")
-        saveJSON(variants, mutations, effects, options.output_dir, vcfStem, values, gnomon.__version__)
+        logging.info(f"Saving a JSON... See {options.output_dir}/gnomonicus-out.json")
+        saveJSON(variants, mutations, effects, options.output_dir, vcfStem, values, gnomonicus.__version__)
         if options.alt_json:
-            logging.info(f"Saving the alternate JSON too... See {options.output_dir}/alt-gnomon-out.json")
+            logging.info(f"Saving the alternate JSON too... See {options.output_dir}/alt-gnomonicus-out.json")
             toAltJSON(options.output_dir, reference, vcfStem, resistanceCatalogue.catalogue.name)
 
     if options.fasta and options.fasta.lower() in ['fixed', 'variable']:

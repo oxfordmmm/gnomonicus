@@ -14,7 +14,7 @@ import gumpy
 import piezo
 import pytest
 
-import gnomon
+import gnomonicus
 
 '''
 Due to complications testing equalities of nested jsons of lists/dicts, there is a lot of 
@@ -83,7 +83,7 @@ def test_1():
     '''
     #Setup
     setupOutput('1')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
+    reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_E484K-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -95,10 +95,10 @@ def test_1():
 
     #Populate the tables
     path = "tests/outputs/1/"
-    gnomon.populateVariants(vcfStem, path, diff)
-    mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
+    gnomonicus.populateVariants(vcfStem, path, diff)
+    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -113,11 +113,11 @@ def test_1():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
 
-    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
 
     expectedJSON = {
         'meta': {
-            'version': gnomon.__version__,
+            'version': gnomonicus.__version__,
             'guid': vcfStem,
             'fields': {
                 "EFFECTS": {
@@ -174,7 +174,7 @@ def test_1():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
@@ -191,7 +191,7 @@ def test_2():
     '''
     #Setup
     setupOutput('2')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
+    reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_E484K-samtools.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -203,10 +203,10 @@ def test_2():
 
     #Populate the tables
     path = "tests/outputs/2/"
-    gnomon.populateVariants(vcfStem, path, diff)
-    mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
+    gnomonicus.populateVariants(vcfStem, path, diff)
+    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -221,11 +221,11 @@ def test_2():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
 
-    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
 
     expectedJSON = {
         'meta': {
-            'version': gnomon.__version__,
+            'version': gnomonicus.__version__,
             'guid': vcfStem,
             'fields': {
                 "EFFECTS": {
@@ -282,7 +282,7 @@ def test_2():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
@@ -299,7 +299,7 @@ def test_3():
     '''
     #Setup
     setupOutput('3')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
+    reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_F2F-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -311,10 +311,10 @@ def test_3():
 
     #Populate the tables
     path = "tests/outputs/3/"
-    gnomon.populateVariants(vcfStem, path, diff)
-    mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
+    gnomonicus.populateVariants(vcfStem, path, diff)
+    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -329,11 +329,11 @@ def test_3():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'S'
 
-    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
 
     expectedJSON = {
         'meta': {
-            'version': gnomon.__version__,
+            'version': gnomonicus.__version__,
             'guid': vcfStem,
             'fields': {
                 "EFFECTS": {
@@ -390,7 +390,7 @@ def test_3():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
@@ -408,7 +408,7 @@ def test_4():
     '''
     #Setup
     setupOutput('4')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
+    reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_F2L-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -420,10 +420,10 @@ def test_4():
 
     #Populate the tables
     path = "tests/outputs/4/"
-    gnomon.populateVariants(vcfStem, path, diff)
-    mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
+    gnomonicus.populateVariants(vcfStem, path, diff)
+    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -438,11 +438,11 @@ def test_4():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'U'
 
-    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
 
     expectedJSON = {
         'meta': {
-            'version': gnomon.__version__,
+            'version': gnomonicus.__version__,
             'guid': vcfStem,
             'fields': {
                 "EFFECTS": {
@@ -499,7 +499,7 @@ def test_4():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
@@ -517,7 +517,7 @@ def test_5():
     '''
     #Setup
     setupOutput('5')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
+    reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-S_200_indel-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -529,10 +529,10 @@ def test_5():
 
     #Populate the tables
     path = "tests/outputs/5/"
-    gnomon.populateVariants(vcfStem, path, diff)
-    mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
+    gnomonicus.populateVariants(vcfStem, path, diff)
+    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -556,11 +556,11 @@ def test_5():
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
 
-    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
 
     expectedJSON = {
         'meta': {
-            'version': gnomon.__version__,
+            'version': gnomonicus.__version__,
             'guid': vcfStem,
             'fields': {
                 "EFFECTS": {
@@ -645,7 +645,7 @@ def test_5():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
@@ -662,7 +662,7 @@ def test_6():
     '''
     #Setup
     setupOutput('6')
-    reference = gnomon.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
+    reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
     
     vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-double-minos.vcf", ignore_filter=True, bypass_reference_calls=True)
@@ -674,10 +674,10 @@ def test_6():
 
     #Populate the tables
     path = "tests/outputs/6/"
-    gnomon.populateVariants(vcfStem, path, diff)
-    mutations, referenceGenes = gnomon.populateMutations(vcfStem, path, diff, 
+    gnomonicus.populateVariants(vcfStem, path, diff)
+    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomon.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -699,11 +699,11 @@ def test_6():
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('BBB')] == 'R'
 
-    gnomon.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomon.__version__)
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
 
     expectedJSON = {
         'meta': {
-            'version': gnomon.__version__,
+            'version': gnomonicus.__version__,
             'guid': vcfStem,
             'fields': {
                 "EFFECTS": {
@@ -783,7 +783,7 @@ def test_6():
     strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
     expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomon-out.json'), 'r')))
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 

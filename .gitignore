@@ -136,7 +136,7 @@ dmypy.json
 variants.csv
 mutations.csv
 effects.csv
-gnomon-out.json
+gnomonicus-out.json
 *-fixed.fasta
 *-variable.fasta
 

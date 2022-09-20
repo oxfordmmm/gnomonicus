@@ -1,4 +1,4 @@
-name: Build Gnomon Docker images
+name: Build gnomonicus Docker images
 # Heavily based on the build action for SARS-CoV2_Workflows (https://github.com/oxfordmmm/SARS-CoV2_workflows/blob/main/.github/workflows/build.yaml)
 on: [release]
 
@@ -22,7 +22,7 @@ jobs:
         with:
           file: environments/Dockerfile
           tags: |
-            oxfordmmm/gnomon:latest
-            oxfordmmm/gnomon:${{env.RELEASE_VERSION}}
+            oxfordmmm/gnomonicus:latest
+            oxfordmmm/gnomonicus:${{env.RELEASE_VERSION}}
           push: true
           no-cache: true
