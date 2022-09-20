@@ -1,4 +1,4 @@
-[![Tests](https://github.com/oxfordmmm/gnomonicus/actions/workflows/tests.yaml/badge.svg)](https://github.com/oxfordmmm/gnomonicus/actions/workflows/tests.yaml)[![PyPI version](https://badge.fury.io/py/gnomonicus.svg)](https://badge.fury.io/py/gnomonicus)
+[![Tests](https://github.com/oxfordmmm/gnomonicus/actions/workflows/tests.yaml/badge.svg)](https://github.com/oxfordmmm/gnomonicus/actions/workflows/tests.yaml) [![Build and release Docker](https://github.com/oxfordmmm/gnomonicus/actions/workflows/build.yaml/badge.svg)](https://github.com/oxfordmmm/gnomonicus/actions/workflows/build.yaml) [![Build and release PyPI](https://github.com/oxfordmmm/gnomonicus/actions/workflows/pypi.yaml/badge.svg)](https://github.com/oxfordmmm/gnomonicus/actions/workflows/pypi.yaml) [![PyPI version](https://badge.fury.io/py/gnomonicus.svg)](https://badge.fury.io/py/gnomonicus)
 
 # gnomonicus
 Python code to integrate results of tb-pipeline and provide an antibiogram, mutations and variations
