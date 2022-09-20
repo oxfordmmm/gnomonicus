@@ -13,9 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - uses: actions/checkout@v2
-      - name: Set release version
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - 
+        name: Find Latest Tag
+        uses: oprypin/find-latest-tag@v1.1.0
+        with:
+          repository: oxfordmmm/gnomonicus  # The repository to scan.
+          releases-only: true  # We know that all relevant tags have a GitHub release for them.
+        id: gnomonicus  # The step ID to refer to later.
+        run: echo ${{steps.gnomonicus.outputs.tag}}
       -
         name: Login to DockerHub
         uses: docker/login-action@v1 
@@ -30,6 +35,6 @@ jobs:
           file: environments/Dockerfile
           tags: |
             oxfordmmm/gnomonicus:latest
-            oxfordmmm/gnomonicus:${{env.RELEASE_VERSION}}
+            oxfordmmm/gnomonicus:${{steps.gnomonicus.outputs.tag}}
           push: true
           no-cache: true

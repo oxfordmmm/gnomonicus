@@ -1,6 +1,11 @@
 name: Build and release on PyPI
-on: [release]
 #Based on the similar action for `gumpy`
+
+#Ensure this only runs when (pre)released
+on:
+  release:
+    types: [released, prereleased]
+
 jobs:
   build:
     name: Publish release to PyPi
