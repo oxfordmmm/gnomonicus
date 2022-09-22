@@ -324,7 +324,9 @@ def test_3():
     assert variants['VARIANT'][0] == '21568t>c'
 
     assert mutations['GENE'][0] == 'S'
-    assert mutations['MUTATION'][0] == 'F2F' #Known to fail with PyPi v1.0.0 gumpy due to oversight. Try with git version
+    assert mutations['MUTATION'][0] == 'F2F'
+    assert mutations['GENE'][1] == 'S'
+    assert mutations['MUTATION'][1] == 't6c'
 
     assert 'AAA' in effects['DRUG'].to_list()
     assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'S'
@@ -368,8 +370,13 @@ def test_3():
                 {
                     'MUTATION': 'F2F',
                     'GENE': 'S',
-                    'GENE_POSITION':2
-                }
+                    'GENE_POSITION': 2
+                },
+                {
+                    'MUTATION': 't6c',
+                    'GENE': 'S',
+                    'GENE_POSITION': 6
+                },
             ],
             'EFFECTS': {
                 'AAA': [

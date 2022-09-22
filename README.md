@@ -54,6 +54,37 @@ A Docker image should be built on releases. To open a shell with gnomonicus inst
 ```
 docker run -it oxfordmmm/gnomonicus:latest
 ```
+
+## Notes
+When generating mutations, in cases of synonymous amino acid mutation, the nucelotides changed are also included. This can lead to a mix of nucleotides and amino acids for coding genes, but these are excluded from generating effects unless specified in the catalogue. This means that the default rule of `gene@*= --> S` is still in place regardless of the introduced `gene@*?` which would otherwise take precedence. For example:
+```
+  'MUTATIONS': [
+      {
+          'MUTATION': 'F2F',
+          'GENE': 'S',
+          'GENE_POSITION': 2
+      },
+      {
+          'MUTATION': 't6c',
+          'GENE': 'S',
+          'GENE_POSITION': 6
+      },
+  ],
+  'EFFECTS': {
+      'AAA': [
+          {
+              'GENE': 'S',
+              'MUTATION': 'F2F',
+              'PREDICTION': 'S'
+          },
+          {
+              'PHENOTYPE': 'S'
+          }
+      ],
+```
+The nucelotide variation is included in the the `MUTATIONS`, but explictly removed from the `EFFECTS` unless it is specified within the catalogue.
+In order for this variation to be included, a line in the catalogue of `S@F2F&S@t6c` would have to be present.
+
 ## User stories
 
 1. As a bioinformatician, I want to be able to run `gnomonicus` on the command line, passing it (i) a GenBank file (or pickled `gumpy.Genome` object), (ii) a resistance catalogue and (iii) a VCF file, and get back `pandas.DataFrames` of the genetic variants, mutations, effects and predictions/antibiogram. The latter is for all the drugs described in the passed resistance catalogue.

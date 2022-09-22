@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import pickle
+import re
 from collections import defaultdict
 from collections.abc import Iterable
 
@@ -368,7 +369,7 @@ def countNucleotideChanges(row: pd.Series) -> int:
         return sum(i!=j for (i,j) in zip(row['REF'],row['ALT'] ))
     return 0
 
-def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue) -> [[str, str]]:
+def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceGenes: dict) -> [[str, str]]:
     '''Get all of the mutations (including multi-mutations) from the mutations df
     Multi-mutations currently only exist within the converted WHO catalogue, and are a highly specific combination 
         of mutations which must all be present for a single resistance value.
@@ -376,6 +377,7 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue) -> [[str, 
     Args:
         mutations (pd.DataFrame): Mutations dataframe
         catalogue (piezo.catalogue): The resistance catalogue. Used to find which multi-mutations we care about
+        referenceGenes (dict): Dictionary of geneName->gumpy.Gene
 
     Returns:
         [[str, str]]: List of [gene, mutation] or in the case of multi-mutations, [None, multi-mutation]
@@ -395,7 +397,21 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue) -> [[str, 
             if check:
                 #This exact multi mutation exists, so add it to the mutations list
                 mutations.append((None, multi))
-    return mutations
+    #Filtering out *just* nucelotide changes for cases of synon mutations
+    #The important part of these should have already been found by multi-mutations
+    fixed = []
+    for gene, mutation in mutations:
+        if gene is not None and referenceGenes[gene].codes_protein:
+            #Codes protein so check for nucleotide changes
+            nucleotide = re.compile(r"""
+                                [acgtzx][0-9]+[acgtzx]
+                                """, re.VERBOSE)
+            if nucleotide.fullmatch(mutation):
+                #Is a nucleotide (non-promoter) mutation in a coding gene
+                #So skip it as it may cause prediction problems
+                continue
+        fixed.append((gene, mutation))
+    return fixed
 
 def populateEffects(
         sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
@@ -427,7 +443,7 @@ def populateEffects(
     if not values:
         values = list("RFUS")
 
-    for (gene, mutation) in tqdm(getMutations(mutations, resistanceCatalogue)):
+    for (gene, mutation) in tqdm(getMutations(mutations, resistanceCatalogue, referenceGenes)):
         #Ensure its a valid mutation
         if gene is not None and not referenceGenes[gene].valid_variant(mutation):
             logging.error(f"Not a valid mutation {gene}@{mutation}")
