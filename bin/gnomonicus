@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
     #Get the effects of the mutations
     if resistanceCatalogue is not None and mutations is not None:
-        effects, metadata = populateEffects(sample, options.output_dir, resistanceCatalogue, mutations, referenceGenes, vcfStem)
+        effects, metadata = populateEffects(options.output_dir, resistanceCatalogue, mutations, referenceGenes, vcfStem)
         logging.debug("Populated and saved effects.csv")
     else:
         metadata = {}

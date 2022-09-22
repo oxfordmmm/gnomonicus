@@ -198,8 +198,10 @@ def populateMutations(
     #Iter resistance genes with variation to produce gene level mutations - concating into a single dataframe
     mutations = None
     referenceGenes = {}
-    #TODO: Might be worth optimising this to avoid concating dfs as they are expensive to work with?
-    #Currently takes up to ~2m30s depending on VCF size so is probably worth optimising...
+    #This is where the majority of the time to process is used.
+    #However, I have tried a few ways to improve this involving reducing reliance on DF concat
+    #This has potential for improvement (an actual TB sample can take ~2.5mins), but likely will
+    #   come from optimising the underlying gumpy.GeneDifference code...
     for gene in tqdm(genesWithMutations):
         if gene:
             logging.debug(f"Found a gene with mutation: {gene}")
@@ -414,12 +416,11 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceG
     return fixed
 
 def populateEffects(
-        sample: gumpy.Genome, outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
+        outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
         mutations: pd.DataFrame, referenceGenes: dict, vcfStem: str) -> (pd.DataFrame, dict):
     '''Populate and save the effects DataFrame as a CSV
 
     Args:
-        sample (gumpy.Genome): The Genome object of the sample
         outputDir (str): Path to the directory to save the CSV
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue for predictions
         mutations (pd.DataFrame): Mutations dataframe

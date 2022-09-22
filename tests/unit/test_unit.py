@@ -98,7 +98,7 @@ def test_1():
     gnomonicus.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -206,7 +206,7 @@ def test_2():
     gnomonicus.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -314,7 +314,7 @@ def test_3():
     gnomonicus.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -430,7 +430,7 @@ def test_4():
     gnomonicus.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -539,7 +539,7 @@ def test_5():
     gnomonicus.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -684,7 +684,7 @@ def test_6():
     gnomonicus.populateVariants(vcfStem, path, diff)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue)
-    gnomonicus.populateEffects(sample, path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
