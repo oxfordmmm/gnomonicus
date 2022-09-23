@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
+      - name: Wait for PyPI to update
+        run: sleep 3m
       - 
         name: Find Latest Tag
         uses: oprypin/find-latest-tag@v1.1.0
