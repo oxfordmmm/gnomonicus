@@ -21,18 +21,18 @@ import piezo
 from tqdm import tqdm
 
 
-class MissingFieldException(Exception):
-    '''Custom exception for when required fields are missing from a given table
-    '''
-    def __init__(self, field: str, table: str) -> None:
-        '''Raise this exception
+# class MissingFieldException(Exception):
+#     '''Custom exception for when required fields are missing from a given table
+#     '''
+#     def __init__(self, field: str, table: str) -> None:
+#         '''Raise this exception
 
-        Args:
-            field (str): Field name missing
-            table (str): Table which the field is missing from
-        '''
-        self.message = f"Field: {field} is not in the {table} table!"
-        super().__init__(self.message)
+#         Args:
+#             field (str): Field name missing
+#             table (str): Table which the field is missing from
+#         '''
+#         self.message = f"Field: {field} is not in the {table} table!"
+#         super().__init__(self.message)
 
 class NoVariantsException(Exception):
     '''Custom exception raised when there are no variants detected
@@ -151,12 +151,13 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference)
         variants['UNIQUEID'] = vcfStem
 
         #Double check for required fields
-        if 'VARIANT' not in variants.columns:
-            logging.error("VARIANT not in variant table!")
-            raise MissingFieldException('VARIANT', 'variant')
-        if 'IS_SNP' not in variants.columns:
-            logging.error("IS_SNP not in variant table!")
-            raise MissingFieldException('IS_SNP', 'variant')
+        #I don't think these can ever be reached... Commenting out for now
+        # if 'VARIANT' not in variants.columns:
+        #     logging.error("VARIANT not in variant table!")
+        #     raise MissingFieldException('VARIANT', 'variant')
+        # if 'IS_SNP' not in variants.columns:
+        #     logging.error("IS_SNP not in variant table!")
+        #     raise MissingFieldException('IS_SNP', 'variant')
 
         #Set the index
         variants.set_index(['UNIQUEID', 'VARIANT', 'IS_SNP'], inplace=True, verify_integrity=True)
@@ -232,7 +233,14 @@ def populateMutations(
             #pull out the sequence or default to None
             if refGene.codes_protein:
                 vals['AMINO_ACID_NUMBER'] = diff.amino_acid_number
-                vals['AMINO_ACID_SEQUENCE'] = diff.amino_acid_sequence
+                aa_seq = []
+                #Pull out the amino acid sequence from the alt codons
+                for idx, num in enumerate(diff.amino_acid_number):
+                    if num is not None:
+                        aa_seq.append(refGene.codon_to_amino_acid[diff.alt_nucleotides[idx]])
+                    else:
+                        aa_seq.append(None)
+                vals['AMINO_ACID_SEQUENCE'] = np.array(aa_seq)
             else:
                 vals['AMINO_ACID_NUMBER'] = None
                 vals['AMINO_ACID_SEQUENCE'] = None
@@ -267,12 +275,13 @@ def populateMutations(
                                         'NUMBER_NUCLEOTIDE_CHANGES':'int'})
 
         #Raise errors if required fields are missing
-        if 'GENE' not in mutations.columns:
-            logging.error("GENE is not in the mutations table")
-            raise MissingFieldException('GENE', 'mutations')
-        if 'MUTATION' not in mutations.columns:
-            logging.error("MUTATION is not in the mutations table")
-            raise MissingFieldException('MUTATION', 'mutations')
+        #I'm pretty sure these are unreachable... commenting out for now
+        # if 'GENE' not in mutations.columns:
+        #     logging.error("GENE is not in the mutations table")
+        #     raise MissingFieldException('GENE', 'mutations')
+        # if 'MUTATION' not in mutations.columns:
+        #     logging.error("MUTATION is not in the mutations table")
+        #     raise MissingFieldException('MUTATION', 'mutations')
 
         #Set the index
         mutations.set_index(['UNIQUEID', 'GENE', 'MUTATION'], inplace=True, verify_integrity=True)
@@ -441,8 +450,6 @@ def populateEffects(
 
     #Default prediction values are RFUS but use piezo catalogue's values if existing
     values = resistanceCatalogue.catalogue.values
-    if not values:
-        values = list("RFUS")
 
     for (gene, mutation) in tqdm(getMutations(mutations, resistanceCatalogue, referenceGenes)):
         #Ensure its a valid mutation
@@ -461,8 +468,9 @@ def populateEffects(
         if prediction != 'S':
             for drug in prediction.keys():
                 #Check for empty strings
-                if not drug:
-                    continue
+                #I don't think this can be reached... Commenting out for now
+                # if not drug:
+                    # continue
 
                 #Prioritise values based on order within the values list
                 if values.index(prediction[drug]) < values.index(phenotype[drug]):
@@ -671,7 +679,7 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
                 'gnomonicusVersion': original['meta']['version'],
                 'referenceIdentifier': reference.name,
                 'sampleIdentifier': vcfStem,
-                'catalogueName': catalogue
+                'catalogueName': catalogue.catalogue.name
             },
             'gnomonicus': {
                 'aaDeletions': aaDeletions,

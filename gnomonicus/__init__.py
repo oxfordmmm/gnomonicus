@@ -24,5 +24,5 @@ import importlib.metadata
 __version__ = importlib.metadata.version("gnomonicus")
 
 from .gnomonicus import (loadGenome, populateVariants, populateMutations, populateEffects, assignMutationBools,
-                        countNucleotideChanges, MissingFieldException, NoVariantsException, InvalidMutationException,
-                        saveJSON, toAltJSON)
+                        countNucleotideChanges, NoVariantsException, InvalidMutationException,
+                        saveJSON, toAltJSON, handleIndels)
