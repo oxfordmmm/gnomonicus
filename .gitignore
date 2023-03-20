@@ -131,6 +131,7 @@ dmypy.json
 #Ensure pickles are not tracked for security
 **/*.pkl
 **/*.pickle
+**/*.pkl*
 
 #Ensure no output csvs are tracked
 variants.csv
@@ -151,3 +152,6 @@ tests/outputs/**
 
 *.json
 *.vcf
+
+#Make sure we track all of the test cases though
+!tests/test-cases/*
