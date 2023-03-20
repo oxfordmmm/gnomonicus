@@ -972,9 +972,6 @@ def test_7():
     assert mutations_[3][1] == 'E484K'
 
 
-    #Sort the effects for comparing
-    effects_ = [i[1] for i in sorted([(str(e), e) for _, e in effects.iterrows()], key=lambda x: x[0])]
-
     #Expected effects. For each row, x[0] = DRUG, x[1] = GENE, x[2] = MUTATION, x[3] = PREDICTION
     expected = [
         ['AAA', 'S', 'E484K', 'R'],
@@ -983,19 +980,9 @@ def test_7():
         ['AAA', 'S', '1450_ins_a', 'R'],
         ['BBB', None, 'S@1450_ins_a&S@E484K', 'R'],
     ]
-    assert len(expected) == len(effects_)
-    #Iter expected and effects to check for equality
-    for row, exp in zip(effects_, expected):
-        assert row['DRUG'] == exp[0]
 
-        #Dealing with pd.nan as equality doesn't work here...
-        if pd.isnull(row['GENE']):
-            assert exp[1] is None
-        else:
-            assert row['GENE'] == exp[1]
+    compare_effects(effects, expected)
 
-        assert row['MUTATION'] == exp[2]
-        assert row['PREDICTION'] == exp[3]
 
     gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
 
@@ -1238,3 +1225,482 @@ def test_8():
 
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON_, actualJSON)
+
+def test_9():
+    '''Test minority populations
+    Input:
+        NC_045512.2-minors.vcf
+    Expect output:
+        variants:    25382t>c:0.045, 25283_del_g:0.045, 25283_indel:0.045, 25283_del_1:0.045, 25252_ins_cc:0.045, 25252_ins_1:0.045, 25252_indel:0.045
+        mutations:   !1274Q:0.045, 3721_del_g:0.045, 3721_indel:0.045, 3721_del_1:0.045, 3690_ins_cc:0.045, 3690_ins_1:0.045, 3690_indel:0.045
+        predictions: {'AAA': 'R'}
+    '''
+    #Setup
+    setupOutput('9')
+    reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
+
+    catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True)
+    
+    vcf = gumpy.VCFFile(
+        "tests/test-cases/NC_045512.2-minors.vcf", 
+        ignore_filter=True, 
+        minor_population_indices={25382, 25283, 25252, 21558}
+    )
+    vcfStem = "NC_045512.2-minors"
+
+    sample = reference + vcf
+
+    diff = reference - sample
+
+    #Populate the tables
+    path = "tests/outputs/9/"
+    gnomonicus.populateVariants(vcfStem, path, diff)
+    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+                                    reference, sample, catalogue)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
+
+    #Check for expected values within csvs
+    variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
+    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
+
+    #Sort the variants for comparing
+    variants_ = sorted(variants['VARIANT'])
+    assert variants_ == sorted(['25382t>c:0.045', '25283_del_t:0.045', '25283_indel:0.045', '25283_del_1:0.045', '25252_ins_cc:0.045', '25252_ins_2:0.045', '25252_indel:0.045', '21558g>a:0.045'])
+
+    #Sort the mutations for comparing
+    mutations_ = sorted(list(zip(mutations['GENE'], mutations['MUTATION'])), key= lambda x: x[0] + x[1] if x[0] is not None else x[1])
+    assert mutations_ == sorted([('S', '!1274Q:0.045'), ('S', '3721_del_t:0.045'), ('S', '3721_indel:0.045'), ('S', '3721_del_1:0.045'), ('S', '3690_ins_cc:0.045'), ('S', '3690_ins_2:0.045'), ('S', '3690_indel:0.045'), ('S', 'g-5a:0.045')])
+
+
+    #Expected effects. For each row, x[0] = DRUG, x[1] = GENE, x[2] = MUTATION, x[3] = PREDICTION
+    expected = [
+        ['AAA', 'S', 'g-5a:0.045', 'U'],
+        ['AAA', 'S', '!1274Q:0.045', 'R'],
+        ['AAA', 'S', '3690_indel:0.045', 'U'],
+        ['AAA', 'S', '3690_ins_2:0.045', 'R'],
+        ['AAA', 'S', '3721_del_1:0.045', 'R'],
+        ['AAA', 'S', '3721_del_t:0.045', 'R'],
+        ['AAA', 'S', '3721_indel:0.045', 'U'],
+        ['AAA', 'S', '3690_ins_cc:0.045', 'R'],
+    ]
+    compare_effects(effects, expected)
+
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
+
+    expectedJSON = {
+        'meta': {
+            'version': gnomonicus.__version__,
+            'guid': vcfStem,
+            'fields': {
+                "EFFECTS": {
+                        "AAA": [
+                        [
+                            "GENE",
+                            "MUTATION",
+                            "PREDICTION"
+                        ],
+                        "PHENOTYPE"
+                        ]
+                    },
+                "MUTATIONS": [
+                    "MUTATION",
+                    "GENE",
+                    "GENE_POSITION"
+                    ],
+                "VARIANTS": [
+                    "VARIANT",
+                    "NUCLEOTIDE_INDEX"
+                    ]
+            }
+        },
+        'data': {
+            'VARIANTS': [
+                {
+                    'VARIANT': '25382t>c:0.045',
+                    'NUCLEOTIDE_INDEX': 25382
+                },
+                {
+                    'VARIANT': '21558g>a:0.045',
+                    'NUCLEOTIDE_INDEX': 21558
+                },
+                {
+                    'VARIANT': '25283_del_t:0.045',
+                    'NUCLEOTIDE_INDEX': 25283
+                },
+                {
+                    'VARIANT': '25283_indel:0.045',
+                    'NUCLEOTIDE_INDEX': 25283
+                },
+                {
+                    'VARIANT': '25283_del_1:0.045',
+                    'NUCLEOTIDE_INDEX': 25283
+                },
+                {
+                    'VARIANT': '25252_ins_cc:0.045',
+                    'NUCLEOTIDE_INDEX': 25252
+                },
+                {
+                    'VARIANT': '25252_ins_2:0.045',
+                    'NUCLEOTIDE_INDEX': 25252
+                },
+                {
+                    'VARIANT': '25252_indel:0.045',
+                    'NUCLEOTIDE_INDEX': 25252
+                }
+            ],
+            'MUTATIONS': [
+                {
+                    'MUTATION': '!1274Q:0.045',
+                    'GENE': 'S',
+                    'GENE_POSITION':1274
+                },
+                {
+                    'MUTATION': 'g-5a:0.045',
+                    'GENE': 'S',
+                    'GENE_POSITION':-5
+                },
+                {
+                    'MUTATION': '3721_del_t:0.045',
+                    'GENE': 'S',
+                    'GENE_POSITION':3721
+                },
+                {
+                    'MUTATION': '3721_indel:0.045',
+                    'GENE': 'S',
+                    'GENE_POSITION':3721
+                },
+                {
+                    'MUTATION': '3721_del_1:0.045',
+                    'GENE': 'S',
+                    'GENE_POSITION':3721
+                },
+                {
+                    'MUTATION': '3690_ins_cc:0.045',
+                    'GENE': 'S',
+                    'GENE_POSITION':3690
+                },
+                {
+                    'MUTATION': '3690_ins_2:0.045',
+                    'GENE': 'S',
+                    'GENE_POSITION':3690
+                },
+                {
+                    'MUTATION': '3690_indel:0.045',
+                    'GENE': 'S',
+                    'GENE_POSITION':3690
+                },
+            ],
+            'EFFECTS': {
+                'AAA': [
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '!1274Q:0.045',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': 'g-5a:0.045',
+                        'PREDICTION': 'U'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3690_indel:0.045',
+                        'PREDICTION': 'U'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3690_ins_2:0.045',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3721_del_1:0.045',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3721_del_t:0.045',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3721_indel:0.045',
+                        'PREDICTION': 'U'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3690_ins_cc:0.045',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'PHENOTYPE': 'R'
+                    }
+                ],
+            }
+        }
+    }
+
+    #Ensure the same key ordering as actual by running through json dumping and loading
+    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
+    expectedJSON_ = sortValues(json.loads(strJSON))
+
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
+    #Remove datetime as this is unreplicable
+    del actualJSON['meta']['UTC-datetime-run']
+
+    #This already asserts that the inputs are equal so no need for assert
+    recursive_eq(expectedJSON_, actualJSON)
+
+
+def test_10():
+    '''Test minority populations
+    Input:
+        NC_045512.2-minors.vcf
+    Expect output:
+        variants:    25382t>c:2, 25283_del_g:2, 25283_indel:2, 25283_del_1:2, 25252_ins_cc:2, 25252_ins_1:2, 25252_indel:2
+        mutations:   !1274Q:2, 3721_del_g:2, 3721_indel:2, 3721_del_1:2, 3690_ins_cc:2, 3690_ins_1:2, 3690_indel:2
+        predictions: {'AAA': 'R'}
+    '''
+    #Setup
+    setupOutput('10')
+    reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
+
+    catalogue = piezo.ResistanceCatalogue("tests/test-cases/NC_045512.2-test-catalogue-COV.csv", prediction_subset_only=True)
+    
+    vcf = gumpy.VCFFile(
+        "tests/test-cases/NC_045512.2-minors.vcf", 
+        ignore_filter=True, 
+        minor_population_indices={25382, 25283, 25252, 21558}
+    )
+    vcfStem = "NC_045512.2-minors"
+
+    sample = reference + vcf
+
+    diff = reference - sample
+
+    #Populate the tables
+    path = "tests/outputs/10/"
+    gnomonicus.populateVariants(vcfStem, path, diff, catalogue=catalogue)
+    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+                                    reference, sample, catalogue)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
+
+    #Check for expected values within csvs
+    variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
+    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
+
+    #Sort the variants for comparing
+    variants_ = sorted(variants['VARIANT'])
+    assert variants_ == sorted(['25382t>c:2', '25283_del_t:2', '25283_indel:2', '25283_del_1:2', '25252_ins_cc:2', '25252_ins_2:2', '25252_indel:2', '21558g>a:2'])
+
+    #Sort the mutations for comparing
+    mutations_ = sorted(list(zip(mutations['GENE'], mutations['MUTATION'])), key= lambda x: x[0] + x[1] if x[0] is not None else x[1])
+    assert mutations_ == sorted([('S', '!1274Q:2'), ('S', '3721_del_t:2'), ('S', '3721_indel:2'), ('S', '3721_del_1:2'), ('S', '3690_ins_cc:2'), ('S', '3690_ins_2:2'), ('S', '3690_indel:2'), ('S', 'g-5a:2')])
+
+
+    #Expected effects. For each row, x[0] = DRUG, x[1] = GENE, x[2] = MUTATION, x[3] = PREDICTION
+    expected = [
+        ['AAA', 'S', 'g-5a:2', 'U'],
+        ['AAA', 'S', '!1274Q:2', 'R'],
+        ['AAA', 'S', '3690_indel:2', 'U'],
+        ['AAA', 'S', '3690_ins_2:2', 'R'],
+        ['AAA', 'S', '3721_del_1:2', 'R'],
+        ['AAA', 'S', '3721_del_t:2', 'R'],
+        ['AAA', 'S', '3721_indel:2', 'U'],
+        ['AAA', 'S', '3690_ins_cc:2', 'R'],
+    ]
+    compare_effects(effects, expected)
+
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
+
+    expectedJSON = {
+        'meta': {
+            'version': gnomonicus.__version__,
+            'guid': vcfStem,
+            'fields': {
+                "EFFECTS": {
+                        "AAA": [
+                        [
+                            "GENE",
+                            "MUTATION",
+                            "PREDICTION"
+                        ],
+                        "PHENOTYPE"
+                        ]
+                    },
+                "MUTATIONS": [
+                    "MUTATION",
+                    "GENE",
+                    "GENE_POSITION"
+                    ],
+                "VARIANTS": [
+                    "VARIANT",
+                    "NUCLEOTIDE_INDEX"
+                    ]
+            }
+        },
+        'data': {
+            'VARIANTS': [
+                {
+                    'VARIANT': '25382t>c:2',
+                    'NUCLEOTIDE_INDEX': 25382
+                },
+                {
+                    'VARIANT': '21558g>a:2',
+                    'NUCLEOTIDE_INDEX': 21558
+                },
+                {
+                    'VARIANT': '25283_del_t:2',
+                    'NUCLEOTIDE_INDEX': 25283
+                },
+                {
+                    'VARIANT': '25283_indel:2',
+                    'NUCLEOTIDE_INDEX': 25283
+                },
+                {
+                    'VARIANT': '25283_del_1:2',
+                    'NUCLEOTIDE_INDEX': 25283
+                },
+                {
+                    'VARIANT': '25252_ins_cc:2',
+                    'NUCLEOTIDE_INDEX': 25252
+                },
+                {
+                    'VARIANT': '25252_ins_2:2',
+                    'NUCLEOTIDE_INDEX': 25252
+                },
+                {
+                    'VARIANT': '25252_indel:2',
+                    'NUCLEOTIDE_INDEX': 25252
+                }
+            ],
+            'MUTATIONS': [
+                {
+                    'MUTATION': '!1274Q:2',
+                    'GENE': 'S',
+                    'GENE_POSITION':1274
+                },
+                {
+                    'MUTATION': 'g-5a:2',
+                    'GENE': 'S',
+                    'GENE_POSITION':-5
+                },
+                {
+                    'MUTATION': '3721_del_t:2',
+                    'GENE': 'S',
+                    'GENE_POSITION':3721
+                },
+                {
+                    'MUTATION': '3721_indel:2',
+                    'GENE': 'S',
+                    'GENE_POSITION':3721
+                },
+                {
+                    'MUTATION': '3721_del_1:2',
+                    'GENE': 'S',
+                    'GENE_POSITION':3721
+                },
+                {
+                    'MUTATION': '3690_ins_cc:2',
+                    'GENE': 'S',
+                    'GENE_POSITION':3690
+                },
+                {
+                    'MUTATION': '3690_ins_2:2',
+                    'GENE': 'S',
+                    'GENE_POSITION':3690
+                },
+                {
+                    'MUTATION': '3690_indel:2',
+                    'GENE': 'S',
+                    'GENE_POSITION':3690
+                },
+            ],
+            'EFFECTS': {
+                'AAA': [
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '!1274Q:2',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': 'g-5a:2',
+                        'PREDICTION': 'U'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3690_indel:2',
+                        'PREDICTION': 'U'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3690_ins_2:2',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3721_del_1:2',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3721_del_t:2',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3721_indel:2',
+                        'PREDICTION': 'U'
+                    },
+                    {
+                        'GENE': 'S',
+                        'MUTATION': '3690_ins_cc:2',
+                        'PREDICTION': 'R'
+                    },
+                    {
+                        'PHENOTYPE': 'R'
+                    }
+                ],
+            }
+        }
+    }
+
+    #Ensure the same key ordering as actual by running through json dumping and loading
+    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
+    expectedJSON_ = sortValues(json.loads(strJSON))
+
+    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
+    #Remove datetime as this is unreplicable
+    del actualJSON['meta']['UTC-datetime-run']
+
+    #This already asserts that the inputs are equal so no need for assert
+    recursive_eq(expectedJSON_, actualJSON)
+
+
+
+def compare_effects(effects: pd.DataFrame, expected: [str]) -> None:
+    '''Compare an effects DataFrame with the expected values
+
+    Args:
+        effects (pd.DataFrame): Effects DataFrame
+        expected ([str]): List of expected values (in order)
+    '''
+    #Sort the effects for comparing
+    effects_ = [i[1] for i in sorted([(str(e), e) for _, e in effects.iterrows()], key=lambda x: x[0])]
+    assert len(expected) == len(effects_)
+    #Iter expected and effects to check for equality
+    for row, exp in zip(effects_, expected):
+        assert row['DRUG'] == exp[0]
+
+        #Dealing with pd.nan as equality doesn't work here...
+        if pd.isnull(row['GENE']):
+            assert exp[1] is None
+        else:
+            assert row['GENE'] == exp[1]
+
+        assert row['MUTATION'] == exp[2]
+        assert row['PREDICTION'] == exp[3]
+

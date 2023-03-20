@@ -120,13 +120,14 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     pickle.dump(reference, open(path+'.pkl', 'wb'))
     return reference
 
-def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference) -> pd.DataFrame:
+def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, catalogue: piezo.ResistanceCatalogue=None) -> pd.DataFrame:
     '''Populate and save the variants DataFrame as a CSV
 
     Args:
         vcfStem (str): The stem of the filename for the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
         diff (gumpy.GenomeDifference): GenomeDifference object between reference and the sample
+        catalogue (piezo.ResistanceCatalogue, optional): Catalogue for determining FRS or COV for minority populations. If None is given, FRS is assumed. Defaults to None
     
     Returns:
         pd.DataFrame: DataFrame of the variants
@@ -145,7 +146,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference)
     vals = handleIndels(vals)
     variants = pd.DataFrame(vals)
     if diff.genome1.minor_populations or diff.genome2.minor_populations:
-        variants = pd.concat([variants, minority_population_variants(diff)])
+        variants = pd.concat([variants, minority_population_variants(diff, catalogue)])
 
     #If there are variants, save them to a csv
     if not variants.empty:
@@ -161,12 +162,50 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference)
         #     logging.error("IS_SNP not in variant table!")
         #     raise MissingFieldException('IS_SNP', 'variant')
 
+        variants = variants.astype({
+                                    'IS_INDEL': 'bool',
+                                    'IS_NULL': 'bool',
+                                    'IS_HET': 'bool',
+                                    'IS_SNP': 'bool'
+                                })
+
         #Set the index
         variants.set_index(['UNIQUEID', 'VARIANT', 'IS_SNP'], inplace=True, verify_integrity=True)
         #Save CSV
         variants.to_csv(os.path.join(outputDir, f'{vcfStem}.variants.csv'), header=True)
     variants.reset_index(inplace=True)
     return variants
+
+def get_minority_population_type(catalogue: piezo.ResistanceCatalogue) -> str:
+    '''Figure out if a catalogue uses FRS or COV. If neither or both, default to FRS
+
+    Args:
+        catalogue (piezo.ResistanceCatalogue): Catalogue
+
+    Returns:
+        str: Either 'percentage' or 'reads' for FRS or COV respectively
+    '''
+    if catalogue is None:
+        #Nothing given, so default to FRS
+        return 'percentage'
+    frs = 0
+    cov = 0
+    for minor in catalogue.catalogue.rules['MINOR']:
+        for m in minor.split(","):
+            if m:
+                m = float(m)
+                assert m > 0, f"Minor populations must be positive: {m}"
+                if m < 1:
+                    #FRS
+                    frs += 1
+                else:
+                    #COV
+                    cov += 1
+    #We have just COV
+    if cov > 0 and frs == 0:
+        return 'reads'
+    #We have anything else
+    return 'percentage'
 
 def populateMutations(
         vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome,
@@ -193,7 +232,15 @@ def populateMutations(
         #Find the genes which have mutations regardless of being in the catalogue
         #Still cuts back time considerably, and ensures all mutations are included in outputs
         mask = np.isin(reference.stacked_nucleotide_index, diff.nucleotide_index)
-        genesWithMutations = np.unique(reference.stacked_gene_name[mask])
+        genesWithMutations = np.unique(reference.stacked_gene_name[mask]).tolist()
+
+        #Make sure minority population mutations are also picked up
+        minor_genes = set()
+        for population in sample.minor_populations:
+            for gene in reference.stacked_gene_name[reference.stacked_nucleotide_index == population[0]]:
+                if gene:
+                    minor_genes.add(gene)
+        genesWithMutations += minor_genes
     else:
         #No catalogue, so just stick to genes in the sample
         genesWithMutations = sample.genes
@@ -202,7 +249,6 @@ def populateMutations(
     mutations = None
     referenceGenes = {}
     diffs = []
-    minority_population_check = False
     #This is where the majority of the time to process is used.
     #However, I have tried a few ways to improve this involving reducing reliance on DF concat
     #This has potential for improvement (an actual TB sample can take ~2.5mins), but likely will
@@ -216,8 +262,6 @@ def populateMutations(
             #Get gene difference
             diff = refGene - sample.build_gene(gene)
             diffs.append(diff)
-            if diff.gene1.minority_populations or diff.gene2.minority_populations:
-                minority_population_check = True
 
             #Pull the data out of the gumpy object
             vals = {
@@ -264,9 +308,9 @@ def populateMutations(
                 else:
                     mutations = geneMutations
     #Add minor mutations (these are stored separately)
-    if minority_population_check:
+    if reference.minor_populations or sample.minor_populations:
         #Only do this if they exist
-        mutations = pd.concat([mutations, minority_population_mutations(diffs)])
+        mutations = pd.concat([mutations, minority_population_mutations(diffs, resistanceCatalogue)])
 
     #If there were mutations, write them to a CSV
     if mutations is not None:
@@ -305,23 +349,28 @@ def populateMutations(
         mutations.reset_index(inplace=True)
     return mutations, referenceGenes
 
-def minority_population_variants(diff: gumpy.GenomeDifference) -> pd.DataFrame:
+def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.ResistanceCatalogue) -> pd.DataFrame:
     '''Handle the logic for pulling out minority population calls for genome level variants
 
     Args:
         diff: (gumpy.GenomeDifference): GenomeDifference object for this comparison
+        catalogue: (piezo.ResistanceCatalogue): Catalogue to use. Used for determining whether FRS or COV should be used
 
     Returns:
         pd.DataFrame: DataFrame containing the minority population data
     '''
+    #Determine if FRS or COV should be used
+    minor_type = get_minority_population_type(catalogue)
+
     #Get the variants in GARC
-    variants = diff.minor_populations(interpretation='percentage')
+    variants_ = diff.minor_populations(interpretation=minor_type)
+    variants = [v.split(":")[0] for v in variants_]
 
 
     #Split to be the same format
     #Not exactly efficient, but this should be so infrequent that it shouldn't be impactful
     vals = {
-        'VARIANT': variants, 
+        'VARIANT': variants_, 
         'NUCLEOTIDE_INDEX': [var.split(">")[0][:-1] if ">" in var else var.split("_")[0] for var in variants],
         'IS_INDEL': ["_" in var for var in variants],
         'IS_NULL': ["x" in var for var in variants],
@@ -336,17 +385,19 @@ def minority_population_variants(diff: gumpy.GenomeDifference) -> pd.DataFrame:
     return pd.DataFrame(vals)
 
 
-def minority_population_mutations(diffs: [gumpy.GeneDifference]) -> pd.DataFrame:
+def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piezo.ResistanceCatalogue) -> pd.DataFrame:
     '''Handle the logic for pulling out minority population calls for gene level variants
 
     Args:
         diffs ([gumpy.GeneDifference]): List of GeneDifference objects for these comparisons
+        catalogue: (piezo.ResistanceCatalogue): Catalogue to use. Used for determining whether FRS or COV should be used
 
     Returns:
         pd.DataFrame: DataFrame containing the minority population data
     '''
     #Get the mutations
     mutations_ = []
+    genes = []
     gene_pos = []
     nucleotide_number = []
     nucleotide_index = []
@@ -363,9 +414,12 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference]) -> pd.DataFrame
     aa_num = []
     aa_seq = []
 
+    #Determine if FRS or COV should be used
+    minor_type = get_minority_population_type(catalogue)
+
     for diff in diffs:
         #As mutations returns in GARC, split into constituents for symmetry with others
-        mutations = diff.minor_populations(interpretation='percentage')
+        mutations = diff.minor_populations(interpretation=minor_type)
         
         #Without gene names/evidence
         muts = [mut.split("@")[1].split(":")[0] for mut in mutations]
@@ -381,6 +435,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference]) -> pd.DataFrame
         #Iter these to pull out all other details from the GeneDifference objects
         for mut, num, full_mut in zip(muts, numbers, mutations):
             mutations_.append(full_mut.split("@")[1]) #Keep evidence in these
+            genes.append(full_mut.split("@")[0])
             gene_pos.append(num)
             codes_protein.append(diff.gene1.codes_protein)
             is_cds.append(num > 0 and diff.gene1.codes_protein)
@@ -388,40 +443,49 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference]) -> pd.DataFrame
             is_null.append("X" in mut.upper())
             is_promoter.append(num < 0)
 
-            if mut[0].isupper():
+            if "_" in mut:
+                #Indel
+                _, t, bases = mut.split("_")
+                ref.append(None)
+                alt.append(None)
+                if t == "del":
+                    indel_length.append(-1 * len(bases))
+                else:
+                    indel_length.append(len(bases))
+                indel_nucleotides.append(bases)
+                is_snp.append(False)
+                nucleotide_number.append(num)
+                nucleotide_index.append(diff.gene1.nucleotide_index[diff.gene1.nucleotide_number == num][0])
+                aa_num.append(None)
+                aa_seq.append(None)                
+                continue
+            else:
+                indel_length.append(None)
+                indel_nucleotides.append(None)
+
+            if mut[0].isupper() or mut[0] == '!':
                 #Protein coding SNP
                 nucleotide_number.append(None)
                 nucleotide_index.append(None)
                 #Pull out codons for ref/alt
-                ref.append(diff.gene1.codons[diff.gene1.amino_acid_number == num])
-                alt.append(diff.gene2.codons[diff.gene2.amino_acid_number == num])
+                ref.append(diff.gene1.codons[diff.gene1.amino_acid_number == num][0])
+                alt.append(diff.gene2.codons[diff.gene2.amino_acid_number == num][0])
                 is_snp.append(True)
                 aa_num.append(num)
                 aa_seq.append(mut[-1])
             else:
-                #Anything else
+                #Other SNPs
                 nucleotide_number.append(num)
-                nucleotide_index.append(diff.gene1.nucleotide_index[diff.gene1.nucleotide_number == num])
+                nucleotide_index.append(diff.gene1.nucleotide_index[diff.gene1.nucleotide_number == num][0])
                 aa_num.append(None)
                 aa_seq.append(None)
-                if "_" in mut:
-                    #Indel
-                    _, t, bases = mut.split("_")
-                    ref.append(None)
-                    alt.append(None)
-                    if t == "del":
-                        indel_length.append(-1 * len(bases))
-                    else:
-                        indel_length.append(len(bases))
-                    indel_nucleotides.append(bases)
-                    is_snp.append(False)
-                else:
-                    ref.append(diff.gene1.nucleotide_sequence[diff.gene1.nucleotide_index == num])
-                    alt.append(diff.gene2.nucleotide_sequence[diff.gene2.nucleotide_index == num])
-                    is_snp.append(True)
+                ref.append(diff.gene1.nucleotide_sequence[diff.gene1.nucleotide_number == num][0])
+                alt.append(diff.gene2.nucleotide_sequence[diff.gene2.nucleotide_number == num][0])
+                is_snp.append(True)
 
     vals = {
         'MUTATION': mutations_,
+        'GENE': genes,
         'NUCLEOTIDE_NUMBER': nucleotide_number,
         'NUCLEOTIDE_INDEX': nucleotide_index,
         'GENE_POSITION': gene_pos,
