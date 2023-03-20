@@ -152,3 +152,6 @@ tests/outputs/**
 
 *.json
 *.vcf
+
+#Make sure we track all of the test cases though
+!tests/test-cases/*

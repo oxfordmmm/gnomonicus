@@ -144,6 +144,8 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference)
             }
     vals = handleIndels(vals)
     variants = pd.DataFrame(vals)
+    if diff.genome1.minor_populations or diff.genome2.minor_populations:
+        variants = pd.concat([variants, minority_population_variants(diff)])
 
     #If there are variants, save them to a csv
     if not variants.empty:
@@ -199,6 +201,8 @@ def populateMutations(
     #Iter resistance genes with variation to produce gene level mutations - concating into a single dataframe
     mutations = None
     referenceGenes = {}
+    diffs = []
+    minority_population_check = False
     #This is where the majority of the time to process is used.
     #However, I have tried a few ways to improve this involving reducing reliance on DF concat
     #This has potential for improvement (an actual TB sample can take ~2.5mins), but likely will
@@ -211,6 +215,9 @@ def populateMutations(
             referenceGenes[gene] = refGene
             #Get gene difference
             diff = refGene - sample.build_gene(gene)
+            diffs.append(diff)
+            if diff.gene1.minority_populations or diff.gene2.minority_populations:
+                minority_population_check = True
 
             #Pull the data out of the gumpy object
             vals = {
@@ -256,6 +263,11 @@ def populateMutations(
                     mutations = pd.concat([mutations, geneMutations])
                 else:
                     mutations = geneMutations
+    #Add minor mutations (these are stored separately)
+    if minority_population_check:
+        #Only do this if they exist
+        mutations = pd.concat([mutations, minority_population_mutations(diffs)])
+
     #If there were mutations, write them to a CSV
     if mutations is not None:
         #Add synonymous booleans for analysis later
@@ -293,6 +305,146 @@ def populateMutations(
         mutations.reset_index(inplace=True)
     return mutations, referenceGenes
 
+def minority_population_variants(diff: gumpy.GenomeDifference) -> pd.DataFrame:
+    '''Handle the logic for pulling out minority population calls for genome level variants
+
+    Args:
+        diff: (gumpy.GenomeDifference): GenomeDifference object for this comparison
+
+    Returns:
+        pd.DataFrame: DataFrame containing the minority population data
+    '''
+    #Get the variants in GARC
+    variants = diff.minor_populations(interpretation='percentage')
+
+
+    #Split to be the same format
+    #Not exactly efficient, but this should be so infrequent that it shouldn't be impactful
+    vals = {
+        'VARIANT': variants, 
+        'NUCLEOTIDE_INDEX': [var.split(">")[0][:-1] if ">" in var else var.split("_")[0] for var in variants],
+        'IS_INDEL': ["_" in var for var in variants],
+        'IS_NULL': ["x" in var for var in variants],
+        'IS_HET': ["z" in var for var in variants],
+        'IS_SNP': [">" in var for var in variants],
+        'INDEL_LENGTH': [len(var.split("_")[-1]) if "_" in var else 0 for var in variants],
+        'INDEL_NUCLEOTIDES': [var.split("_")[-1] if "_" in var else None for var in variants]
+        }
+    #Convert everything to numpy arrays
+    vals = {key: np.array(vals[key]) for key in vals.keys()}
+    handleIndels(vals)
+    return pd.DataFrame(vals)
+
+
+def minority_population_mutations(diffs: [gumpy.GeneDifference]) -> pd.DataFrame:
+    '''Handle the logic for pulling out minority population calls for gene level variants
+
+    Args:
+        diffs ([gumpy.GeneDifference]): List of GeneDifference objects for these comparisons
+
+    Returns:
+        pd.DataFrame: DataFrame containing the minority population data
+    '''
+    #Get the mutations
+    mutations_ = []
+    gene_pos = []
+    nucleotide_number = []
+    nucleotide_index = []
+    alt = []
+    ref = []
+    codes_protein = []
+    indel_length = []
+    indel_nucleotides = []
+    is_cds = []
+    is_het = []
+    is_null = []
+    is_promoter = []
+    is_snp = []
+    aa_num = []
+    aa_seq = []
+
+    for diff in diffs:
+        #As mutations returns in GARC, split into constituents for symmetry with others
+        mutations = diff.minor_populations(interpretation='percentage')
+        
+        #Without gene names/evidence
+        muts = [mut.split("@")[1].split(":")[0] for mut in mutations]
+        #Gene numbers
+        numbers = [
+            int(mut.split("_")[0]) if "_" in mut #Indel index: <idx>_<type>_<bases>
+            else 
+                int(mut[:-1]) if "=" in mut #Synon SNP: <idx>=
+                else int(mut[1:][:-1]) #SNP: <ref><idx><alt>
+            for mut in muts
+            ]
+
+        #Iter these to pull out all other details from the GeneDifference objects
+        for mut, num, full_mut in zip(muts, numbers, mutations):
+            mutations_.append(full_mut.split("@")[1]) #Keep evidence in these
+            gene_pos.append(num)
+            codes_protein.append(diff.gene1.codes_protein)
+            is_cds.append(num > 0 and diff.gene1.codes_protein)
+            is_het.append("Z" in mut.upper())
+            is_null.append("X" in mut.upper())
+            is_promoter.append(num < 0)
+
+            if mut[0].isupper():
+                #Protein coding SNP
+                nucleotide_number.append(None)
+                nucleotide_index.append(None)
+                #Pull out codons for ref/alt
+                ref.append(diff.gene1.codons[diff.gene1.amino_acid_number == num])
+                alt.append(diff.gene2.codons[diff.gene2.amino_acid_number == num])
+                is_snp.append(True)
+                aa_num.append(num)
+                aa_seq.append(mut[-1])
+            else:
+                #Anything else
+                nucleotide_number.append(num)
+                nucleotide_index.append(diff.gene1.nucleotide_index[diff.gene1.nucleotide_number == num])
+                aa_num.append(None)
+                aa_seq.append(None)
+                if "_" in mut:
+                    #Indel
+                    _, t, bases = mut.split("_")
+                    ref.append(None)
+                    alt.append(None)
+                    if t == "del":
+                        indel_length.append(-1 * len(bases))
+                    else:
+                        indel_length.append(len(bases))
+                    indel_nucleotides.append(bases)
+                    is_snp.append(False)
+                else:
+                    ref.append(diff.gene1.nucleotide_sequence[diff.gene1.nucleotide_index == num])
+                    alt.append(diff.gene2.nucleotide_sequence[diff.gene2.nucleotide_index == num])
+                    is_snp.append(True)
+
+    vals = {
+        'MUTATION': mutations_,
+        'NUCLEOTIDE_NUMBER': nucleotide_number,
+        'NUCLEOTIDE_INDEX': nucleotide_index,
+        'GENE_POSITION': gene_pos,
+        'ALT': alt,
+        'REF': ref,
+        'CODES_PROTEIN': codes_protein,
+        'INDEL_LENGTH': indel_length,
+        'INDEL_NUCLEOTIDES': indel_nucleotides,
+        'IS_CDS': is_cds,
+        'IS_HET': is_het,
+        'IS_NULL': is_null,
+        'IS_PROMOTER': is_promoter,
+        'IS_SNP': is_snp,
+        'AMINO_ACID_NUMBER': aa_num,
+        'AMINO_ACID_SEQUENCE': aa_seq
+        }
+    #Convert everything to numpy arrays
+    vals = {key: np.array(vals[key]) for key in vals.keys()}
+    return pd.DataFrame(handleIndels(vals))
+    
+
+
+
 def handleIndels(vals: dict) -> dict:
     '''Due to how piezo works, we need to add alternative representations for indels
         Gumpy returns indel mutations as <pos>_(ins|del)_<nucleotides>
@@ -315,6 +467,11 @@ def handleIndels(vals: dict) -> dict:
     toAdd = {key: [] for key in vals.keys() if isinstance(vals[key], Iterable)}
     toRemove = []
     for (n, mutation) in enumerate(vals[access]):
+        #Check for minority populations first
+        minor = False
+        if ":" in mutation:
+            mutation, evidence = mutation.split(":")
+            minor = True
         if 'ins' in mutation or 'del' in mutation:
             #Is an indel so prepare extras to add and remove this
             toRemove.append(n)
@@ -324,6 +481,9 @@ def handleIndels(vals: dict) -> dict:
                 pos + "_indel", 
                 pos + "_" + indel + "_" + str(len(bases))
                 ]
+            if minor:
+                #Add the evidence
+                indels = [i + ":" + evidence for i in indels]
             #Add the extras to `toAdd`
             for i in indels:
                 for key in toAdd.keys():
