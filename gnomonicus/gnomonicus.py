@@ -169,10 +169,8 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
                                     'IS_SNP': 'bool'
                                 })
 
-        #Set the index
-        variants.set_index(['UNIQUEID', 'VARIANT', 'IS_SNP'], inplace=True, verify_integrity=True)
         #Save CSV
-        variants.to_csv(os.path.join(outputDir, f'{vcfStem}.variants.csv'), header=True)
+        variants.to_csv(os.path.join(outputDir, f'{vcfStem}.variants.csv'), header=True, index=False)
     variants.reset_index(inplace=True)
     return variants
 
@@ -339,11 +337,9 @@ def populateMutations(
         #     logging.error("MUTATION is not in the mutations table")
         #     raise MissingFieldException('MUTATION', 'mutations')
 
-        #Set the index
-        mutations.set_index(['UNIQUEID', 'GENE', 'MUTATION'], inplace=True, verify_integrity=True)
 
         #Save it as CSV
-        mutations.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'))
+        mutations.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
 
         #Remove index to return
         mutations.reset_index(inplace=True)
@@ -713,12 +709,10 @@ def populateEffects(
                                             "CATALOGUE_NAME", "DRUG", "PREDICTION"]
                                         )
     
-    #Set the index
-    effects.set_index(["UNIQUEID", "DRUG", "GENE", "MUTATION", "CATALOGUE_NAME"], inplace=True)
     
     #Save as CSV
     if len(effects) > 0:
-        effects.to_csv(os.path.join(outputDir, f'{vcfStem}.effects.csv'))
+        effects.to_csv(os.path.join(outputDir, f'{vcfStem}.effects.csv'), index=False)
 
     effects.reset_index(inplace=True)
 
