@@ -304,25 +304,26 @@ def populateMutations(
                     mutations = pd.concat([mutations, geneMutations])
                 else:
                     mutations = geneMutations
-    #Ensure correct datatypes
-    mutations = mutations.astype({'MUTATION': 'str',
-                                'GENE': 'str',
-                                'NUCLEOTIDE_NUMBER': 'float',
-                                'NUCLEOTIDE_INDEX': 'float',
-                                'GENE_POSITION': 'float',
-                                'ALT': 'str',
-                                'REF': 'str',
-                                'CODES_PROTEIN': 'bool',
-                                'INDEL_LENGTH': 'float',
-                                'INDEL_NUCLEOTIDES': 'str',
-                                'IS_CDS': 'bool',
-                                'IS_HET': 'bool',
-                                'IS_NULL': 'bool',
-                                'IS_PROMOTER': 'bool',
-                                'IS_SNP': 'bool',
-                                'AMINO_ACID_NUMBER': 'float',
-                                'AMINO_ACID_SEQUENCE': 'str'
-                            })
+    if mutations is not None:
+        #Ensure correct datatypes
+        mutations = mutations.astype({'MUTATION': 'str',
+                                    'GENE': 'str',
+                                    'NUCLEOTIDE_NUMBER': 'float',
+                                    'NUCLEOTIDE_INDEX': 'float',
+                                    'GENE_POSITION': 'float',
+                                    'ALT': 'str',
+                                    'REF': 'str',
+                                    'CODES_PROTEIN': 'bool',
+                                    'INDEL_LENGTH': 'float',
+                                    'INDEL_NUCLEOTIDES': 'str',
+                                    'IS_CDS': 'bool',
+                                    'IS_HET': 'bool',
+                                    'IS_NULL': 'bool',
+                                    'IS_PROMOTER': 'bool',
+                                    'IS_SNP': 'bool',
+                                    'AMINO_ACID_NUMBER': 'float',
+                                    'AMINO_ACID_SEQUENCE': 'str'
+                                })
     #Add minor mutations (these are stored separately)
     if reference.minor_populations or sample.minor_populations:
         #Only do this if they exist
