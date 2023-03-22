@@ -145,6 +145,12 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             }
     vals = handleIndels(vals)
     variants = pd.DataFrame(vals)
+    variants = variants.astype({
+                                    'IS_INDEL': 'bool',
+                                    'IS_NULL': 'bool',
+                                    'IS_HET': 'bool',
+                                    'IS_SNP': 'bool'
+                                })
     if diff.genome1.minor_populations or diff.genome2.minor_populations:
         variants = pd.concat([variants, minority_population_variants(diff, catalogue)])
 
@@ -161,13 +167,6 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
         # if 'IS_SNP' not in variants.columns:
         #     logging.error("IS_SNP not in variant table!")
         #     raise MissingFieldException('IS_SNP', 'variant')
-
-        variants = variants.astype({
-                                    'IS_INDEL': 'bool',
-                                    'IS_NULL': 'bool',
-                                    'IS_HET': 'bool',
-                                    'IS_SNP': 'bool'
-                                })
 
         #Save CSV
         variants.to_csv(os.path.join(outputDir, f'{vcfStem}.variants.csv'), header=True, index=False)
@@ -305,6 +304,25 @@ def populateMutations(
                     mutations = pd.concat([mutations, geneMutations])
                 else:
                     mutations = geneMutations
+    #Ensure correct datatypes
+    mutations = mutations.astype({'MUTATION': 'str',
+                                'GENE': 'str',
+                                'NUCLEOTIDE_NUMBER': 'float',
+                                'NUCLEOTIDE_INDEX': 'float',
+                                'GENE_POSITION': 'float',
+                                'ALT': 'str',
+                                'REF': 'str',
+                                'CODES_PROTEIN': 'bool',
+                                'INDEL_LENGTH': 'float',
+                                'INDEL_NUCLEOTIDES': 'str',
+                                'IS_CDS': 'bool',
+                                'IS_HET': 'bool',
+                                'IS_NULL': 'bool',
+                                'IS_PROMOTER': 'bool',
+                                'IS_SNP': 'bool',
+                                'AMINO_ACID_NUMBER': 'float',
+                                'AMINO_ACID_SEQUENCE': 'str'
+                            })
     #Add minor mutations (these are stored separately)
     if reference.minor_populations or sample.minor_populations:
         #Only do this if they exist
@@ -321,12 +339,6 @@ def populateMutations(
         #Add VCF stem as the uniqueID
         mutations['UNIQUEID'] = vcfStem
 
-        #Ensure correct datatypes
-        mutations = mutations.astype({'IS_SYNONYMOUS':'bool',\
-                                        'IS_NONSYNONYMOUS':'bool',\
-                                        'IS_HET':'bool',\
-                                        'IS_NULL':'bool',\
-                                        'NUMBER_NUCLEOTIDE_CHANGES':'int'})
 
         #Raise errors if required fields are missing
         #I'm pretty sure these are unreachable... commenting out for now
@@ -378,7 +390,12 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
     #Convert everything to numpy arrays
     vals = {key: np.array(vals[key]) for key in vals.keys()}
     handleIndels(vals)
-    return pd.DataFrame(vals)
+    return pd.DataFrame(vals).astype({
+                                    'IS_INDEL': 'bool',
+                                    'IS_NULL': 'bool',
+                                    'IS_HET': 'bool',
+                                    'IS_SNP': 'bool'
+                                })
 
 
 def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piezo.ResistanceCatalogue) -> pd.DataFrame:
@@ -500,7 +517,25 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         }
     #Convert everything to numpy arrays
     vals = {key: np.array(vals[key]) for key in vals.keys()}
-    return pd.DataFrame(handleIndels(vals))
+
+    return pd.DataFrame(handleIndels(vals)).astype({'MUTATION': 'str',
+                                                    'GENE': 'str',
+                                                    'NUCLEOTIDE_NUMBER': 'float',
+                                                    'NUCLEOTIDE_INDEX': 'float',
+                                                    'GENE_POSITION': 'float',
+                                                    'ALT': 'str',
+                                                    'REF': 'str',
+                                                    'CODES_PROTEIN': 'bool',
+                                                    'INDEL_LENGTH': 'float',
+                                                    'INDEL_NUCLEOTIDES': 'str',
+                                                    'IS_CDS': 'bool',
+                                                    'IS_HET': 'bool',
+                                                    'IS_NULL': 'bool',
+                                                    'IS_PROMOTER': 'bool',
+                                                    'IS_SNP': 'bool',
+                                                    'AMINO_ACID_NUMBER': 'float',
+                                                    'AMINO_ACID_SEQUENCE': 'str'
+                                                })
     
 
 
