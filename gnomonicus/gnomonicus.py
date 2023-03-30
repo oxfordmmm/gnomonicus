@@ -238,6 +238,13 @@ def populateMutations(
                 if gene:
                     minor_genes.add(gene)
         genesWithMutations += minor_genes
+
+        deletions = []
+        #Make sure large deletions are picked up too
+        for name in reference.stacked_gene_name:
+            deletions += np.unique(name[sample.is_deleted]).tolist()
+        genesWithMutations = set(genesWithMutations + deletions)
+
     else:
         #No catalogue, so just stick to genes in the sample
         genesWithMutations = sample.genes
@@ -568,7 +575,7 @@ def handleIndels(vals: dict) -> dict:
         if ":" in mutation:
             mutation, evidence = mutation.split(":")
             minor = True
-        if 'ins' in mutation or 'del' in mutation:
+        if 'ins' in mutation or 'del' in mutation and len(mutation.split("_")) == 3:
             #Is an indel so prepare extras to add and remove this
             toRemove.append(n)
             pos, indel, bases = mutation.split("_")
