@@ -209,11 +209,13 @@ def test_1():
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
-                    "GENE_POSITION"
+                    "GENE_POSITION",
+                    'VCF_EVIDENCE'
                     ],
                 "VARIANTS": [
                     "VARIANT",
-                    "NUCLEOTIDE_INDEX"
+                    "NUCLEOTIDE_INDEX",
+                    'VCF_EVIDENCE'
                     ]
             }
         },
@@ -221,14 +223,14 @@ def test_1():
             'VARIANTS': [
                 {
                     'VARIANT': '23012g>a',
-                    'NUCLEOTIDE_INDEX': 23012
+                    'NUCLEOTIDE_INDEX': 23012,
                 }
             ],
             'MUTATIONS': [
                 {
                     'MUTATION': 'E484K',
                     'GENE': 'S',
-                    'GENE_POSITION':484
+                    'GENE_POSITION':484,
                 }
             ],
             'EFFECTS': {
@@ -254,6 +256,14 @@ def test_1():
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
+    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
+    #So compare separately...
+    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)})
+    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+
+    #Clean up the VCF Evidences
+    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON_, actualJSON)
 
@@ -295,7 +305,9 @@ def test_1():
     actualJSON2 = json.load(open(os.path.join(path, f'{vcfStem}.alt-gnomonicus-out.json'), 'r'))
     #Remove datetime as this is unreplicable
     del actualJSON2[vcfStem]['gnomonicusOutputJSON']['meta']['UTC-datetime-run']
-
+    #Similarly remove vcf evidences here
+    del actualJSON2['NC_045512.2-S_E484K-minos']['gnomonicusOutputJSON']['data']['VARIANTS'][0]['VCF_EVIDENCE']
+    del actualJSON2['NC_045512.2-S_E484K-minos']['gnomonicusOutputJSON']['data']['MUTATIONS'][0]['VCF_EVIDENCE']
     recursive_eq(expectedJSON2, actualJSON2)
 
 
@@ -360,11 +372,13 @@ def test_2():
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
-                    "GENE_POSITION"
+                    "GENE_POSITION",
+                    'VCF_EVIDENCE'
                     ],
                 "VARIANTS": [
                     "VARIANT",
-                    "NUCLEOTIDE_INDEX"
+                    "NUCLEOTIDE_INDEX",
+                    'VCF_EVIDENCE'
                     ]
             }
         },
@@ -404,6 +418,15 @@ def test_2():
     actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
+
+    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
+    #So compare separately...
+    expected_vcf = str({'GT': (1, 1), 'PL': (255, 33, 0), 'REF': 'g', 'ALTS': ('a',)})
+    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+
+    #Clean up the VCF Evidences
+    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
 
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON, actualJSON)
@@ -470,11 +493,13 @@ def test_3():
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
-                    "GENE_POSITION"
+                    "GENE_POSITION",
+                    'VCF_EVIDENCE'
                     ],
                 "VARIANTS": [
                     "VARIANT",
-                    "NUCLEOTIDE_INDEX"
+                    "NUCLEOTIDE_INDEX",
+                    'VCF_EVIDENCE'
                     ]
             }
         },
@@ -519,6 +544,17 @@ def test_3():
     actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
+
+    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
+    #So compare separately...
+    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 't', 'ALTS': ('c',)})
+    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+    assert sorted(actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+
+    #Clean up the VCF Evidences
+    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']
 
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON, actualJSON)
@@ -584,11 +620,13 @@ def test_4():
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
-                    "GENE_POSITION"
+                    "GENE_POSITION",
+                    'VCF_EVIDENCE'
                     ],
                 "VARIANTS": [
                     "VARIANT",
-                    "NUCLEOTIDE_INDEX"
+                    "NUCLEOTIDE_INDEX",
+                    'VCF_EVIDENCE'
                     ]
             }
         },
@@ -628,6 +666,16 @@ def test_4():
     actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
+
+    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
+    #So compare separately...
+    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 't', 'ALTS': ('c',)})
+    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+
+    #Clean up the VCF Evidences
+    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
+
 
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON, actualJSON)    
@@ -702,11 +750,13 @@ def test_5():
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
-                    "GENE_POSITION"
+                    "GENE_POSITION",
+                    'VCF_EVIDENCE'
                     ],
                 "VARIANTS": [
                     "VARIANT",
-                    "NUCLEOTIDE_INDEX"
+                    "NUCLEOTIDE_INDEX",
+                    'VCF_EVIDENCE'
                     ]
             }
         },
@@ -774,6 +824,25 @@ def test_5():
     actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
+
+    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
+    #So compare separately...
+    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'c', 'ALTS': ('cc',)})
+    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+    assert sorted(actualJSON['data']['VARIANTS'][1]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+    assert sorted(actualJSON['data']['VARIANTS'][2]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+    assert sorted(actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+    assert sorted(actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+    assert sorted(actualJSON['data']['MUTATIONS'][2]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+
+    #Clean up the VCF Evidences
+    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['VARIANTS'][1]['VCF_EVIDENCE']
+    del actualJSON['data']['VARIANTS'][2]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][2]['VCF_EVIDENCE']
+
 
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON, actualJSON)
@@ -853,11 +922,13 @@ def test_6():
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
-                    "GENE_POSITION"
+                    "GENE_POSITION",
+                    'VCF_EVIDENCE'
                     ],
                 "VARIANTS": [
                     "VARIANT",
-                    "NUCLEOTIDE_INDEX"
+                    "NUCLEOTIDE_INDEX",
+                    'VCF_EVIDENCE'
                     ]
             }
         },
@@ -912,6 +983,16 @@ def test_6():
     actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
+
+    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
+    #So compare separately...
+    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('c',)})
+    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+
+    #Clean up the VCF Evidences
+    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']
 
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON, actualJSON)
@@ -1012,11 +1093,13 @@ def test_7():
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
-                    "GENE_POSITION"
+                    "GENE_POSITION",
+                    'VCF_EVIDENCE'
                     ],
                 "VARIANTS": [
                     "VARIANT",
-                    "NUCLEOTIDE_INDEX"
+                    "NUCLEOTIDE_INDEX",
+                    'VCF_EVIDENCE'
                     ]
             }
         },
@@ -1109,6 +1192,22 @@ def test_7():
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
+    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
+    #So compare separately...
+    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('aa',)})
+    for i in range(len(actualJSON['data']['VARIANTS'])):
+        assert sorted(actualJSON['data']['VARIANTS'][i]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+
+    #Clean up the VCF Evidences
+    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['VARIANTS'][1]['VCF_EVIDENCE']
+    del actualJSON['data']['VARIANTS'][2]['VCF_EVIDENCE']
+    del actualJSON['data']['VARIANTS'][3]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][2]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][3]['VCF_EVIDENCE']
+
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON_, actualJSON)
 
@@ -1178,11 +1277,13 @@ def test_8():
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
-                    "GENE_POSITION"
+                    "GENE_POSITION",
+                    'VCF_EVIDENCE'
                     ],
                 "VARIANTS": [
                     "VARIANT",
-                    "NUCLEOTIDE_INDEX"
+                    "NUCLEOTIDE_INDEX",
+                    'VCF_EVIDENCE'
                     ]
             }
         },
@@ -1222,6 +1323,16 @@ def test_8():
     actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
+
+    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
+    #So compare separately...
+    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)})
+    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+    assert sorted(actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+
+    #Clean up the VCF Evidences
+    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
+    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
 
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON_, actualJSON)
@@ -1306,11 +1417,13 @@ def test_9():
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
-                    "GENE_POSITION"
+                    "GENE_POSITION",
+                    'VCF_EVIDENCE'
                     ],
                 "VARIANTS": [
                     "VARIANT",
-                    "NUCLEOTIDE_INDEX"
+                    "NUCLEOTIDE_INDEX",
+                    'VCF_EVIDENCE'
                     ]
             }
         },
@@ -1449,6 +1562,39 @@ def test_9():
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
 
+    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
+    #So compare separately...
+    expected_vcf = [
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 't', 'ALTS': ('c',)}",
+    ]
+    for i in range(len(actualJSON['data']['VARIANTS'])):
+        assert sorted(actualJSON['data']['VARIANTS'][i]['VCF_EVIDENCE']) == sorted(expected_vcf[i])
+    expected_vcf = [
+        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)}]),
+        'nan',
+        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]),
+        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]),
+        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]),
+        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]),
+        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]),
+        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]),
+    ]
+    for i in range(len(actualJSON['data']['MUTATIONS'])):
+        assert sorted(str(actualJSON['data']['MUTATIONS'][i]['VCF_EVIDENCE'])) == sorted(expected_vcf[i])
+
+    #Clean up the VCF Evidences
+    for i in range(len(actualJSON['data']['VARIANTS'])):
+        del actualJSON['data']['VARIANTS'][i]['VCF_EVIDENCE']
+    for i in range(len(actualJSON['data']['MUTATIONS'])):
+        del actualJSON['data']['MUTATIONS'][i]['VCF_EVIDENCE']
+
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON_, actualJSON)
 
@@ -1533,11 +1679,13 @@ def test_10():
                 "MUTATIONS": [
                     "MUTATION",
                     "GENE",
-                    "GENE_POSITION"
+                    "GENE_POSITION",
+                    'VCF_EVIDENCE'
                     ],
                 "VARIANTS": [
                     "VARIANT",
-                    "NUCLEOTIDE_INDEX"
+                    "NUCLEOTIDE_INDEX",
+                    'VCF_EVIDENCE'
                     ]
             }
         },
@@ -1675,6 +1823,44 @@ def test_10():
     actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
     #Remove datetime as this is unreplicable
     del actualJSON['meta']['UTC-datetime-run']
+
+    for i in range(len(actualJSON['data']['VARIANTS'])):
+        print(actualJSON['data']['VARIANTS'][i]['VCF_EVIDENCE'])
+    print()
+    for i in range(len(actualJSON['data']['MUTATIONS'])):
+        print(actualJSON['data']['MUTATIONS'][i]['VCF_EVIDENCE'])
+    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
+    #So compare separately...
+    expected_vcf = [
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
+        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 't', 'ALTS': ('c',)}",
+    ]
+    for i in range(len(actualJSON['data']['VARIANTS'])):
+        assert sorted(actualJSON['data']['VARIANTS'][i]['VCF_EVIDENCE']) == sorted(expected_vcf[i]) 
+    expected_vcf = [
+        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)}]",
+        "nan",
+        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]",
+        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]",
+        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]",
+        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]",
+        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]",
+        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]",
+    ]
+    for i in range(len(actualJSON['data']['MUTATIONS'])):
+        assert sorted(str(actualJSON['data']['MUTATIONS'][i]['VCF_EVIDENCE'])) == sorted(expected_vcf[i]) 
+
+    #Clean up the VCF Evidences
+    for i in range(len(actualJSON['data']['VARIANTS'])):
+        del actualJSON['data']['VARIANTS'][i]['VCF_EVIDENCE']
+    for i in range(len(actualJSON['data']['MUTATIONS'])):
+        del actualJSON['data']['MUTATIONS'][i]['VCF_EVIDENCE']
 
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON_, actualJSON)

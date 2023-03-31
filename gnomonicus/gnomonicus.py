@@ -334,19 +334,11 @@ def populateMutations(
                                     'AMINO_ACID_SEQUENCE': 'str',
                                     'VCF_EVIDENCE': 'object'
                                 })
-        for col in mutations:
-            print(col, len(mutations[col]))
-        print("---------------")
     #Add minor mutations (these are stored separately)
     if reference.minor_populations or sample.minor_populations:
         #Only do this if they exist
         x = minority_population_mutations(diffs, resistanceCatalogue)
-        for col in x:
-            print(col, len(x[col]))
-        print("#################")
         mutations = pd.concat([mutations, x])
-    for col in mutations:
-        print(col, len(mutations[col]))
     #If there were mutations, write them to a CSV
     if mutations is not None:
         #Add synonymous booleans for analysis later
@@ -559,11 +551,6 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         'AMINO_ACID_SEQUENCE': aa_seq,
         'VCF_EVIDENCE': vcf_evidence
         }
-    #Convert everything to numpy arrays
-    vals = {key: np.array(vals[key]) for key in vals.keys()}
-    for key in vals.keys():
-        print(key, vals[key])
-    print("??????????????")
 
     return pd.DataFrame(handleIndels(vals)).astype({'MUTATION': 'str',
                                                     'GENE': 'str',
@@ -816,14 +803,16 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
             'VARIANTS': [
                 {
                     'VARIANT': Genome level variant in GARC,
-                    'NUCLEOTIDE_INDEX': Genome index of variant
+                    'NUCLEOTIDE_INDEX': Genome index of variant,
+                    'VCF_EVIDENCE': Parsed VCF row
                 }, ...
             ],
             ?'MUTATIONS': [
                 {
                     'MUTATION': Gene level mutation in GARC,
                     'GENE': Gene name,
-                    'GENE_POSITION': Position within the gene. Amino acid or nucleotide index depending on which is appropriate
+                    'GENE_POSITION': Position within the gene. Amino acid or nucleotide index depending on which is appropriate,
+                    'VCF_EVIDENCE': Parsed VCF row
                 }
             ],
             ?'EFFECTS': {
@@ -859,11 +848,12 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
     data = {}
     #Variants field
     _variants = []
-    meta['fields']['VARIANTS'] = ['VARIANT', 'NUCLEOTIDE_INDEX']
+    meta['fields']['VARIANTS'] = ['VARIANT', 'NUCLEOTIDE_INDEX', 'VCF_EVIDENCE']
     for _, variant in variants.iterrows():
         row = {
             'VARIANT': variant['VARIANT'],
             'NUCLEOTIDE_INDEX': variant['NUCLEOTIDE_INDEX'],
+            'VCF_EVIDENCE': variant['VCF_EVIDENCE']
         }
         _variants.append(row)
     data['VARIANTS'] = _variants
@@ -871,12 +861,13 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
     #Depending on mutations/effects, populate
     _mutations = []
     if mutations is not None:
-        meta['fields']['MUTATIONS'] = ['MUTATION', 'GENE', 'GENE_POSITION']
+        meta['fields']['MUTATIONS'] = ['MUTATION', 'GENE', 'GENE_POSITION', 'VCF_EVIDENCE']
         for _, mutation in mutations.iterrows():
             row = {
                 'MUTATION': mutation['MUTATION'],
                 'GENE': mutation['GENE'],
-                'GENE_POSITION': mutation['GENE_POSITION']
+                'GENE_POSITION': mutation['GENE_POSITION'],
+                'VCF_EVIDENCE': mutation['VCF_EVIDENCE']
             }
             _mutations.append(row)
         data['MUTATIONS'] = _mutations
