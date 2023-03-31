@@ -141,7 +141,8 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'IS_HET': diff.is_het,
             'IS_SNP': diff.is_snp,
             'INDEL_LENGTH': diff.indel_length,
-            'INDEL_NUCLEOTIDES': diff.indel_nucleotides
+            'INDEL_NUCLEOTIDES': diff.indel_nucleotides,
+            'VCF_EVIDENCE': diff.vcf_evidences
             }
     vals = handleIndels(vals)
     variants = pd.DataFrame(vals)
@@ -283,6 +284,7 @@ def populateMutations(
                 'IS_NULL': diff.is_null,
                 'IS_PROMOTER': diff.is_promoter,
                 'IS_SNP': diff.is_snp,
+                'VCF_EVIDENCE': diff.vcf_evidences
                 }
             #As diff does not populate amino acid items for non-coding genes,
             #pull out the sequence or default to None
@@ -329,13 +331,22 @@ def populateMutations(
                                     'IS_PROMOTER': 'bool',
                                     'IS_SNP': 'bool',
                                     'AMINO_ACID_NUMBER': 'float',
-                                    'AMINO_ACID_SEQUENCE': 'str'
+                                    'AMINO_ACID_SEQUENCE': 'str',
+                                    'VCF_EVIDENCE': 'object'
                                 })
+        for col in mutations:
+            print(col, len(mutations[col]))
+        print("---------------")
     #Add minor mutations (these are stored separately)
     if reference.minor_populations or sample.minor_populations:
         #Only do this if they exist
-        mutations = pd.concat([mutations, minority_population_mutations(diffs, resistanceCatalogue)])
-
+        x = minority_population_mutations(diffs, resistanceCatalogue)
+        for col in x:
+            print(col, len(x[col]))
+        print("#################")
+        mutations = pd.concat([mutations, x])
+    for col in mutations:
+        print(col, len(mutations[col]))
     #If there were mutations, write them to a CSV
     if mutations is not None:
         #Add synonymous booleans for analysis later
@@ -393,7 +404,15 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         'IS_HET': ["z" in var for var in variants],
         'IS_SNP': [">" in var for var in variants],
         'INDEL_LENGTH': [len(var.split("_")[-1]) if "_" in var else 0 for var in variants],
-        'INDEL_NUCLEOTIDES': [var.split("_")[-1] if "_" in var else None for var in variants]
+        'INDEL_NUCLEOTIDES': [var.split("_")[-1] if "_" in var else None for var in variants],
+        'VCF_EVIDENCE': [diff.genome2.vcf_evidence.get(
+                                                        int(var.split(">")[0][:-1])
+                                                    ) 
+                        if ">" in var 
+                        else diff.genome2.vcf_evidence.get(
+                                                        int(var.split("_")[0])
+                                                        )
+                        for var in variants]
         }
     #Convert everything to numpy arrays
     vals = {key: np.array(vals[key]) for key in vals.keys()}
@@ -402,7 +421,8 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                                     'IS_INDEL': 'bool',
                                     'IS_NULL': 'bool',
                                     'IS_HET': 'bool',
-                                    'IS_SNP': 'bool'
+                                    'IS_SNP': 'bool',
+                                    'VCF_EVIDENCE': 'object'
                                 })
 
 
@@ -434,6 +454,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
     is_snp = []
     aa_num = []
     aa_seq = []
+    vcf_evidence = []
 
     #Determine if FRS or COV should be used
     minor_type = get_minority_population_type(catalogue)
@@ -443,7 +464,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         mutations = diff.minor_populations(interpretation=minor_type)
         
         #Without gene names/evidence
-        muts = [mut.split("@")[1].split(":")[0] for mut in mutations]
+        muts = [mut.split(":")[0] for mut in mutations]
         #Gene numbers
         numbers = [
             int(mut.split("_")[0]) if "_" in mut #Indel index: <idx>_<type>_<bases>
@@ -455,14 +476,28 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
 
         #Iter these to pull out all other details from the GeneDifference objects
         for mut, num, full_mut in zip(muts, numbers, mutations):
-            mutations_.append(full_mut.split("@")[1]) #Keep evidence in these
-            genes.append(full_mut.split("@")[0])
+            mutations_.append(full_mut) #Keep evidence in these
+            genes.append(diff.gene1.name)
             gene_pos.append(num)
             codes_protein.append(diff.gene1.codes_protein)
             is_cds.append(num > 0 and diff.gene1.codes_protein)
             is_het.append("Z" in mut.upper())
             is_null.append("X" in mut.upper())
             is_promoter.append(num < 0)
+
+            #Get the genome index of the gene num
+            idx = diff.gene2.nucleotide_index[diff.gene2.nucleotide_number == num][0]
+            evidence1 = diff.gene1.vcf_evidence.get(idx)
+            evidence2 = diff.gene2.vcf_evidence.get(idx)
+
+            if evidence1 is not None and evidence2 is not None:
+                vcf_evidence.append([evidence1, evidence2])
+            elif evidence1 is not None:
+                vcf_evidence.append([evidence1])
+            elif evidence2 is not None:
+                vcf_evidence.append([evidence2])
+            else:
+                vcf_evidence.append(None)
 
             if "_" in mut:
                 #Indel
@@ -521,10 +556,14 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         'IS_PROMOTER': is_promoter,
         'IS_SNP': is_snp,
         'AMINO_ACID_NUMBER': aa_num,
-        'AMINO_ACID_SEQUENCE': aa_seq
+        'AMINO_ACID_SEQUENCE': aa_seq,
+        'VCF_EVIDENCE': vcf_evidence
         }
     #Convert everything to numpy arrays
     vals = {key: np.array(vals[key]) for key in vals.keys()}
+    for key in vals.keys():
+        print(key, vals[key])
+    print("??????????????")
 
     return pd.DataFrame(handleIndels(vals)).astype({'MUTATION': 'str',
                                                     'GENE': 'str',
@@ -542,7 +581,8 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                                                     'IS_PROMOTER': 'bool',
                                                     'IS_SNP': 'bool',
                                                     'AMINO_ACID_NUMBER': 'float',
-                                                    'AMINO_ACID_SEQUENCE': 'str'
+                                                    'AMINO_ACID_SEQUENCE': 'str',
+                                                    'VCF_EVIDENCE': 'object'
                                                 })
     
 
@@ -599,7 +639,8 @@ def handleIndels(vals: dict) -> dict:
     
     #Concat the two dicts
     for key in toAdd.keys():
-        vals[key] = vals[key].tolist()
+        if type(vals[key]) == type(np.array([])):
+            vals[key] = vals[key].tolist()
         #Delete the values, offsetting the index as required to refer to the correct item
         for (i, n) in enumerate(toRemove):
             del vals[key][n-i]

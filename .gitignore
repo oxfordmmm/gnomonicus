@@ -155,3 +155,6 @@ tests/outputs/**
 
 #Make sure we track all of the test cases though
 !tests/test-cases/*
+tests/test-cases/NC_045512.2.gbk.pkl
+tests/test-cases/reference.gbk.pkl
+tests/test-cases/NC_045512.2.gbk.gz.pkl
