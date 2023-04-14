@@ -142,11 +142,6 @@ def test_misc():
         gnomonicus.populateEffects(path, catalogue, should_raise_error, referenceGenes, vcfStem)
 
     
-    #Quick check that invalid values in `handleIndels` raise a NoVariantsException
-    with pytest.raises(gnomonicus.NoVariantsException):
-        gnomonicus.handleIndels({'no': 'vars'})
-    
-
 
 def test_1():
     '''Input:
@@ -685,8 +680,8 @@ def test_5():
     '''Input:
             NC_045512.2-S_200_indel-minos.vcf
         Expect output:
-            variants:    21762_indel, 21762_ins_1, 21762_ins_c
-            mutations:   S@200_indel, S@200_ins_1, S@200_ins_c
+            variants:    21762_ins_c
+            mutations:   S@200_ins_c
             predictions: {'AAA': 'R', 'BBB': 'S'}
     '''
     #Setup
@@ -714,8 +709,6 @@ def test_5():
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
 
     variantGARC = variants['VARIANT'].to_list()
-    assert '21762_indel' in variantGARC
-    assert '21762_ins_1' in variantGARC
     assert '21762_ins_c' in variantGARC
 
     mutationGenes = mutations['GENE'].to_list()
@@ -723,8 +716,6 @@ def test_5():
         assert gene == 'S'
 
     mutationGARC = mutations['MUTATION'].to_list()
-    assert '200_indel' in mutationGARC
-    assert '200_ins_1' in mutationGARC
     assert '200_ins_c' in mutationGARC
 
     assert 'AAA' in effects['DRUG'].to_list()
@@ -763,29 +754,11 @@ def test_5():
         'data': {
             'VARIANTS': [
                 {
-                    'VARIANT': '21762_indel',
-                    'NUCLEOTIDE_INDEX': 21762
-                },
-                {
-                    'VARIANT': '21762_ins_1',
-                    'NUCLEOTIDE_INDEX': 21762
-                },
-                {
                     'VARIANT': '21762_ins_c',
                     'NUCLEOTIDE_INDEX': 21762
                 },
             ],
             'MUTATIONS': [
-                {
-                    'MUTATION': '200_indel',
-                    'GENE': 'S',
-                    'GENE_POSITION':200
-                },
-                {
-                    'MUTATION': '200_ins_1',
-                    'GENE': 'S',
-                    'GENE_POSITION':200
-                },
                 {
                     'MUTATION': '200_ins_c',
                     'GENE': 'S',
@@ -794,16 +767,6 @@ def test_5():
             ],
             'EFFECTS': {
                 'AAA': [
-                    {
-                        'GENE': 'S',
-                        'MUTATION': '200_indel',
-                        'PREDICTION': 'U'
-                    },
-                    {
-                        'GENE': 'S',
-                        'MUTATION': '200_ins_1',
-                        'PREDICTION': 'R'
-                    },
                     {
                         'GENE': 'S',
                         'MUTATION': '200_ins_c',
@@ -829,20 +792,11 @@ def test_5():
     #So compare separately...
     expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'c', 'ALTS': ('cc',)})
     assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
-    assert sorted(actualJSON['data']['VARIANTS'][1]['VCF_EVIDENCE']) == sorted(expected_vcf) 
-    assert sorted(actualJSON['data']['VARIANTS'][2]['VCF_EVIDENCE']) == sorted(expected_vcf) 
     assert sorted(actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
-    assert sorted(actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']) == sorted(expected_vcf) 
-    assert sorted(actualJSON['data']['MUTATIONS'][2]['VCF_EVIDENCE']) == sorted(expected_vcf) 
 
     #Clean up the VCF Evidences
     del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
-    del actualJSON['data']['VARIANTS'][1]['VCF_EVIDENCE']
-    del actualJSON['data']['VARIANTS'][2]['VCF_EVIDENCE']
     del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][2]['VCF_EVIDENCE']
-
 
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON, actualJSON)
@@ -1002,8 +956,8 @@ def test_7():
     '''Input:
             NC_045512.2-S_E484K&1450_ins_a-minos.vcf
         Expect output:
-            variants:    23012g>a, 23012_ins_a, 23012_indel, 23012_ins_1
-            mutations:   S@E484K, S@1450_ins_a, S@1450_ins_a&S@E484K, S@1450_indel, S@1450_ins_1
+            variants:    23012g>a, 23012_ins_a
+            mutations:   S@E484K, S@1450_ins_a, S@1450_ins_a&S@E484K
             predictions: {'AAA': 'R', 'BBB': 'R'}
     '''
     #Setup
@@ -1032,32 +986,22 @@ def test_7():
 
     #Sort the variants for comparing
     variants_ = sorted(variants['VARIANT'])
-    assert variants_[0] == '23012_indel'
-    assert variants_[1] == '23012_ins_1'
-    assert variants_[2] == '23012_ins_a'
-    assert variants_[3] == '23012g>a'
+    assert variants_[0] == '23012_ins_a'
+    assert variants_[1] == '23012g>a'
 
     #Sort the mutations for comparing
     mutations_ = sorted(list(zip(mutations['GENE'], mutations['MUTATION'])), key= lambda x: x[0] + x[1] if x[0] is not None else x[1])
 
     assert mutations_[0][0] == 'S'
-    assert mutations_[0][1] == '1450_indel'
+    assert mutations_[0][1] == '1450_ins_a'
 
     assert mutations_[1][0] == 'S'
-    assert mutations_[1][1] == '1450_ins_1'
-
-    assert mutations_[2][0] == 'S'
-    assert mutations_[2][1] == '1450_ins_a'
-
-    assert mutations_[3][0] == 'S'
-    assert mutations_[3][1] == 'E484K'
+    assert mutations_[1][1] == 'E484K'
 
 
     #Expected effects. For each row, x[0] = DRUG, x[1] = GENE, x[2] = MUTATION, x[3] = PREDICTION
     expected = [
         ['AAA', 'S', 'E484K', 'R'],
-        ['AAA', 'S', '1450_indel', 'U'],
-        ['AAA', 'S', '1450_ins_1', 'R'],
         ['AAA', 'S', '1450_ins_a', 'R'],
         ['BBB', None, 'S@1450_ins_a&S@E484K', 'R'],
     ]
@@ -1106,14 +1050,6 @@ def test_7():
         'data': {
             'VARIANTS': [
                 {
-                    'VARIANT': '23012_indel',
-                    'NUCLEOTIDE_INDEX': 23012
-                },
-                {
-                    'VARIANT': '23012_ins_1',
-                    'NUCLEOTIDE_INDEX': 23012
-                },
-                {
                     'VARIANT': '23012_ins_a',
                     'NUCLEOTIDE_INDEX': 23012
                 },
@@ -1123,16 +1059,6 @@ def test_7():
                 }
             ],
             'MUTATIONS': [
-                {
-                    'MUTATION': '1450_indel',
-                    'GENE': 'S',
-                    'GENE_POSITION':1450
-                },
-                {
-                    'MUTATION': '1450_ins_1',
-                    'GENE': 'S',
-                    'GENE_POSITION':1450
-                },
                 {
                     'MUTATION': '1450_ins_a',
                     'GENE': 'S',
@@ -1149,16 +1075,6 @@ def test_7():
                     {
                         'GENE': 'S',
                         'MUTATION': 'E484K',
-                        'PREDICTION': 'R'
-                    },
-                    {
-                        'GENE': 'S',
-                        'MUTATION': '1450_indel',
-                        'PREDICTION': 'U'
-                    },
-                    {
-                        'GENE': 'S',
-                        'MUTATION': '1450_ins_1',
                         'PREDICTION': 'R'
                     },
                     {
@@ -1201,12 +1117,8 @@ def test_7():
     #Clean up the VCF Evidences
     del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
     del actualJSON['data']['VARIANTS'][1]['VCF_EVIDENCE']
-    del actualJSON['data']['VARIANTS'][2]['VCF_EVIDENCE']
-    del actualJSON['data']['VARIANTS'][3]['VCF_EVIDENCE']
     del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
     del actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][2]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][3]['VCF_EVIDENCE']
 
     #This already asserts that the inputs are equal so no need for assert
     recursive_eq(expectedJSON_, actualJSON)
@@ -1342,8 +1254,8 @@ def test_9():
     Input:
         NC_045512.2-minors.vcf
     Expect output:
-        variants:    25382t>c:0.045, 25283_del_g:0.045, 25283_indel:0.045, 25283_del_1:0.045, 25252_ins_cc:0.045, 25252_ins_1:0.045, 25252_indel:0.045
-        mutations:   !1274Q:0.045, 3721_del_g:0.045, 3721_indel:0.045, 3721_del_1:0.045, 3690_ins_cc:0.045, 3690_ins_1:0.045, 3690_indel:0.045
+        variants:    25382t>c:0.045, 25283_del_g:0.045, 25252_ins_cc:0.045
+        mutations:   !1274Q:0.045, 3721_del_g:0.045, 3690_ins_cc:0.045
         predictions: {'AAA': 'R'}
     '''
     #Setup
@@ -1377,22 +1289,18 @@ def test_9():
 
     #Sort the variants for comparing
     variants_ = sorted(variants['VARIANT'])
-    assert variants_ == sorted(['25382t>c:0.045', '25283_del_t:0.045', '25283_indel:0.045', '25283_del_1:0.045', '25252_ins_cc:0.045', '25252_ins_2:0.045', '25252_indel:0.045', '21558g>a:0.045'])
+    assert variants_ == sorted(['25382t>c:0.045', '25283_del_t:0.045','25252_ins_cc:0.045', '21558g>a:0.045'])
 
     #Sort the mutations for comparing
     mutations_ = sorted(list(zip(mutations['GENE'], mutations['MUTATION'])), key= lambda x: x[0] + x[1] if x[0] is not None else x[1])
-    assert mutations_ == sorted([('S', '!1274Q:0.045'), ('S', '3721_del_t:0.045'), ('S', '3721_indel:0.045'), ('S', '3721_del_1:0.045'), ('S', '3690_ins_cc:0.045'), ('S', '3690_ins_2:0.045'), ('S', '3690_indel:0.045'), ('S', 'g-5a:0.045')])
+    assert mutations_ == sorted([('S', '!1274Q:0.045'), ('S', '3721_del_t:0.045'), ('S', '3690_ins_cc:0.045'), ('S', 'g-5a:0.045')])
 
 
     #Expected effects. For each row, x[0] = DRUG, x[1] = GENE, x[2] = MUTATION, x[3] = PREDICTION
     expected = [
         ['AAA', 'S', 'g-5a:0.045', 'U'],
         ['AAA', 'S', '!1274Q:0.045', 'R'],
-        ['AAA', 'S', '3690_indel:0.045', 'U'],
-        ['AAA', 'S', '3690_ins_2:0.045', 'R'],
-        ['AAA', 'S', '3721_del_1:0.045', 'R'],
         ['AAA', 'S', '3721_del_t:0.045', 'R'],
-        ['AAA', 'S', '3721_indel:0.045', 'U'],
         ['AAA', 'S', '3690_ins_cc:0.045', 'R'],
     ]
     compare_effects(effects, expected)
@@ -1442,25 +1350,9 @@ def test_9():
                     'NUCLEOTIDE_INDEX': 25283
                 },
                 {
-                    'VARIANT': '25283_indel:0.045',
-                    'NUCLEOTIDE_INDEX': 25283
-                },
-                {
-                    'VARIANT': '25283_del_1:0.045',
-                    'NUCLEOTIDE_INDEX': 25283
-                },
-                {
                     'VARIANT': '25252_ins_cc:0.045',
                     'NUCLEOTIDE_INDEX': 25252
                 },
-                {
-                    'VARIANT': '25252_ins_2:0.045',
-                    'NUCLEOTIDE_INDEX': 25252
-                },
-                {
-                    'VARIANT': '25252_indel:0.045',
-                    'NUCLEOTIDE_INDEX': 25252
-                }
             ],
             'MUTATIONS': [
                 {
@@ -1479,27 +1371,7 @@ def test_9():
                     'GENE_POSITION':3721
                 },
                 {
-                    'MUTATION': '3721_indel:0.045',
-                    'GENE': 'S',
-                    'GENE_POSITION':3721
-                },
-                {
-                    'MUTATION': '3721_del_1:0.045',
-                    'GENE': 'S',
-                    'GENE_POSITION':3721
-                },
-                {
                     'MUTATION': '3690_ins_cc:0.045',
-                    'GENE': 'S',
-                    'GENE_POSITION':3690
-                },
-                {
-                    'MUTATION': '3690_ins_2:0.045',
-                    'GENE': 'S',
-                    'GENE_POSITION':3690
-                },
-                {
-                    'MUTATION': '3690_indel:0.045',
                     'GENE': 'S',
                     'GENE_POSITION':3690
                 },
@@ -1518,28 +1390,8 @@ def test_9():
                     },
                     {
                         'GENE': 'S',
-                        'MUTATION': '3690_indel:0.045',
-                        'PREDICTION': 'U'
-                    },
-                    {
-                        'GENE': 'S',
-                        'MUTATION': '3690_ins_2:0.045',
-                        'PREDICTION': 'R'
-                    },
-                    {
-                        'GENE': 'S',
-                        'MUTATION': '3721_del_1:0.045',
-                        'PREDICTION': 'R'
-                    },
-                    {
-                        'GENE': 'S',
                         'MUTATION': '3721_del_t:0.045',
                         'PREDICTION': 'R'
-                    },
-                    {
-                        'GENE': 'S',
-                        'MUTATION': '3721_indel:0.045',
-                        'PREDICTION': 'U'
                     },
                     {
                         'GENE': 'S',
@@ -1567,10 +1419,6 @@ def test_9():
     expected_vcf = [
         "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)}",
         "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
-        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
-        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
-        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
-        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
         "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
         "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 't', 'ALTS': ('c',)}",
     ]
@@ -1580,10 +1428,6 @@ def test_9():
         str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)}]),
         'nan',
         str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]),
-        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]),
-        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]),
-        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]),
-        str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]),
         str([{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]),
     ]
     for i in range(len(actualJSON['data']['MUTATIONS'])):
@@ -1604,8 +1448,8 @@ def test_10():
     Input:
         NC_045512.2-minors.vcf
     Expect output:
-        variants:    25382t>c:2, 25283_del_g:2, 25283_indel:2, 25283_del_1:2, 25252_ins_cc:2, 25252_ins_1:2, 25252_indel:2
-        mutations:   !1274Q:2, 3721_del_g:2, 3721_indel:2, 3721_del_1:2, 3690_ins_cc:2, 3690_ins_1:2, 3690_indel:2
+        variants:    25382t>c:2, 25283_del_g:2, 25252_ins_cc:2
+        mutations:   !1274Q:2, 3721_del_g:2, 3690_ins_cc:2
         predictions: {'AAA': 'R'}
     '''
     #Setup
@@ -1639,22 +1483,18 @@ def test_10():
 
     #Sort the variants for comparing
     variants_ = sorted(variants['VARIANT'])
-    assert variants_ == sorted(['25382t>c:2', '25283_del_t:2', '25283_indel:2', '25283_del_1:2', '25252_ins_cc:2', '25252_ins_2:2', '25252_indel:2', '21558g>a:2'])
+    assert variants_ == sorted(['25382t>c:2', '25283_del_t:2', '25252_ins_cc:2', '21558g>a:2'])
 
     #Sort the mutations for comparing
     mutations_ = sorted(list(zip(mutations['GENE'], mutations['MUTATION'])), key= lambda x: x[0] + x[1] if x[0] is not None else x[1])
-    assert mutations_ == sorted([('S', '!1274Q:2'), ('S', '3721_del_t:2'), ('S', '3721_indel:2'), ('S', '3721_del_1:2'), ('S', '3690_ins_cc:2'), ('S', '3690_ins_2:2'), ('S', '3690_indel:2'), ('S', 'g-5a:2')])
+    assert mutations_ == sorted([('S', '!1274Q:2'), ('S', '3721_del_t:2'), ('S', '3690_ins_cc:2'), ('S', 'g-5a:2')])
 
 
     #Expected effects. For each row, x[0] = DRUG, x[1] = GENE, x[2] = MUTATION, x[3] = PREDICTION
     expected = [
         ['AAA', 'S', 'g-5a:2', 'U'],
         ['AAA', 'S', '!1274Q:2', 'R'],
-        ['AAA', 'S', '3690_indel:2', 'U'],
-        ['AAA', 'S', '3690_ins_2:2', 'R'],
-        ['AAA', 'S', '3721_del_1:2', 'R'],
         ['AAA', 'S', '3721_del_t:2', 'R'],
-        ['AAA', 'S', '3721_indel:2', 'U'],
         ['AAA', 'S', '3690_ins_cc:2', 'R'],
     ]
     compare_effects(effects, expected)
@@ -1704,25 +1544,9 @@ def test_10():
                     'NUCLEOTIDE_INDEX': 25283
                 },
                 {
-                    'VARIANT': '25283_indel:2',
-                    'NUCLEOTIDE_INDEX': 25283
-                },
-                {
-                    'VARIANT': '25283_del_1:2',
-                    'NUCLEOTIDE_INDEX': 25283
-                },
-                {
                     'VARIANT': '25252_ins_cc:2',
                     'NUCLEOTIDE_INDEX': 25252
                 },
-                {
-                    'VARIANT': '25252_ins_2:2',
-                    'NUCLEOTIDE_INDEX': 25252
-                },
-                {
-                    'VARIANT': '25252_indel:2',
-                    'NUCLEOTIDE_INDEX': 25252
-                }
             ],
             'MUTATIONS': [
                 {
@@ -1741,27 +1565,7 @@ def test_10():
                     'GENE_POSITION':3721
                 },
                 {
-                    'MUTATION': '3721_indel:2',
-                    'GENE': 'S',
-                    'GENE_POSITION':3721
-                },
-                {
-                    'MUTATION': '3721_del_1:2',
-                    'GENE': 'S',
-                    'GENE_POSITION':3721
-                },
-                {
                     'MUTATION': '3690_ins_cc:2',
-                    'GENE': 'S',
-                    'GENE_POSITION':3690
-                },
-                {
-                    'MUTATION': '3690_ins_2:2',
-                    'GENE': 'S',
-                    'GENE_POSITION':3690
-                },
-                {
-                    'MUTATION': '3690_indel:2',
                     'GENE': 'S',
                     'GENE_POSITION':3690
                 },
@@ -1780,28 +1584,8 @@ def test_10():
                     },
                     {
                         'GENE': 'S',
-                        'MUTATION': '3690_indel:2',
-                        'PREDICTION': 'U'
-                    },
-                    {
-                        'GENE': 'S',
-                        'MUTATION': '3690_ins_2:2',
-                        'PREDICTION': 'R'
-                    },
-                    {
-                        'GENE': 'S',
-                        'MUTATION': '3721_del_1:2',
-                        'PREDICTION': 'R'
-                    },
-                    {
-                        'GENE': 'S',
                         'MUTATION': '3721_del_t:2',
                         'PREDICTION': 'R'
-                    },
-                    {
-                        'GENE': 'S',
-                        'MUTATION': '3721_indel:2',
-                        'PREDICTION': 'U'
                     },
                     {
                         'GENE': 'S',
@@ -1834,10 +1618,6 @@ def test_10():
     expected_vcf = [
         "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)}",
         "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
-        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
-        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}",
-        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
-        "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
         "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}",
         "{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 't', 'ALTS': ('c',)}",
     ]
@@ -1847,10 +1627,6 @@ def test_10():
         "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)}]",
         "nan",
         "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]",
-        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]",
-        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('gcc',)}]",
-        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]",
-        "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]",
         "[{'GT': (0, 0), 'DP': 44, 'DPF': 0.991, 'COV': (42, 2), 'FRS': 0.045, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'tt', 'ALTS': ('t',)}]",
     ]
     for i in range(len(actualJSON['data']['MUTATIONS'])):
