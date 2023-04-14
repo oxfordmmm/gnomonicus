@@ -144,7 +144,6 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'INDEL_NUCLEOTIDES': diff.indel_nucleotides,
             'VCF_EVIDENCE': diff.vcf_evidences
             }
-    vals = handleIndels(vals)
     variants = pd.DataFrame(vals)
     variants = variants.astype({
                                     'IS_INDEL': 'bool',
@@ -301,7 +300,6 @@ def populateMutations(
             else:
                 vals['AMINO_ACID_NUMBER'] = None
                 vals['AMINO_ACID_SEQUENCE'] = None
-            vals = handleIndels(vals)
             
             geneMutations = pd.DataFrame(vals)
             #Add gene name
@@ -408,7 +406,6 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         }
     #Convert everything to numpy arrays
     vals = {key: np.array(vals[key]) for key in vals.keys()}
-    handleIndels(vals)
     return pd.DataFrame(vals).astype({
                                     'IS_INDEL': 'bool',
                                     'IS_NULL': 'bool',
@@ -552,88 +549,27 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         'VCF_EVIDENCE': vcf_evidence
         }
 
-    return pd.DataFrame(handleIndels(vals)).astype({'MUTATION': 'str',
-                                                    'GENE': 'str',
-                                                    'NUCLEOTIDE_NUMBER': 'float',
-                                                    'NUCLEOTIDE_INDEX': 'float',
-                                                    'GENE_POSITION': 'float',
-                                                    'ALT': 'str',
-                                                    'REF': 'str',
-                                                    'CODES_PROTEIN': 'bool',
-                                                    'INDEL_LENGTH': 'float',
-                                                    'INDEL_NUCLEOTIDES': 'str',
-                                                    'IS_CDS': 'bool',
-                                                    'IS_HET': 'bool',
-                                                    'IS_NULL': 'bool',
-                                                    'IS_PROMOTER': 'bool',
-                                                    'IS_SNP': 'bool',
-                                                    'AMINO_ACID_NUMBER': 'float',
-                                                    'AMINO_ACID_SEQUENCE': 'str',
-                                                    'VCF_EVIDENCE': 'object'
-                                                })
+    return pd.DataFrame(vals).astype({'MUTATION': 'str',
+                                        'GENE': 'str',
+                                        'NUCLEOTIDE_NUMBER': 'float',
+                                        'NUCLEOTIDE_INDEX': 'float',
+                                        'GENE_POSITION': 'float',
+                                        'ALT': 'str',
+                                        'REF': 'str',
+                                        'CODES_PROTEIN': 'bool',
+                                        'INDEL_LENGTH': 'float',
+                                        'INDEL_NUCLEOTIDES': 'str',
+                                        'IS_CDS': 'bool',
+                                        'IS_HET': 'bool',
+                                        'IS_NULL': 'bool',
+                                        'IS_PROMOTER': 'bool',
+                                        'IS_SNP': 'bool',
+                                        'AMINO_ACID_NUMBER': 'float',
+                                        'AMINO_ACID_SEQUENCE': 'str',
+                                        'VCF_EVIDENCE': 'object'
+                                    })
     
 
-
-
-def handleIndels(vals: dict) -> dict:
-    '''Due to how piezo works, we need to add alternative representations for indels
-        Gumpy returns indel mutations as <pos>_(ins|del)_<nucleotides>
-        Piezo catalogues may be that specific, or may require <pos>_indel or <pos>_(ins|del)_<n bases>
-
-    Args:
-        vals (dict): Initial mutation/variant values
-
-    Returns:
-        dict: Mutation/variant values with added indels as required
-    '''
-    #Determine if these are values from variants or mutations (as they have different struct)
-    if 'MUTATION' in vals.keys():
-        access = 'MUTATION'
-    elif 'VARIANT' in vals.keys():
-        access = 'VARIANT'
-    else:
-        raise NoVariantsException()
-
-    toAdd = {key: [] for key in vals.keys() if isinstance(vals[key], Iterable)}
-    toRemove = []
-    for (n, mutation) in enumerate(vals[access]):
-        #Check for minority populations first
-        minor = False
-        if ":" in mutation:
-            mutation, evidence = mutation.split(":")
-            minor = True
-        if 'ins' in mutation or 'del' in mutation and len(mutation.split("_")) == 3:
-            #Is an indel so prepare extras to add and remove this
-            toRemove.append(n)
-            pos, indel, bases = mutation.split("_")
-            indels = [
-                pos + "_" + indel + "_" + bases,
-                pos + "_indel", 
-                pos + "_" + indel + "_" + str(len(bases))
-                ]
-            if minor:
-                #Add the evidence
-                indels = [i + ":" + evidence for i in indels]
-            #Add the extras to `toAdd`
-            for i in indels:
-                for key in toAdd.keys():
-                    #Add the extra to the MUTATION/VARIANT field
-                    if key == access:
-                        toAdd[key].append(i)
-                    #Leave the other fields unchanged
-                    else:
-                        toAdd[key].append(vals[key][n])
-    
-    #Concat the two dicts
-    for key in toAdd.keys():
-        if type(vals[key]) == type(np.array([])):
-            vals[key] = vals[key].tolist()
-        #Delete the values, offsetting the index as required to refer to the correct item
-        for (i, n) in enumerate(toRemove):
-            del vals[key][n-i]
-        vals[key] = vals[key] + toAdd[key]
-    return vals
-    
 
 def assignMutationBools(row: pd.Series) -> pd.Series:
     '''Create the appropriate values of 'IS_SYNONYMOUS' and ''IS_NONSYNONYMOUS' for 
@@ -699,6 +635,13 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceG
             if check:
                 #This exact multi mutation exists, so add it to the mutations list
                 mutations.append((None, multi))
+    
+    #Check if the catalogue supports large deletions
+    if "GENE" in set(catalogue.catalogue.rules['MUTATION_AFFECTS']):
+        large_dels = True
+    else:
+        large_dels = False
+
     #Filtering out *just* nucelotide changes for cases of synon mutations
     #The important part of these should have already been found by multi-mutations
     fixed = []
@@ -711,6 +654,14 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceG
             if nucleotide.fullmatch(mutation):
                 #Is a nucleotide (non-promoter) mutation in a coding gene
                 #So skip it as it may cause prediction problems
+                continue
+        #Remove large dels if not supported
+        if not large_dels:
+            #Check if this is a large del
+            large = re.compile(r"""
+                                del_(1\.0)|(0\.[0-9][0-9])
+                                """, re.VERBOSE)
+            if large.fullmatch(mutation):
                 continue
         fixed.append((gene, mutation))
     return fixed
