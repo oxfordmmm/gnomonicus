@@ -20,26 +20,6 @@ import pandas as pd
 import piezo
 from tqdm import tqdm
 
-
-# class MissingFieldException(Exception):
-#     '''Custom exception for when required fields are missing from a given table
-#     '''
-#     def __init__(self, field: str, table: str) -> None:
-#         '''Raise this exception
-
-#         Args:
-#             field (str): Field name missing
-#             table (str): Table which the field is missing from
-#         '''
-#         self.message = f"Field: {field} is not in the {table} table!"
-#         super().__init__(self.message)
-
-class NoVariantsException(Exception):
-    '''Custom exception raised when there are no variants detected
-    '''
-    def __init__(self):
-        super().__init__("No variants were detected!")
-
 class InvalidMutationException(Exception):
     '''Custom exception raised when an invalid mutation is detected
     '''
