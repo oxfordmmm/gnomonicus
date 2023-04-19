@@ -7,7 +7,6 @@ Makes the assumption that VCF files are named `<GUID>.vcf`
 
 Classes:
     MissingFieldException
-    NoVariantsException
     InvalidMutationException
 
 Functions:
