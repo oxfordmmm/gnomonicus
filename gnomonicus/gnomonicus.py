@@ -20,26 +20,6 @@ import pandas as pd
 import piezo
 from tqdm import tqdm
 
-
-# class MissingFieldException(Exception):
-#     '''Custom exception for when required fields are missing from a given table
-#     '''
-#     def __init__(self, field: str, table: str) -> None:
-#         '''Raise this exception
-
-#         Args:
-#             field (str): Field name missing
-#             table (str): Table which the field is missing from
-#         '''
-#         self.message = f"Field: {field} is not in the {table} table!"
-#         super().__init__(self.message)
-
-class NoVariantsException(Exception):
-    '''Custom exception raised when there are no variants detected
-    '''
-    def __init__(self):
-        super().__init__("No variants were detected!")
-
 class InvalidMutationException(Exception):
     '''Custom exception raised when an invalid mutation is detected
     '''
@@ -141,9 +121,9 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'IS_HET': diff.is_het,
             'IS_SNP': diff.is_snp,
             'INDEL_LENGTH': diff.indel_length,
-            'INDEL_NUCLEOTIDES': diff.indel_nucleotides
+            'INDEL_NUCLEOTIDES': diff.indel_nucleotides,
+            'VCF_EVIDENCE': diff.vcf_evidences
             }
-    vals = handleIndels(vals)
     variants = pd.DataFrame(vals)
     variants = variants.astype({
                                     'IS_INDEL': 'bool',
@@ -238,6 +218,13 @@ def populateMutations(
                 if gene:
                     minor_genes.add(gene)
         genesWithMutations += minor_genes
+
+        deletions = []
+        #Make sure large deletions are picked up too
+        for name in reference.stacked_gene_name:
+            deletions += np.unique(name[sample.is_deleted]).tolist()
+        genesWithMutations = set(genesWithMutations + deletions)
+
     else:
         #No catalogue, so just stick to genes in the sample
         genesWithMutations = sample.genes
@@ -276,6 +263,7 @@ def populateMutations(
                 'IS_NULL': diff.is_null,
                 'IS_PROMOTER': diff.is_promoter,
                 'IS_SNP': diff.is_snp,
+                'VCF_EVIDENCE': diff.vcf_evidences
                 }
             #As diff does not populate amino acid items for non-coding genes,
             #pull out the sequence or default to None
@@ -292,7 +280,6 @@ def populateMutations(
             else:
                 vals['AMINO_ACID_NUMBER'] = None
                 vals['AMINO_ACID_SEQUENCE'] = None
-            vals = handleIndels(vals)
             
             geneMutations = pd.DataFrame(vals)
             #Add gene name
@@ -322,13 +309,14 @@ def populateMutations(
                                     'IS_PROMOTER': 'bool',
                                     'IS_SNP': 'bool',
                                     'AMINO_ACID_NUMBER': 'float',
-                                    'AMINO_ACID_SEQUENCE': 'str'
+                                    'AMINO_ACID_SEQUENCE': 'str',
+                                    'VCF_EVIDENCE': 'object'
                                 })
     #Add minor mutations (these are stored separately)
     if reference.minor_populations or sample.minor_populations:
         #Only do this if they exist
-        mutations = pd.concat([mutations, minority_population_mutations(diffs, resistanceCatalogue)])
-
+        x = minority_population_mutations(diffs, resistanceCatalogue)
+        mutations = pd.concat([mutations, x])
     #If there were mutations, write them to a CSV
     if mutations is not None:
         #Add synonymous booleans for analysis later
@@ -386,16 +374,24 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         'IS_HET': ["z" in var for var in variants],
         'IS_SNP': [">" in var for var in variants],
         'INDEL_LENGTH': [len(var.split("_")[-1]) if "_" in var else 0 for var in variants],
-        'INDEL_NUCLEOTIDES': [var.split("_")[-1] if "_" in var else None for var in variants]
+        'INDEL_NUCLEOTIDES': [var.split("_")[-1] if "_" in var else None for var in variants],
+        'VCF_EVIDENCE': [diff.genome2.vcf_evidence.get(
+                                                        int(var.split(">")[0][:-1])
+                                                    ) 
+                        if ">" in var 
+                        else diff.genome2.vcf_evidence.get(
+                                                        int(var.split("_")[0])
+                                                        )
+                        for var in variants]
         }
     #Convert everything to numpy arrays
     vals = {key: np.array(vals[key]) for key in vals.keys()}
-    handleIndels(vals)
     return pd.DataFrame(vals).astype({
                                     'IS_INDEL': 'bool',
                                     'IS_NULL': 'bool',
                                     'IS_HET': 'bool',
-                                    'IS_SNP': 'bool'
+                                    'IS_SNP': 'bool',
+                                    'VCF_EVIDENCE': 'object'
                                 })
 
 
@@ -427,6 +423,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
     is_snp = []
     aa_num = []
     aa_seq = []
+    vcf_evidence = []
 
     #Determine if FRS or COV should be used
     minor_type = get_minority_population_type(catalogue)
@@ -436,7 +433,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         mutations = diff.minor_populations(interpretation=minor_type)
         
         #Without gene names/evidence
-        muts = [mut.split("@")[1].split(":")[0] for mut in mutations]
+        muts = [mut.split(":")[0] for mut in mutations]
         #Gene numbers
         numbers = [
             int(mut.split("_")[0]) if "_" in mut #Indel index: <idx>_<type>_<bases>
@@ -448,14 +445,28 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
 
         #Iter these to pull out all other details from the GeneDifference objects
         for mut, num, full_mut in zip(muts, numbers, mutations):
-            mutations_.append(full_mut.split("@")[1]) #Keep evidence in these
-            genes.append(full_mut.split("@")[0])
+            mutations_.append(full_mut) #Keep evidence in these
+            genes.append(diff.gene1.name)
             gene_pos.append(num)
             codes_protein.append(diff.gene1.codes_protein)
             is_cds.append(num > 0 and diff.gene1.codes_protein)
             is_het.append("Z" in mut.upper())
             is_null.append("X" in mut.upper())
             is_promoter.append(num < 0)
+
+            #Get the genome index of the gene num
+            idx = diff.gene2.nucleotide_index[diff.gene2.nucleotide_number == num][0]
+            evidence1 = diff.gene1.vcf_evidence.get(idx)
+            evidence2 = diff.gene2.vcf_evidence.get(idx)
+
+            if evidence1 is not None and evidence2 is not None:
+                vcf_evidence.append([evidence1, evidence2])
+            elif evidence1 is not None:
+                vcf_evidence.append([evidence1])
+            elif evidence2 is not None:
+                vcf_evidence.append([evidence2])
+            else:
+                vcf_evidence.append(None)
 
             if "_" in mut:
                 #Indel
@@ -514,91 +525,31 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         'IS_PROMOTER': is_promoter,
         'IS_SNP': is_snp,
         'AMINO_ACID_NUMBER': aa_num,
-        'AMINO_ACID_SEQUENCE': aa_seq
+        'AMINO_ACID_SEQUENCE': aa_seq,
+        'VCF_EVIDENCE': vcf_evidence
         }
-    #Convert everything to numpy arrays
-    vals = {key: np.array(vals[key]) for key in vals.keys()}
 
-    return pd.DataFrame(handleIndels(vals)).astype({'MUTATION': 'str',
-                                                    'GENE': 'str',
-                                                    'NUCLEOTIDE_NUMBER': 'float',
-                                                    'NUCLEOTIDE_INDEX': 'float',
-                                                    'GENE_POSITION': 'float',
-                                                    'ALT': 'str',
-                                                    'REF': 'str',
-                                                    'CODES_PROTEIN': 'bool',
-                                                    'INDEL_LENGTH': 'float',
-                                                    'INDEL_NUCLEOTIDES': 'str',
-                                                    'IS_CDS': 'bool',
-                                                    'IS_HET': 'bool',
-                                                    'IS_NULL': 'bool',
-                                                    'IS_PROMOTER': 'bool',
-                                                    'IS_SNP': 'bool',
-                                                    'AMINO_ACID_NUMBER': 'float',
-                                                    'AMINO_ACID_SEQUENCE': 'str'
-                                                })
+    return pd.DataFrame(vals).astype({'MUTATION': 'str',
+                                        'GENE': 'str',
+                                        'NUCLEOTIDE_NUMBER': 'float',
+                                        'NUCLEOTIDE_INDEX': 'float',
+                                        'GENE_POSITION': 'float',
+                                        'ALT': 'str',
+                                        'REF': 'str',
+                                        'CODES_PROTEIN': 'bool',
+                                        'INDEL_LENGTH': 'float',
+                                        'INDEL_NUCLEOTIDES': 'str',
+                                        'IS_CDS': 'bool',
+                                        'IS_HET': 'bool',
+                                        'IS_NULL': 'bool',
+                                        'IS_PROMOTER': 'bool',
+                                        'IS_SNP': 'bool',
+                                        'AMINO_ACID_NUMBER': 'float',
+                                        'AMINO_ACID_SEQUENCE': 'str',
+                                        'VCF_EVIDENCE': 'object'
+                                    })
     
 
-
-
-def handleIndels(vals: dict) -> dict:
-    '''Due to how piezo works, we need to add alternative representations for indels
-        Gumpy returns indel mutations as <pos>_(ins|del)_<nucleotides>
-        Piezo catalogues may be that specific, or may require <pos>_indel or <pos>_(ins|del)_<n bases>
-
-    Args:
-        vals (dict): Initial mutation/variant values
-
-    Returns:
-        dict: Mutation/variant values with added indels as required
-    '''
-    #Determine if these are values from variants or mutations (as they have different struct)
-    if 'MUTATION' in vals.keys():
-        access = 'MUTATION'
-    elif 'VARIANT' in vals.keys():
-        access = 'VARIANT'
-    else:
-        raise NoVariantsException()
-
-    toAdd = {key: [] for key in vals.keys() if isinstance(vals[key], Iterable)}
-    toRemove = []
-    for (n, mutation) in enumerate(vals[access]):
-        #Check for minority populations first
-        minor = False
-        if ":" in mutation:
-            mutation, evidence = mutation.split(":")
-            minor = True
-        if 'ins' in mutation or 'del' in mutation:
-            #Is an indel so prepare extras to add and remove this
-            toRemove.append(n)
-            pos, indel, bases = mutation.split("_")
-            indels = [
-                pos + "_" + indel + "_" + bases,
-                pos + "_indel", 
-                pos + "_" + indel + "_" + str(len(bases))
-                ]
-            if minor:
-                #Add the evidence
-                indels = [i + ":" + evidence for i in indels]
-            #Add the extras to `toAdd`
-            for i in indels:
-                for key in toAdd.keys():
-                    #Add the extra to the MUTATION/VARIANT field
-                    if key == access:
-                        toAdd[key].append(i)
-                    #Leave the other fields unchanged
-                    else:
-                        toAdd[key].append(vals[key][n])
-    
-    #Concat the two dicts
-    for key in toAdd.keys():
-        vals[key] = vals[key].tolist()
-        #Delete the values, offsetting the index as required to refer to the correct item
-        for (i, n) in enumerate(toRemove):
-            del vals[key][n-i]
-        vals[key] = vals[key] + toAdd[key]
-    return vals
-    
 
 def assignMutationBools(row: pd.Series) -> pd.Series:
     '''Create the appropriate values of 'IS_SYNONYMOUS' and ''IS_NONSYNONYMOUS' for 
@@ -664,6 +615,13 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceG
             if check:
                 #This exact multi mutation exists, so add it to the mutations list
                 mutations.append((None, multi))
+    
+    #Check if the catalogue supports large deletions
+    if "GENE" in set(catalogue.catalogue.rules['MUTATION_AFFECTS']):
+        large_dels = True
+    else:
+        large_dels = False
+
     #Filtering out *just* nucelotide changes for cases of synon mutations
     #The important part of these should have already been found by multi-mutations
     fixed = []
@@ -676,6 +634,14 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceG
             if nucleotide.fullmatch(mutation):
                 #Is a nucleotide (non-promoter) mutation in a coding gene
                 #So skip it as it may cause prediction problems
+                continue
+        #Remove large dels if not supported
+        if not large_dels:
+            #Check if this is a large del
+            large = re.compile(r"""
+                                del_(1\.0)|(0\.[0-9][0-9])
+                                """, re.VERBOSE)
+            if large.fullmatch(mutation):
                 continue
         fixed.append((gene, mutation))
     return fixed
@@ -768,14 +734,16 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
             'VARIANTS': [
                 {
                     'VARIANT': Genome level variant in GARC,
-                    'NUCLEOTIDE_INDEX': Genome index of variant
+                    'NUCLEOTIDE_INDEX': Genome index of variant,
+                    'VCF_EVIDENCE': Parsed VCF row
                 }, ...
             ],
             ?'MUTATIONS': [
                 {
                     'MUTATION': Gene level mutation in GARC,
                     'GENE': Gene name,
-                    'GENE_POSITION': Position within the gene. Amino acid or nucleotide index depending on which is appropriate
+                    'GENE_POSITION': Position within the gene. Amino acid or nucleotide index depending on which is appropriate,
+                    'VCF_EVIDENCE': Parsed VCF row
                 }
             ],
             ?'EFFECTS': {
@@ -811,11 +779,12 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
     data = {}
     #Variants field
     _variants = []
-    meta['fields']['VARIANTS'] = ['VARIANT', 'NUCLEOTIDE_INDEX']
+    meta['fields']['VARIANTS'] = ['VARIANT', 'NUCLEOTIDE_INDEX', 'VCF_EVIDENCE']
     for _, variant in variants.iterrows():
         row = {
             'VARIANT': variant['VARIANT'],
             'NUCLEOTIDE_INDEX': variant['NUCLEOTIDE_INDEX'],
+            'VCF_EVIDENCE': variant['VCF_EVIDENCE']
         }
         _variants.append(row)
     data['VARIANTS'] = _variants
@@ -823,12 +792,13 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
     #Depending on mutations/effects, populate
     _mutations = []
     if mutations is not None:
-        meta['fields']['MUTATIONS'] = ['MUTATION', 'GENE', 'GENE_POSITION']
+        meta['fields']['MUTATIONS'] = ['MUTATION', 'GENE', 'GENE_POSITION', 'VCF_EVIDENCE']
         for _, mutation in mutations.iterrows():
             row = {
                 'MUTATION': mutation['MUTATION'],
                 'GENE': mutation['GENE'],
-                'GENE_POSITION': mutation['GENE_POSITION']
+                'GENE_POSITION': mutation['GENE_POSITION'],
+                'VCF_EVIDENCE': mutation['VCF_EVIDENCE']
             }
             _mutations.append(row)
         data['MUTATIONS'] = _mutations

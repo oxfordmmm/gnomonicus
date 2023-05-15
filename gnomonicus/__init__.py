@@ -7,7 +7,6 @@ Makes the assumption that VCF files are named `<GUID>.vcf`
 
 Classes:
     MissingFieldException
-    NoVariantsException
     InvalidMutationException
 
 Functions:
@@ -24,5 +23,5 @@ import importlib.metadata
 __version__ = importlib.metadata.version("gnomonicus")
 
 from .gnomonicus import (loadGenome, populateVariants, populateMutations, populateEffects, assignMutationBools,
-                        countNucleotideChanges, NoVariantsException, InvalidMutationException,
-                        saveJSON, toAltJSON, handleIndels)
+                        countNucleotideChanges, InvalidMutationException,
+                        saveJSON, toAltJSON)

@@ -11,7 +11,7 @@ import time
 import gumpy
 import piezo
 
-from gnomonicus import loadGenome, NoVariantsException, populateVariants, populateMutations, populateEffects, saveJSON, toAltJSON
+from gnomonicus import loadGenome, populateVariants, populateMutations, populateEffects, saveJSON, toAltJSON
 import gnomonicus
 
 if __name__ == "__main__":
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     #Complain if there are no variants
     if diff.variants is None:
         logging.error("No variants detected!")
-        raise NoVariantsException()
+        raise Exception("No variants detected!")
 
     #Get the variations and mutations
     variants = populateVariants(vcfStem, options.output_dir, diff, catalogue=resistanceCatalogue)
