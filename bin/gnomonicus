@@ -11,7 +11,7 @@ import time
 import gumpy
 import piezo
 
-from gnomonicus import loadGenome, populateVariants, populateMutations, populateEffects, saveJSON, toAltJSON
+from gnomonicus import loadGenome, populateVariants, populateMutations, populateEffects, saveJSON
 import gnomonicus
 
 if __name__ == "__main__":
@@ -25,7 +25,6 @@ if __name__ == "__main__":
     parser.add_argument("--progress",action='store_true',default=False,help="whether to show progress using tqdm")
     parser.add_argument("--output_dir", required=False, default=".", help="Directory to save output files to. Defaults to wherever the script is run from.")
     parser.add_argument("--json", required=False, action='store_true', default=False, help="Flag to create a single JSON output as well as the CSVs")
-    parser.add_argument("--alt_json", required=False, default=False, action='store_true', help="Whether to produce the alternate JSON format. Requires the --json flag too")
     parser.add_argument("--fasta", required=False, default=None, help="Use to output a FASTA file of the resultant genome. Specify either 'fixed' or 'variable' for fixed length and variable length FASTA respectively.")
     parser.add_argument("--minor_populations", required=False, default=None, help="Path to a line separated file containing genome indices of minor populations.")
     options = parser.parse_args()
@@ -130,10 +129,7 @@ if __name__ == "__main__":
         if not values:
             values = list("RFUS")
         logging.info(f"Saving a JSON... See {options.output_dir}/gnomonicus-out.json")
-        saveJSON(variants, mutations, effects, options.output_dir, vcfStem, values, gnomonicus.__version__)
-        if options.alt_json:
-            logging.info(f"Saving the alternate JSON too... See {options.output_dir}/alt-gnomonicus-out.json")
-            toAltJSON(options.output_dir, reference, vcfStem, resistanceCatalogue.catalogue.name)
+        saveJSON(variants, mutations, effects, options.output_dir, vcfStem, resistanceCatalogue, gnomonicus.__version__, time.time()-start, reference, options.vcf_file, options.genome_object, options.catalogue_file)
 
     if options.fasta and options.fasta.lower() in ['fixed', 'variable']:
         fixed = options.fasta.lower() == 'fixed'
