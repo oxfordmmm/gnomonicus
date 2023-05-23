@@ -240,7 +240,6 @@ def populateMutations(
                 'codes_protein': diff.codes_protein,
                 'indel_length': diff.indel_length,
                 'indel_nucleotides': diff.indel_nucleotides,
-                'vcf_evidence': diff.vcf_evidences
                 }
             #As diff does not populate amino acid items for non-coding genes,
             #pull out the sequence or default to None
@@ -282,7 +281,6 @@ def populateMutations(
                                     'indel_nucleotides': 'str',
                                     'amino_acid_number': 'float',
                                     'amino_acid_sequence': 'str',
-                                    'vcf_evidence': 'object'
                                 })
     #Add minor mutations (these are stored separately)
     if reference.minor_populations or sample.minor_populations:
@@ -374,7 +372,6 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
     is_snp = []
     aa_num = []
     aa_seq = []
-    vcf_evidence = []
 
     #Determine if FRS or COV should be used
     minor_type = get_minority_population_type(catalogue)
@@ -404,20 +401,6 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
             is_het.append("Z" in mut.upper())
             is_null.append("X" in mut.upper())
             is_promoter.append(num < 0)
-
-            #Get the genome index of the gene num
-            idx = diff.gene2.nucleotide_index[diff.gene2.nucleotide_number == num][0]
-            evidence1 = diff.gene1.vcf_evidence.get(idx)
-            evidence2 = diff.gene2.vcf_evidence.get(idx)
-
-            if evidence1 is not None and evidence2 is not None:
-                vcf_evidence.append([evidence1, evidence2])
-            elif evidence1 is not None:
-                vcf_evidence.append([evidence1])
-            elif evidence2 is not None:
-                vcf_evidence.append([evidence2])
-            else:
-                vcf_evidence.append(None)
 
             if "_" in mut:
                 #Indel
@@ -472,7 +455,6 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         'indel_nucleotides': indel_nucleotides,
         'amino_acid_number': aa_num,
         'amino_acid_sequence': aa_seq,
-        'vcf_evidence': vcf_evidence
         }
 
     return pd.DataFrame(vals).astype({'mutation': 'str',
@@ -487,7 +469,6 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                                         'indel_nucleotides': 'str',
                                         'amino_acid_number': 'float',
                                         'amino_acid_sequence': 'str',
-                                        'vcf_evidence': 'object'
                                     })
 
 def countNucleotideChanges(row: pd.Series) -> int:
