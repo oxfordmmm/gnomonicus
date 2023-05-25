@@ -4,7 +4,6 @@ on:
     branches:
       - master
       - main
-      - cicd-docs
 permissions:
   contents: write
 jobs:
