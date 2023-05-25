@@ -51,7 +51,7 @@ def checkGzip(path: str) -> bool:
 
 
 def loadGenome(path: str, progress: bool) -> gumpy.Genome:
-    '''Load a genome from a given path. Checks if path is to a pickle dump, or if a pickle dump of the path's file exists
+    '''Load a genome from a given path. Checks if path is to a pickle dump, or if a pickle dump of the path's file exists. 
     Instanciates a new gumpy Genome and dumps to pickle as a last resort
 
     Args:
@@ -589,7 +589,8 @@ def countNucleotideChanges(row: pd.Series) -> int:
 
 def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceGenes: dict) -> [[str, str]]:
     '''Get all of the mutations (including multi-mutations) from the mutations df
-    Multi-mutations currently only exist within the converted WHO catalogue, and are a highly specific combination 
+
+    * Multi-mutations currently only exist within the converted WHO catalogue, and are a highly specific combination 
         of mutations which must all be present for a single resistance value.
 
     Args:
@@ -723,6 +724,7 @@ def populateEffects(
 
 def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, gnomonicusVersion: str) -> None:
     '''Create and save a single JSON output file for use within GPAS. JSON structure:
+    ```
     {
         'meta': {
             'version': gnomonicus version,
@@ -760,6 +762,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
             }
         }
     }
+    ```
     Where fields with a preceeding '?' are not always present depending on data
 
     Args:
@@ -832,6 +835,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, values: list, g
 
 def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) -> None:
     '''Convert the output JSON into a similar format to the COVID workflows:
+    ```
     {
         <guid>: {
             'WorkflowInformation': {
@@ -864,6 +868,7 @@ def toAltJSON(path: str, reference: gumpy.Genome, vcfStem: str, catalogue: str) 
             'gnomonicusOutputJSON': Full original output JSON
         }
     }
+    ```
 
     Args:
         path (str): Path to the directory containing the original JSON
