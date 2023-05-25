@@ -11,19 +11,22 @@ import sys
 import pickle
 import gzip
 import gumpy
+import argparse
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: gbkToPkl <genbank path> [--compress]")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("genbank_file", help="Path to a genbank file")
+    parser.add_argument("--compress", required=False, action='store_true', default=False, help="Whether to gzip compress the output pickle.")
+    options = parser.parse_args()
+    
+    g = gumpy.Genome(options.genbank_file, show_progress_bar=True)
+    if options.compress:
+        #Save as gzipped version
+        print("Compressing with gzip...")
+        f = gzip.open(sys.argv[1]+".pkl", 'wb', compresslevel=2)
     else:
-        g = gumpy.Genome(sys.argv[1], show_progress_bar=True)
-        if len(sys.argv) == 3 and sys.argv[2] == '--compress':
-            #Save as gzipped version
-            print("Compressing with gzip...")
-            f = gzip.open(sys.argv[1]+".pkl", 'wb', compresslevel=2)
-        else:
-            #Save without gzip
-            f = open(sys.argv[1]+".pkl", 'wb')
-        pickle.dump(g, f)
-        f.close()
+        #Save without gzip
+        f = open(sys.argv[1]+".pkl", 'wb')
+    pickle.dump(g, f)
+    f.close()
 
