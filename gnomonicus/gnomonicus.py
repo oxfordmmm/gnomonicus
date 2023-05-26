@@ -128,7 +128,9 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
     #If there are variants, save them to a csv
     if not variants.empty:
         #Add unique ID to each record
-        variants['unique_id'] = vcfStem
+        variants['uniqueid'] = vcfStem
+
+        variants = variants[['uniqueid', 'variant', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence']]
 
         #Save CSV
         variants.to_csv(os.path.join(outputDir, f'{vcfStem}.variants.csv'), header=True, index=False)
@@ -294,7 +296,10 @@ def populateMutations(
         mutations['number_nucleotide_changes'] = mutations.apply(countNucleotideChanges, axis=1)
 
         #Add VCF stem as the uniqueID
-        mutations['unique_id'] = vcfStem
+        mutations['uniqueid'] = vcfStem
+
+        #Reorder the columns
+        mutations = mutations[['uniqueid', 'gene', 'mutation', 'ref', 'alt', 'nucleotide_number', 'nucleotide_index', 'gene_position', 'codes_protein', 'indel_length', 'indel_nucleotides', 'amino_acid_number', 'amino_acid_sequence', 'number_nucleotide_changes']]
 
         #Save it as CSV
         mutations.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
@@ -605,10 +610,13 @@ def populateEffects(
     #Build the DataFrame
     effects = pd.DataFrame.from_dict(effects, 
                                         orient="index", 
-                                        columns=["unique_id", "gene", "mutation", 
+                                        columns=["uniqueid", "gene", "mutation", 
                                             "catalogue_name", "drug", "prediction"]
                                         )
-    
+    effects = effects[["uniqueid", "gene", "mutation", "drug", "prediction", "catalogue_name"]]
+    effects['catalogue_version'] = resistanceCatalogue.catalogue.version
+    effects['prediction_values'] = ''.join(resistanceCatalogue.catalogue.values)
+    effects['evidence'] = "{}"
     
     #Save as CSV
     if len(effects) > 0:
