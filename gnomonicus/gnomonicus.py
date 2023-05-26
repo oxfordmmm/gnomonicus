@@ -100,13 +100,14 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     pickle.dump(reference, open(path+'.pkl', 'wb'))
     return reference
 
-def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, catalogue: piezo.ResistanceCatalogue=None) -> pd.DataFrame:
+def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, make_csv: bool, catalogue: piezo.ResistanceCatalogue=None) -> pd.DataFrame:
     '''Populate and save the variants DataFrame as a CSV
 
     Args:
         vcfStem (str): The stem of the filename for the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
         diff (gumpy.GenomeDifference): GenomeDifference object between reference and the sample
+        make_csv (bool): Whether to write the CSV of the dataframe
         catalogue (piezo.ResistanceCatalogue, optional): Catalogue for determining FRS or COV for minority populations. If None is given, FRS is assumed. Defaults to None
     
     Returns:
@@ -131,9 +132,9 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
         variants['uniqueid'] = vcfStem
 
         variants = variants[['uniqueid', 'variant', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence']]
-
-        #Save CSV
-        variants.to_csv(os.path.join(outputDir, f'{vcfStem}.variants.csv'), header=True, index=False)
+        if make_csv:
+            #Save CSV
+            variants.to_csv(os.path.join(outputDir, f'{vcfStem}.variants.csv'), header=True, index=False)
     variants.reset_index(inplace=True)
     return variants
 
@@ -170,7 +171,7 @@ def get_minority_population_type(catalogue: piezo.ResistanceCatalogue) -> str:
 
 def populateMutations(
         vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome,
-        sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue) -> (pd.DataFrame, dict):
+        sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue, make_csv: bool) -> (pd.DataFrame, dict):
     '''Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
 
     Args:
@@ -180,6 +181,7 @@ def populateMutations(
         reference (gumpy.Genome): Reference genome
         sample (gumpy.Genome): Sample genome
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue (used to find which genes to check)
+        make_csv (bool): Whether to write the CSV of the dataframe
 
     Raises:
         MissingFieldException: Raised when the mutations DataFrame does not contain the required fields
@@ -301,8 +303,9 @@ def populateMutations(
         #Reorder the columns
         mutations = mutations[['uniqueid', 'gene', 'mutation', 'ref', 'alt', 'nucleotide_number', 'nucleotide_index', 'gene_position', 'codes_protein', 'indel_length', 'indel_nucleotides', 'amino_acid_number', 'amino_acid_sequence', 'number_nucleotide_changes']]
 
-        #Save it as CSV
-        mutations.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
+        if make_csv:
+            #Save it as CSV
+            mutations.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
 
         #Remove index to return
         mutations.reset_index(inplace=True)
@@ -551,7 +554,7 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceG
 
 def populateEffects(
         outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
-        mutations: pd.DataFrame, referenceGenes: dict, vcfStem: str) -> (pd.DataFrame, dict):
+        mutations: pd.DataFrame, referenceGenes: dict, vcfStem: str, make_csv: bool) -> (pd.DataFrame, dict):
     '''Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -560,6 +563,7 @@ def populateEffects(
         mutations (pd.DataFrame): Mutations dataframe
         referenceGenes (dict): Dictionary mapping gene name --> reference gumpy.Gene objects
         vcfStem (str): The basename of the given VCF - used as the sample name
+        make_csv (bool): Whether to write the CSV of the dataframe
 
     Raises:
         InvalidMutationException: Raised if an invalid mutation is detected
@@ -619,7 +623,7 @@ def populateEffects(
     effects['evidence'] = "{}"
     
     #Save as CSV
-    if len(effects) > 0:
+    if len(effects) > 0 and make_csv:
         effects.to_csv(os.path.join(outputDir, f'{vcfStem}.effects.csv'), index=False)
 
     effects.reset_index(inplace=True)
