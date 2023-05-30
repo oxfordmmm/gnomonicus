@@ -739,6 +739,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
 
     _effects = defaultdict(list)
     antibiogram = {}
+    drugs = set()
     if effects is not None and len(effects) > 0:
         for _, effect in effects.iterrows():
             prediction = {
@@ -759,7 +760,11 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                     phenotype = prediction['prediction']
             _effects[drug].append({'phenotype': phenotype})
             antibiogram[drug] = phenotype
+            drugs.add(drug)
         data['effects'] = _effects
+    for d in catalogue.catalogue.drugs:
+        if d not in drugs:
+            antibiogram[d] = "S"
     data['antibiogram'] = antibiogram
 
     #Convert fields to a list so it can be json serialised
