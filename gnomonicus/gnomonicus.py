@@ -436,7 +436,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                 nucleotide_index.append(None)
                 #Pull out codons for ref/alt
                 ref.append(diff.gene1.codons[diff.gene1.amino_acid_number == num][0])
-                alt.append(diff.gene2.codons[diff.gene2.amino_acid_number == num][0])
+                alt.append(diff.gene2.minor_codons[full_mut])
                 is_snp.append(True)
                 aa_num.append(num)
                 aa_seq.append(mut[-1])
@@ -662,7 +662,9 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                     'mutation': Gene level mutation in GARC,
                     'gene': Gene name,
                     'gene_position': Position within the gene. Amino acid or nucleotide index depending on which is appropriate,
-                    'vcf_evidence': Parsed VCF row
+                    'vcf_evidence': Parsed VCF row,
+                    'ref': Ref base(s),
+                    'alt': Alt base(s)
                 }
             ],
             ?'effects': {
@@ -704,9 +706,9 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
         'workflow_task': 'resistance_prediction', #TODO: Update this when we know how to detect a virulence catalogue
         'guid': guid, #Sample GUID
         'UTC-datetime-completed': datetime.datetime.utcnow().isoformat(), #ISO datetime run
-        'time_taken': time_taken,
+        'time_taken_s': time_taken,
         'reference': reference.name,
-        'catalogue_type': 'discrete_values', #TODO: Update this when we have MIC catalogues
+        'catalogue_type': ''.join(catalogue.catalogue.values),
         'catalogue_name': catalogue.catalogue.name,
         'catalogue_version': catalogue.catalogue.version,
         'catalogue_file': catalogue_path,
@@ -734,6 +736,10 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                 'gene': mutation['gene'],
                 'gene_position': mutation['gene_position'],
             }
+            if mutation['mutation'][0].isupper():
+                #Only add codon ref/alt for AA changes
+                row['ref'] = mutation['ref']
+                row['alt'] = mutation['alt']
             _mutations.append(row)
         data['mutations'] = _mutations
 
@@ -769,5 +775,5 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
 
     #Convert fields to a list so it can be json serialised
     with open(os.path.join(path, f'{guid}.gnomonicus-out.json'), 'w') as f:
-        f.write(json.dumps({'meta': meta, 'data': data}, indent=2, sort_keys=True))
+        f.write(json.dumps({'meta': meta, 'data': data}, indent=2))
 
