@@ -119,7 +119,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'nucleotide_index': diff.nucleotide_index,
             'indel_length': diff.indel_length,
             'indel_nucleotides': diff.indel_nucleotides,
-            'vcf_evidence': diff.vcf_evidences
+            'vcf_evidence': [json.dumps(x) for x in diff.vcf_evidences]
             }
     variants = pd.DataFrame(vals)
 
@@ -244,6 +244,7 @@ def populateMutations(
                 'codes_protein': diff.codes_protein,
                 'indel_length': diff.indel_length,
                 'indel_nucleotides': diff.indel_nucleotides,
+                'variant': diff.variants
                 }
             #As diff does not populate amino acid items for non-coding genes,
             #pull out the sequence or default to None
@@ -301,7 +302,7 @@ def populateMutations(
         mutations['uniqueid'] = vcfStem
 
         #Reorder the columns
-        mutations = mutations[['uniqueid', 'gene', 'mutation', 'ref', 'alt', 'nucleotide_number', 'nucleotide_index', 'gene_position', 'codes_protein', 'indel_length', 'indel_nucleotides', 'amino_acid_number', 'amino_acid_sequence', 'number_nucleotide_changes']]
+        mutations = mutations[['uniqueid', 'gene', 'mutation', 'variant', 'ref', 'alt', 'nucleotide_number', 'nucleotide_index', 'gene_position', 'codes_protein', 'indel_length', 'indel_nucleotides', 'amino_acid_number', 'amino_acid_sequence', 'number_nucleotide_changes']]
 
         if make_csv:
             #Save it as CSV
@@ -336,13 +337,13 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         'nucleotide_index': [var.split(">")[0][:-1] if ">" in var else var.split("_")[0] for var in variants],
         'indel_length': [len(var.split("_")[-1]) if "_" in var else 0 for var in variants],
         'indel_nucleotides': [var.split("_")[-1] if "_" in var else None for var in variants],
-        'vcf_evidence': [diff.genome2.vcf_evidence.get(
+        'vcf_evidence': [json.dumps(diff.genome2.vcf_evidence.get(
                                                         int(var.split(">")[0][:-1])
-                                                    ) 
+                                                    ))
                         if ">" in var 
-                        else diff.genome2.vcf_evidence.get(
+                        else json.dumps(diff.genome2.vcf_evidence.get(
                                                         int(var.split("_")[0])
-                                                        )
+                                                        ))
                         for var in variants]
         }
     #Convert everything to numpy arrays
@@ -380,6 +381,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
     is_snp = []
     aa_num = []
     aa_seq = []
+    variants = []
 
     #Determine if FRS or COV should be used
     minor_type = get_minority_population_type(catalogue)
@@ -409,6 +411,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
             is_het.append("Z" in mut.upper())
             is_null.append("X" in mut.upper())
             is_promoter.append(num < 0)
+            variants.append(None)
 
             if "_" in mut:
                 #Indel
@@ -424,7 +427,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                 nucleotide_number.append(num)
                 nucleotide_index.append(diff.gene1.nucleotide_index[diff.gene1.nucleotide_number == num][0])
                 aa_num.append(None)
-                aa_seq.append(None)                
+                aa_seq.append(None)
                 continue
             else:
                 indel_length.append(None)
@@ -663,6 +666,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                     'gene': Gene name,
                     'gene_position': Position within the gene. Amino acid or nucleotide index depending on which is appropriate,
                     'vcf_evidence': Parsed VCF row,
+                    'variant': Corresponding genome level variant(s),
                     'ref': Ref base(s),
                     'alt': Alt base(s)
                 }
@@ -722,7 +726,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
         row = {
             'variant': variant['variant'],
             'nucleotide_index': variant['nucleotide_index'],
-            'vcf_evidence': variant['vcf_evidence']
+            'vcf_evidence': json.loads(variant['vcf_evidence'])
         }
         _variants.append(row)
     data['variants'] = _variants
@@ -735,6 +739,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                 'mutation': mutation['mutation'],
                 'gene': mutation['gene'],
                 'gene_position': mutation['gene_position'],
+                'variant': mutation['variant']
             }
             if mutation['mutation'][0].isupper():
                 #Only add codon ref/alt for AA changes
