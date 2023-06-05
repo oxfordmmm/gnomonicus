@@ -4,6 +4,7 @@
 
 Based on sp3predict
 '''
+import copy
 import datetime
 import gzip
 import json
@@ -301,12 +302,25 @@ def populateMutations(
         #Add VCF stem as the uniqueID
         mutations['uniqueid'] = vcfStem
 
-        #Reorder the columns
-        mutations = mutations[['uniqueid', 'gene', 'mutation', 'variant', 'ref', 'alt', 'nucleotide_number', 'nucleotide_index', 'gene_position', 'codes_protein', 'indel_length', 'indel_nucleotides', 'amino_acid_number', 'amino_acid_sequence', 'number_nucleotide_changes']]
-
         if make_csv:
+            #Check for and split minor multi-mutations into a separate column
+            minor_multis = [None if "&" in mut and ":" not in mut else "&".join(mut.split("&")[1:]) for mut in mutations['mutation']]
+
+            m = [
+                mut if "&" in mut and ":" not in mut 
+                else 
+                mut.split("&")[0].split("@")[1] if "@" in mut.split("&")[0]
+                else mut.split("&")[0]
+                for mut in mutations['mutation']]
+            
+            mutations_ = copy.deepcopy(mutations)
+            mutations_['mutation'] = m
+            mutations_['minor_mutations'] = minor_multis
+            #Reorder the columns
+            mutations_ = mutations_[['uniqueid', 'gene', 'mutation', 'minor_mutations', 'variant', 'ref', 'alt', 'nucleotide_number', 'nucleotide_index', 'gene_position', 'codes_protein', 'indel_length', 'indel_nucleotides', 'amino_acid_number', 'amino_acid_sequence', 'number_nucleotide_changes']]
+            
             #Save it as CSV
-            mutations.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
+            mutations_.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
 
         #Remove index to return
         mutations.reset_index(inplace=True)
@@ -391,7 +405,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         mutations = diff.minor_populations(interpretation=minor_type)
         
         #Without gene names/evidence
-        muts = [mut.split(":")[0] for mut in mutations]
+        muts = [mut.split("&")[0].split("@")[1].split(":")[0] if "&" in mut else mut.split(":")[0]for mut in mutations]
         #Gene numbers
         numbers = [
             int(mut.split("_")[0]) if "_" in mut #Indel index: <idx>_<type>_<bases>
@@ -433,7 +447,20 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                 indel_length.append(None)
                 indel_nucleotides.append(None)
 
-            if mut[0].isupper() or mut[0] == '!':
+            if "&" in full_mut:
+                #Multi mutation
+                nucleotide_number.append(None)
+                nucleotide_index.append(None)
+
+                ref.append(diff.gene1.codons[diff.gene1.amino_acid_number == num][0])
+                #As these are all minor multis, alt is abiguous, so set to None
+                alt.append(None)
+                is_snp.append(True)
+                aa_num.append(num)
+                aa_seq.append("Z")
+                
+
+            elif mut[0].isupper() or mut[0] == '!':
                 #Protein coding SNP
                 nucleotide_number.append(None)
                 nucleotide_index.append(None)
@@ -701,7 +728,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
         reference_path (str): Path to the reference genome used for this run
         catalogue_path (str): Path to the catalogue used for this run
     '''
-    values = catalogue.catalogue.values
+    values = catalogue.catalogue.values if catalogue is not None else list("RFUS")
     #Define some metadata for the json
     meta = {
         'status': 'success',
@@ -712,13 +739,18 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
         'UTC-datetime-completed': datetime.datetime.utcnow().isoformat(), #ISO datetime run
         'time_taken_s': time_taken,
         'reference': reference.name,
-        'catalogue_type': ''.join(catalogue.catalogue.values),
-        'catalogue_name': catalogue.catalogue.name,
-        'catalogue_version': catalogue.catalogue.version,
         'catalogue_file': catalogue_path,
         'reference_file': reference_path,
         'vcf_file': vcf_path
         }
+    if catalogue is not None:
+        meta['catalogue_type'] = ''.join(catalogue.catalogue.values)
+        meta['catalogue_name'] = catalogue.catalogue.name
+        meta['catalogue_version'] = catalogue.catalogue.version
+    else:
+        meta['catalogue_type'] = None
+        meta['catalogue_name'] = None
+        meta['catalogue_version'] = None
     data = {}
     #Variants field
     _variants = []
@@ -773,9 +805,10 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
             antibiogram[drug] = phenotype
             drugs.add(drug)
         data['effects'] = _effects
-    for d in catalogue.catalogue.drugs:
-        if d not in drugs:
-            antibiogram[d] = "S"
+    if catalogue is not None:
+        for d in catalogue.catalogue.drugs:
+            if d not in drugs:
+                antibiogram[d] = "S"
     data['antibiogram'] = antibiogram
 
     #Convert fields to a list so it can be json serialised

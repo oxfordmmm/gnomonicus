@@ -141,8 +141,8 @@ if __name__ == "__main__":
 
     if options.json:
         #Default prediction values are RFUS but use piezo catalogue's values if existing
-        values = resistanceCatalogue.catalogue.values
-        if not values:
+        values = resistanceCatalogue.catalogue.values if resistanceCatalogue is not None else None
+        if values is None:
             values = list("RFUS")
         logging.info(f"Saving a JSON... See {options.output_dir}/gnomonicus-out.json")
         saveJSON(variants, mutations, effects, options.output_dir, vcfStem, resistanceCatalogue, gnomonicus.__version__, time.time()-start, reference, options.vcf_file, options.genome_object, options.catalogue_file)
