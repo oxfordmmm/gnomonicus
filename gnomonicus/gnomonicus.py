@@ -266,6 +266,8 @@ def populateMutations(
                 vals['amino_acid_number'] = None
                 vals['amino_acid_sequence'] = None
             
+            vals['number_nucleotide_changes'] = [sum(i!=j for (i,j) in zip(r, a)) for r, a in zip(vals['ref'], vals['alt'])]
+            
             geneMutations = pd.DataFrame(vals)
             #Add gene name
             geneMutations['gene'] = gene
@@ -300,30 +302,17 @@ def populateMutations(
     if mutations is not None:
 
         #Add the number of mutations which occured for this mutation
-        mutations['number_nucleotide_changes'] = mutations.apply(countNucleotideChanges, axis=1)
+        # mutations['number_nucleotide_changes'] = mutations.apply(countNucleotideChanges, axis=1)
 
         #Add VCF stem as the uniqueID
         mutations['uniqueid'] = vcfStem
 
         if make_csv:
-            #Check for and split minor multi-mutations into a separate column
-            minor_multis = [None if "&" in mut and ":" not in mut else "&".join(mut.split("&")[1:]) for mut in mutations['mutation']]
-
-            m = [
-                mut if "&" in mut and ":" not in mut 
-                else 
-                mut.split("&")[0].split("@")[1] if "@" in mut.split("&")[0]
-                else mut.split("&")[0]
-                for mut in mutations['mutation']]
-            
-            mutations_ = copy.deepcopy(mutations)
-            mutations_['mutation'] = m
-            mutations_['minor_mutations'] = minor_multis
             #Reorder the columns
-            mutations_ = mutations_[['uniqueid', 'gene', 'mutation', 'minor_mutations', 'variant', 'ref', 'alt', 'nucleotide_number', 'nucleotide_index', 'gene_position', 'codes_protein', 'indel_length', 'indel_nucleotides', 'amino_acid_number', 'amino_acid_sequence', 'number_nucleotide_changes']]
+            mutations = mutations[['uniqueid', 'gene', 'mutation', 'ref', 'alt', 'nucleotide_number', 'nucleotide_index', 'gene_position', 'codes_protein', 'indel_length', 'indel_nucleotides', 'amino_acid_number', 'amino_acid_sequence', 'number_nucleotide_changes']]
             
             #Save it as CSV
-            mutations_.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
+            mutations.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
 
         #Remove index to return
         mutations.reset_index(inplace=True)
@@ -481,6 +470,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
     aa_num = []
     aa_seq = []
     variants = []
+    number_nucleotide_changes = []
 
     #Determine if FRS or COV should be used
     minor_type = get_minority_population_type(catalogue)
@@ -511,6 +501,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
             is_null.append("X" in mut.upper())
             is_promoter.append(num < 0)
             variants.append(None)
+            number_nucleotide_changes.append(diff.gene2.minor_nc_changes[num])
 
             if "_" in mut:
                 #Indel
@@ -551,7 +542,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                 nucleotide_index.append(None)
                 #Pull out codons for ref/alt
                 ref.append(diff.gene1.codons[diff.gene1.amino_acid_number == num][0])
-                alt.append(diff.gene2.minor_codons[full_mut])
+                alt.append(mut[-1])
                 is_snp.append(True)
                 aa_num.append(num)
                 aa_seq.append(mut[-1])
@@ -578,6 +569,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         'indel_nucleotides': indel_nucleotides,
         'amino_acid_number': aa_num,
         'amino_acid_sequence': aa_seq,
+        'number_nucleotide_changes': number_nucleotide_changes
         }
 
     return pd.DataFrame(vals).astype({'mutation': 'str',
@@ -592,6 +584,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                                         'indel_nucleotides': 'str',
                                         'amino_acid_number': 'float',
                                         'amino_acid_sequence': 'str',
+                                        'number_nucleotide_changes': 'int'
                                     })
 
 def countNucleotideChanges(row: pd.Series) -> int:
@@ -778,7 +771,6 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                     'gene': Gene name,
                     'gene_position': Position within the gene. Amino acid or nucleotide index depending on which is appropriate,
                     'vcf_evidence': Parsed VCF row,
-                    'variant': Corresponding genome level variant(s),
                     'ref': Ref base(s),
                     'alt': Alt base(s)
                 }
@@ -856,7 +848,6 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                 'mutation': mutation['mutation'],
                 'gene': mutation['gene'],
                 'gene_position': mutation['gene_position'],
-                'variant': mutation['variant']
             }
             if mutation['mutation'][0].isupper():
                 #Only add codon ref/alt for AA changes
