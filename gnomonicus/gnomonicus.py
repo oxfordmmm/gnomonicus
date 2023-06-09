@@ -120,7 +120,10 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'nucleotide_index': diff.nucleotide_index,
             'indel_length': diff.indel_length,
             'indel_nucleotides': diff.indel_nucleotides,
-            'vcf_evidence': [json.dumps(x) for x in diff.vcf_evidences]
+            'vcf_evidence': [json.dumps(x) for x in diff.vcf_evidences],
+            'gene_name': diff.gene_name,
+            'gene_pos': diff.gene_pos,
+            'codon_idx': diff.codon_idx
             }
     variants = pd.DataFrame(vals)
 
@@ -132,7 +135,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
         #Add unique ID to each record
         variants['uniqueid'] = vcfStem
 
-        variants = variants[['uniqueid', 'variant', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence']]
+        variants = variants[['uniqueid', 'variant', 'gene_name', 'gene_pos', 'codon_idx', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence']]
         if make_csv:
             #Save CSV
             variants.to_csv(os.path.join(outputDir, f'{vcfStem}.variants.csv'), header=True, index=False)
@@ -341,24 +344,106 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
 
     #Get the variants in GARC
     variants_ = diff.minor_populations(interpretation=minor_type)
-    variants = [v.split(":")[0] for v in variants_]
+
+    nucleotide_indices = []
+    indel_lengths = []
+    indel_nucleotides = []
+    vcf_evidences = []
+    gene_name = []
+    gene_pos = []
+    codon_idx = []
+
+    for variant_ in variants_:
+        #TODO: multis...
+        variant, evidence = variant_.split(":")
+        
+        if ">" in variant:
+            idx = int(variant.split(">")[0][:-1])
+            nucleotide_indices.append(idx)
+            vcf_evidences.append(
+                json.dumps(
+                    diff.genome2.vcf_evidence.get(
+                                                int(variant.split(">")[0][:-1])
+                    )
+                )
+            )
+        else:
+            idx = int(variant.split("_")[0])
+            nucleotide_indices.append(idx)
+            vcf_evidences.append(
+                json.dumps(
+                    diff.genome2.vcf_evidence.get(
+                                                int(variant.split("_")[0])
+                    )
+                )
+            )
+        
+        if "_" in variant:
+            indel_lengths.append(len(variant.split("_")[-1]))
+            indel_nucleotides.append(variant.split("_")[-1])
+        else:
+            indel_lengths.append(0)
+            indel_nucleotides.append(None)
+
+        #Find the genes at this pos
+        genes = sorted(list(set(diff.genome1.stacked_gene_name[diff.genome1.stacked_nucleotide_index == idx])))
+        if len(genes) > 1:
+            #If we have genes, we need to duplicate some info
+            first = True
+            for gene in genes:
+                if gene == '':
+                    #If we have genes, we don't care about this one
+                    continue
+                    
+                gene_name.append(gene)
+                gene_pos.append(diff.stacked_gene_pos[diff.genome1.stacked_nucleotide_index == idx][0])
+                if diff.genome1.genes[gene]['codes_protein'] and gene_pos[-1] > 0:
+                    #Get codon idx
+                    nc_idx = diff.genome1.stacked_nucleotide_index[diff.genome1.stacked_gene_name == gene]
+                    nc_num = diff.genome1.stacked_nucleotide_number[diff.genome1.stacked_gene_name == gene]
+                    codon_idx.append(nc_num[nc_idx == idx][0] % 3)
+                
+                #If this isn't the first one, we need to duplicate the row
+                if first:
+                    first = False
+                else:
+                    variants.append(variants[-1])
+                    nucleotide_indices.append(indices[-1])
+                    indel_length.append(indel_length[-1])
+                    indel_nucleotides.append(indel_nucleotides[-1])
+
+        else:
+            #We have 1 gene or none, so set to None if no gene is present
+            gene = genes[0] if genes[0] != '' else None
+            gene_name.append(gene)
+            if gene is not None:
+                #Single gene, so pull out data
+                gene_name.append(gene)
+                gene_pos.append(diff.stacked_gene_pos[diff.genome1.stacked_nucleotide_index == idx][0])
+
+                if diff.genome1.genes[gene]['codes_protein'] and gene_pos[-1] > 0:
+                    #Get codon idx
+                    nc_idx = diff.genome1.stacked_nucleotide_index[diff.genome1.stacked_gene_name == gene]
+                    nc_num = diff.genome1.stacked_nucleotide_number[diff.genome1.stacked_gene_name == gene]
+                    codon_idx.append(nc_num[nc_idx == idx][0] % 3)
+                else:
+                    codon_idx.append(None)
+            else:
+                gene_name.append(None)
+                gene_pos.append(None)
+                codon_idx.append(None)
 
 
-    #Split to be the same format
-    #Not exactly efficient, but this should be so infrequent that it shouldn't be impactful
+
     vals = {
         'variant': variants_, 
-        'nucleotide_index': [var.split(">")[0][:-1] if ">" in var else var.split("_")[0] for var in variants],
-        'indel_length': [len(var.split("_")[-1]) if "_" in var else 0 for var in variants],
-        'indel_nucleotides': [var.split("_")[-1] if "_" in var else None for var in variants],
-        'vcf_evidence': [json.dumps(diff.genome2.vcf_evidence.get(
-                                                        int(var.split(">")[0][:-1])
-                                                    ))
-                        if ">" in var 
-                        else json.dumps(diff.genome2.vcf_evidence.get(
-                                                        int(var.split("_")[0])
-                                                        ))
-                        for var in variants]
+        'nucleotide_index': nucleotide_indices,
+        'indel_length': indel_lengths,
+        'indel_nucleotides': indel_nucleotides,
+        'vcf_evidence': vcf_evidences,
+        'gene_name': gene_name,
+        'gene_pos': gene_pos,
+        'codon_idx': codon_idx
         }
     #Convert everything to numpy arrays
     vals = {key: np.array(vals[key]) for key in vals.keys()}
@@ -558,7 +643,7 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceG
     else:
         large_dels = False
 
-    #Filtering out *just* nucelotide changes for cases of synon mutations
+    #Filtering out *just* nucleotide changes for cases of synon mutations
     #The important part of these should have already been found by multi-mutations
     fixed = []
     for gene, mutation in mutations:
