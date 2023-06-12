@@ -542,7 +542,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                 nucleotide_index.append(None)
                 #Pull out codons for ref/alt
                 ref.append(diff.gene1.codons[diff.gene1.amino_acid_number == num][0])
-                alt.append(mut[-1])
+                alt.append("zzz")
                 is_snp.append(True)
                 aa_num.append(num)
                 aa_seq.append(mut[-1])
