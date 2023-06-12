@@ -17,6 +17,7 @@ nav:
   - Home: readme.md
   - Code Reference: reference/
   - CLI: bin.md
+  - Output files: outputs.md
 
 extra:
   version:
