@@ -121,6 +121,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'indel_length': diff.indel_length,
             'indel_nucleotides': diff.indel_nucleotides,
             'vcf_evidence': [json.dumps(x) for x in diff.vcf_evidences],
+            # 'vcf_idx': diff.vcf_idx,
             'gene_name': diff.gene_name,
             'gene_pos': diff.gene_pos,
             'codon_idx': diff.codon_idx
@@ -136,6 +137,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
         variants['uniqueid'] = vcfStem
 
         variants = variants[['uniqueid', 'variant', 'gene_name', 'gene_pos', 'codon_idx', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence']]
+        variants = variants.drop_duplicates()
         if make_csv:
             #Save CSV
             variants.to_csv(os.path.join(outputDir, f'{vcfStem}.variants.csv'), header=True, index=False)
@@ -338,24 +340,56 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
     indel_lengths = []
     indel_nucleotides = []
     vcf_evidences = []
+    vcf_idx = []
     gene_name = []
     gene_pos = []
     codon_idx = []
 
     for variant_ in variants_:
-        #TODO: multis...
         variant, evidence = variant_.split(":")
         
         if ">" in variant:
             idx = int(variant.split(">")[0][:-1])
             nucleotide_indices.append(idx)
-            vcf_evidences.append(
-                json.dumps(
-                    diff.genome2.vcf_evidence.get(
-                                                int(variant.split(">")[0][:-1])
-                    )
-                )
-            )
+            vcf = diff.genome2.vcf_evidence.get(int(variant.split(">")[0][:-1]))
+            vcf_evidences.append(json.dumps(vcf))
+            
+            ref = variant.split(">")[0][-1]
+            alt = variant.split(">")[-1]
+
+            if ref == alt:
+                #Wildtype call so return None as it isn't an ALT
+                vcf_idx.append(None)
+            else:
+                #Simple SNP so check for presence in alts + right COV
+                ev = float(evidence)
+                if ev < 1:
+                    #We have FRS so (due to rounding) convert the VCF's COV to FRS
+                    cov = [round(x/vcf['DP'], 2) for x in vcf["COV"]]
+                else:
+                    cov = vcf['COV']
+                minor_call = variant.split(">")[-1]
+
+                added = False
+                for v_idx, alt in enumerate(vcf['ALTS']):
+                    if added:
+                        #Already added so break
+                        break
+                    for i, a in enumerate(alt):
+                        if a == minor_call and idx == vcf["POS"] + i:
+                            #Match on call and position
+                            #Double check that the COV matches too
+                            #COV contains the REF too, so offset index
+                            if ev == cov[i+2]:
+                                #This is the right element
+                                vcf_idx.append(v_idx)
+                                added = True
+
+                #Shouldn't be possible, but check anyway
+                assert added, f"The index of the VCF evidence could not be determined! {variant_} --> {vcf}"                        
+
+
+
         else:
             idx = int(variant.split("_")[0])
             nucleotide_indices.append(idx)
