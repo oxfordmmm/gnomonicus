@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--json", required=False, action='store_true', default=False, help="Flag to create a single JSON output as well as the CSVs")
     parser.add_argument("--fasta", required=False, default=None, help="Use to output a FASTA file of the resultant genome. Specify either 'fixed' or 'variable' for fixed length and variable length FASTA respectively.")
     parser.add_argument("--minor_populations", required=False, default=None, help="Path to a line separated file containing genome indices of minor populations.")
-    parser.add_argument("--csvs", required=False, nargs="+", help="Types of CSV to produce. Accepted values are [variants, mutations, effects, all]. `all` produces all of the CSVs")
+    parser.add_argument("--csvs", required=False, nargs="+", help="Types of CSV to produce. Accepted values are [variants, mutations, effects, predictions, all]. `all` produces all of the CSVs")
     options = parser.parse_args()
 
     options.output_dir = os.path.realpath(options.output_dir)
@@ -47,15 +47,22 @@ if __name__ == "__main__":
         make_variants_csv = False
         make_mutations_csv = False
         make_effects_csv = False
+        make_prediction_csv = False
     elif "all" in options.csvs:
         make_variants_csv = True
         make_mutations_csv = True
         make_effects_csv = True
+        make_prediction_csv = True
     else:
         make_variants_csv = "variants" in options.csvs
         make_mutations_csv = "mutations" in options.csvs
         make_effects_csv = "effects" in options.csvs
-
+        make_prediction_csv = "predictions" in options.csvs
+    
+    if options.csvs is None and options.json is False and options.fasta is None:
+        #No files will be created so warn the user
+        print("[WARNING]: No outputs selected. No files will be created. For help, try `gnomonicus --help`")
+        logging.warning("No outputs selected. No files will be created")
 
 
     #Get reference genome
@@ -115,7 +122,7 @@ if __name__ == "__main__":
 
     #Get the effects of the mutations
     if resistanceCatalogue is not None and mutations is not None:
-        effects, metadata = populateEffects(options.output_dir, resistanceCatalogue, mutations, referenceGenes, vcfStem, make_effects_csv)
+        effects, metadata = populateEffects(options.output_dir, resistanceCatalogue, mutations, referenceGenes, vcfStem, make_effects_csv, make_prediction_csv)
         logging.debug("Populated and saved effects.csv")
     else:
         metadata = {}

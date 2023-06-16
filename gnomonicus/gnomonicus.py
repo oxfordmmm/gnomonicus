@@ -725,7 +725,7 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceG
 
 def populateEffects(
         outputDir: str, resistanceCatalogue: piezo.ResistanceCatalogue,
-        mutations: pd.DataFrame, referenceGenes: dict, vcfStem: str, make_csv: bool) -> (pd.DataFrame, dict):
+        mutations: pd.DataFrame, referenceGenes: dict, vcfStem: str, make_csv: bool, make_prediction_csv: bool) -> (pd.DataFrame, dict):
     '''Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -735,6 +735,7 @@ def populateEffects(
         referenceGenes (dict): Dictionary mapping gene name --> reference gumpy.Gene objects
         vcfStem (str): The basename of the given VCF - used as the sample name
         make_csv (bool): Whether to write the CSV of the dataframe
+        make_csv (bool): Whether to write the CSV of the antibiogram
 
     Raises:
         InvalidMutationException: Raised if an invalid mutation is detected
@@ -799,6 +800,19 @@ def populateEffects(
 
     effects.reset_index(inplace=True)
 
+    if make_prediction_csv:
+        #We need to construct a simple table here
+        predictions = [phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs]
+        vals = {
+            'drug': resistanceCatalogue.catalogue.drugs,
+            'prediction': predictions,
+            'catalogue_name': resistanceCatalogue.catalogue.name,
+            'catalogue_version': resistanceCatalogue.catalogue.version,
+            'catalogue_values': ''.join(resistanceCatalogue.catalogue.values),
+            'evidence': "{}" #TODO: Add evidence
+        }
+        predictions = pd.DataFrame(vals)
+        predictions.to_csv(os.path.join(outputDir, f"{vcfStem}.predictions.csv"), index=False)
     #Return  the metadata dict to log later
     return effects, {"WGS_PREDICTION_"+drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs}
 
