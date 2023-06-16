@@ -247,7 +247,7 @@ def populateMutations(
                 'gene_position': diff.gene_position,
                 'alt': diff.alt_nucleotides,
                 'ref': diff.ref_nucleotides,
-                'codes_protein': diff.codes_protein,
+                'codes_protein': [diff.codes_protein and pos > 0 for pos in diff.gene_position],
                 'indel_length': diff.indel_length,
                 'indel_nucleotides': diff.indel_nucleotides,
                 'variant': diff.variants
@@ -313,11 +313,22 @@ def populateMutations(
             #Reorder the columns
             mutations = mutations[['uniqueid', 'gene', 'mutation', 'ref', 'alt', 'nucleotide_number', 'nucleotide_index', 'gene_position', 'codes_protein', 'indel_length', 'indel_nucleotides', 'amino_acid_number', 'amino_acid_sequence', 'number_nucleotide_changes']]
             
+            #As we have concated several dataframes, the index is 0,1,2,0,1...
+            #Reset it so that we can use it to delete
+            mutations.reset_index(drop=True, inplace=True)
+            #Filter out nucleotide variants from synonymous mutations to avoid duplication of data
+            mutations_ = copy.deepcopy(mutations)
+            to_drop = []
+            for idx, row in mutations_.iterrows():
+                if row['codes_protein'] and row['ref'] is not None and row['alt'] is not None:
+                    #Protein coding so check if nucleotide within coding region
+                    if len(row['ref']) == 1:
+                        #Nucleotide SNP
+                        to_drop.append(idx)
+            mutations_.drop(index=to_drop, inplace=True)
             #Save it as CSV
-            mutations.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
+            mutations_.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
 
-        #Remove index to return
-        mutations.reset_index(inplace=True)
     return mutations, referenceGenes
 
 def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.ResistanceCatalogue) -> pd.DataFrame:
@@ -547,7 +558,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
             mutations_.append(full_mut) #Keep evidence in these
             genes.append(diff.gene1.name)
             gene_pos.append(num)
-            codes_protein.append(diff.gene1.codes_protein)
+            codes_protein.append(diff.gene1.codes_protein and num > 0)
             is_cds.append(num > 0 and diff.gene1.codes_protein)
             is_het.append("Z" in mut.upper())
             is_null.append("X" in mut.upper())
