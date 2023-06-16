@@ -121,7 +121,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'indel_length': diff.indel_length,
             'indel_nucleotides': diff.indel_nucleotides,
             'vcf_evidence': [json.dumps(x) for x in diff.vcf_evidences],
-            # 'vcf_idx': diff.vcf_idx,
+            'vcf_idx': diff.vcf_idx,
             'gene_name': diff.gene_name,
             'gene_pos': diff.gene_pos,
             'codon_idx': diff.codon_idx
@@ -136,7 +136,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
         #Add unique ID to each record
         variants['uniqueid'] = vcfStem
 
-        variants = variants[['uniqueid', 'variant', 'gene_name', 'gene_pos', 'codon_idx', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence']]
+        variants = variants[['uniqueid', 'variant', 'gene_name', 'gene_pos', 'codon_idx', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence', 'vcf_idx']]
         variants = variants.drop_duplicates()
         if make_csv:
             #Save CSV
@@ -358,8 +358,8 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
             alt = variant.split(">")[-1]
 
             if ref == alt:
-                #Wildtype call so return None as it isn't an ALT
-                vcf_idx.append(None)
+                #Wildtype call so return 0 as it isn't an ALT
+                vcf_idx.append(0)
             else:
                 #Simple SNP so check for presence in alts + right COV
                 ev = float(evidence)
@@ -372,6 +372,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
 
                 added = False
                 for v_idx, alt in enumerate(vcf['ALTS']):
+                    v_idx += 1
                     if added:
                         #Already added so break
                         break
@@ -379,8 +380,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                         if a == minor_call and idx == vcf["POS"] + i:
                             #Match on call and position
                             #Double check that the COV matches too
-                            #COV contains the REF too, so offset index
-                            if ev == cov[i+2]:
+                            if ev == cov[v_idx]:
                                 #This is the right element
                                 vcf_idx.append(v_idx)
                                 added = True
@@ -393,14 +393,31 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         else:
             idx = int(variant.split("_")[0])
             nucleotide_indices.append(idx)
-            vcf_evidences.append(
-                json.dumps(
-                    diff.genome2.vcf_evidence.get(
-                                                int(variant.split("_")[0])
-                    )
-                )
-            )
-        
+            vcf = diff.genome2.vcf_evidence.get(int(variant.split("_")[0]))
+            vcf_evidences.append(json.dumps(vcf))
+
+            #Match VCF idx on base changes + cov
+            ev = float(evidence)
+            if ev < 1:
+                #We have FRS so (due to rounding) convert the VCF's COV to FRS
+                cov = [round(x/vcf['DP'], 2) for x in vcf["COV"]]
+            else:
+                cov = vcf['COV']
+            
+            ref = vcf['REF']
+            type_ = variant.split("_")[1]
+            bases = variant.split("_")[-1]
+            for v_idx, alt in enumerate(vcf['ALTS']):
+                v_idx += 1
+                #Use the same `simplify_call` method to decompose the ALTs into indels + snps
+                #Match on the indel + pos + cov
+                for call in diff.genome2.vcf_file._simplify_call(ref, alt):
+                    offset, t, b = call
+                    if vcf['POS'] + offset == idx and type_ == t and bases == b:
+                        #Match on pos, type and bases so check cov too
+                        if ev == cov[v_idx]:
+                            vcf_idx.append(v_idx)
+            
         if "_" in variant:
             indel_lengths.append(len(variant.split("_")[-1]))
             indel_nucleotides.append(variant.split("_")[-1])
@@ -464,6 +481,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         'indel_length': indel_lengths,
         'indel_nucleotides': indel_nucleotides,
         'vcf_evidence': vcf_evidences,
+        'vcf_idx': vcf_idx,
         'gene_name': gene_name,
         'gene_pos': gene_pos,
         'codon_idx': codon_idx
