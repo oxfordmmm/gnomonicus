@@ -123,7 +123,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'vcf_evidence': [json.dumps(x) for x in diff.vcf_evidences],
             'vcf_idx': diff.vcf_idx,
             'gene_name': diff.gene_name,
-            'gene_pos': diff.gene_pos,
+            'gene_position': diff.gene_pos,
             'codon_idx': diff.codon_idx
             }
     variants = pd.DataFrame(vals)
@@ -136,7 +136,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
         #Add unique ID to each record
         variants['uniqueid'] = vcfStem
 
-        variants = variants[['uniqueid', 'variant', 'gene_name', 'gene_pos', 'codon_idx', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence', 'vcf_idx']]
+        variants = variants[['uniqueid', 'variant', 'gene_name', 'gene_position', 'codon_idx', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence', 'vcf_idx']]
         variants = variants.drop_duplicates()
         if make_csv:
             #Save CSV
@@ -494,7 +494,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         'vcf_evidence': vcf_evidences,
         'vcf_idx': vcf_idx,
         'gene_name': gene_name,
-        'gene_pos': gene_pos,
+        'gene_position': gene_pos,
         'codon_idx': codon_idx
         }
     #Convert everything to numpy arrays
@@ -826,7 +826,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                     'variant': Genome level variant in GARC,
                     'nucleotide_index': Genome index of variant,
                     'gene_name': Name of the gene this variant affects (if applicable),
-                    'gene_pos': Gene position which this variant affects. Nucleotide number if non coding, codon indx if coding (if applicable),
+                    'gene_position': Gene position which this variant affects. Nucleotide number if non coding, codon indx if coding (if applicable),
                     'codon_idx': Index of the base within the corresponding codon this affects (if applicable),
                     'vcf_evidence': Parsed VCF row,
                     'vcf_idx': Which part of the VCF row to look at for this call
@@ -904,7 +904,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
             'variant': variant['variant'],
             'nucleotide_index': variant['nucleotide_index'],
             'gene_name': variant['gene_name'],
-            'gene_pos': variant['gene_pos'],
+            'gene_position': variant['gene_position'],
             'codon_idx': variant['codon_idx'],
             'vcf_evidence': json.loads(variant['vcf_evidence']),
             'vcf_idx': variant['vcf_idx']
