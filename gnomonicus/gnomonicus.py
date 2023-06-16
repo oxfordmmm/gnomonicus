@@ -268,7 +268,7 @@ def populateMutations(
                 vals['amino_acid_number'] = None
                 vals['amino_acid_sequence'] = None
             
-            vals['number_nucleotide_changes'] = [sum(i!=j for (i,j) in zip(r, a)) for r, a in zip(vals['ref'], vals['alt'])]
+            vals['number_nucleotide_changes'] = [sum(i!=j for (i,j) in zip(r, a)) if r is not None and a is not None else None for r, a in zip(vals['ref'], vals['alt'])]
             
             geneMutations = pd.DataFrame(vals)
             #Add gene name
@@ -436,7 +436,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                     continue
                     
                 gene_name.append(gene)
-                gene_pos.append(diff.stacked_gene_pos[diff.genome1.stacked_nucleotide_index == idx][0])
+                gene_pos.append(diff.get_gene_pos(gene, idx))
                 if diff.genome1.genes[gene]['codes_protein'] and gene_pos[-1] > 0:
                     #Get codon idx
                     nc_idx = diff.genome1.stacked_nucleotide_index[diff.genome1.stacked_gene_name == gene]
@@ -459,7 +459,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
             if gene is not None:
                 #Single gene, so pull out data
                 gene_name.append(gene)
-                gene_pos.append(diff.stacked_gene_pos[diff.genome1.stacked_nucleotide_index == idx][0])
+                gene_pos.append(diff.get_gene_pos(gene, idx))
 
                 if diff.genome1.genes[gene]['codes_protein'] and gene_pos[-1] > 0:
                     #Get codon idx
@@ -814,7 +814,11 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                 {
                     'variant': Genome level variant in GARC,
                     'nucleotide_index': Genome index of variant,
-                    'vcf_evidence': Parsed VCF row
+                    'gene_name': Name of the gene this variant affects (if applicable),
+                    'gene_pos': Gene position which this variant affects. Nucleotide number if non coding, codon indx if coding (if applicable),
+                    'codon_idx': Index of the base within the corresponding codon this affects (if applicable),
+                    'vcf_evidence': Parsed VCF row,
+                    'vcf_idx': Which part of the VCF row to look at for this call
                 }, ...
             ],
             ?'mutations': [
@@ -832,7 +836,8 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                     {
                         'gene': Gene name of the mutation,
                         'mutation': Gene level mutation in GARC,
-                        'prediction': Prediction caused by this mutation
+                        'prediction': Prediction caused by this mutation,
+                        'evidence': Evidence to support this prediction. Currently placeholder
                     }, ...,
                     {
                         'phenotype': Resultant prediction for this drug based on prediciton heirarchy
@@ -887,7 +892,11 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
         row = {
             'variant': variant['variant'],
             'nucleotide_index': variant['nucleotide_index'],
-            'vcf_evidence': json.loads(variant['vcf_evidence'])
+            'gene_name': variant['gene_name'],
+            'gene_pos': variant['gene_pos'],
+            'codon_idx': variant['codon_idx'],
+            'vcf_evidence': json.loads(variant['vcf_evidence']),
+            'vcf_idx': variant['vcf_idx']
         }
         _variants.append(row)
     data['variants'] = _variants
