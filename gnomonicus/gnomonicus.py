@@ -447,7 +447,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                     continue
                     
                 gene_name.append(gene)
-                gene_pos.append(diff.get_gene_pos(gene, idx))
+                gene_pos.append(diff.get_gene_pos(gene, idx, variant))
                 if diff.genome1.genes[gene]['codes_protein'] and gene_pos[-1] > 0:
                     #Get codon idx
                     nc_idx = diff.genome1.stacked_nucleotide_index[diff.genome1.stacked_gene_name == gene]
@@ -470,7 +470,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
             if gene is not None:
                 #Single gene, so pull out data
                 gene_name.append(gene)
-                gene_pos.append(diff.get_gene_pos(gene, idx))
+                gene_pos.append(diff.get_gene_pos(gene, idx, variant))
 
                 if diff.genome1.genes[gene]['codes_protein'] and gene_pos[-1] > 0:
                     #Get codon idx
