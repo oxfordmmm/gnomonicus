@@ -12,7 +12,7 @@ import pandas as pd
 import pickle
 import piezo
 import pytest
-#Helpful function import for testing nested JSON equality but does not handle [{}, {}] well
+#Helpful function import for testing nested JSON equality as it gives exact differences
 from recursive_diff import recursive_eq
 
 import gnomonicus
@@ -81,6 +81,43 @@ def sortValues(json: dict) -> dict:
     
     return json
 
+def prep_json(j: dict) -> dict:
+    '''Prepare a JSON for comparison by removing fields which cannot be reproduced
+
+    Args:
+        j (dict): Initial JSON
+
+    Returns:
+        dict: JSON without fields such as time and file paths
+    '''
+    del j['meta']['time_taken_s']
+    del j['meta']['UTC-datetime-completed']
+    del j['meta']['catalogue_file']
+    del j['meta']['reference_file']
+    del j['meta']['vcf_file']
+    return j
+
+def ordered(obj):
+    '''Recursively sort a JSON for equality checking. Based on https://stackoverflow.com/questions/25851183/how-to-compare-two-json-objects-with-the-same-elements-in-a-different-order-equa
+
+    Args:
+        obj (object): Any JSON element. Probably one of dict, list, tuple, str, int, None
+
+    Returns:
+        object: Sorted JSON
+    '''
+    if isinstance(obj, dict):
+        return sorted((k, ordered(v)) for k, v in obj.items())
+    if isinstance(obj, list) or isinstance(obj, tuple):
+        return sorted(ordered(x) for x in obj)
+    if type(obj) == type(None):
+        return str(obj)
+    else:
+        return obj
+
+
+
+
 def test_misc():
     '''Testing misc things which should be raised/edge case behaviour not confined neatly to a whole flow test case
     '''
@@ -117,29 +154,28 @@ def test_misc():
 
     #Populate the tables
     path = "tests/outputs/0/"
-    gnomonicus.populateVariants(vcfStem, path, diff)
+    gnomonicus.populateVariants(vcfStem, path, diff, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue)
+                                    reference, sample, catalogue, False)
     
     #Check for differences if a catalogue is not given. Should be the same mutations but different referenceGenes
     mutations_, referenceGenes_ = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, None)
+                                    reference, sample, None, False)
     
     assert mutations.equals(mutations_)
     assert referenceGenes != referenceGenes_
     
     #Trying to raise an InvalidMutationException with malformed mutation
     should_raise_error = pd.DataFrame({
-                                        'UNIQUEID': ['a'], 'GENE': ['S'], 'MUTATION': ['aa'], 'NUCLEOTIDE_NUMBER': ['a'], 
-                                        'NUCLEOTIDE_INDEX': ['a'], 'GENE_POSITION': ['a'], 'ALT': ['a'], 'REF': ['a'], 
-                                        'CODES_PROTEIN': ['a'], 'INDEL_LENGTH': ['a'], 'INDEL_NUCLEOTIDES': ['a'], 
-                                        'IS_CDS': ['a'], 'IS_HET': ['a'], 'IS_NULL': ['a'], 'IS_PROMOTER': ['a'], 
-                                        'IS_SNP': ['a'], 'AMINO_ACID_NUMBER': ['a'], 'AMINO_ACID_SEQUENCE': ['a'], 
-                                        'IS_SYNONYMOUS': ['a'], 'IS_NONSYNONYMOUS': ['a'], 'NUMBER_NUCLEOTIDE_CHANGES': ['a']
+                                        'uniqueid': ['a'], 'gene': ['S'], 'mutation': ['aa'], 'nucleotide_number': ['a'], 
+                                        'nucleotide_index': ['a'], 'gene_position': ['a'], 'alt': ['a'], 'ref': ['a'], 
+                                        'codes_protein': ['a'], 'indel_length': ['a'], 'indel_nucleotides': ['a'], 
+                                        'amino_acid_number': ['a'], 'amino_acid_sequence': ['a'], 
+                                        'number_nucleotide_changes': ['a']
         })
 
     with pytest.raises(gnomonicus.InvalidMutationException):
-        gnomonicus.populateEffects(path, catalogue, should_raise_error, referenceGenes, vcfStem)
+        gnomonicus.populateEffects(path, catalogue, should_raise_error, referenceGenes, vcfStem, False, False)
 
     
 
@@ -165,145 +201,106 @@ def test_1():
 
     #Populate the tables
     path = "tests/outputs/1/"
-    gnomonicus.populateVariants(vcfStem, path, diff)
+    gnomonicus.populateVariants(vcfStem, path, diff, True)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
+                                    reference, sample, catalogue, True)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
     mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
+    predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
-    assert variants['VARIANT'][0] == '23012g>a'
+    assert variants['variant'][0] == '23012g>a'
 
-    assert mutations['GENE'][0] == 'S'
-    assert mutations['MUTATION'][0] == 'E484K'
+    assert mutations['gene'][0] == 'S'
+    assert mutations['mutation'][0] == 'E484K'
 
-    assert 'AAA' in effects['DRUG'].to_list()
-    assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
+    assert 'AAA' in effects['drug'].to_list()
+    assert effects['prediction'][effects['drug'].to_list().index('AAA')] == 'R'
+    
+    hits = []
+    for _, row in predictions.iterrows():
+        assert row['catalogue_name'] == 'gnomonicus_test'
+        assert row['catalogue_version'] == 'v1.0'
+        assert row['catalogue_values'] == 'RFUS'
+        assert row['evidence'] == '{}'
+        if row['drug'] == 'AAA':
+            hits.append('AAA')
+            assert row['prediction'] == "R"
+        elif row['drug'] == 'BBB':
+            hits.append('BBB')
+            assert row['prediction'] == 'S'
+        else:
+            hits.append(None)
+    assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
-    gnomonicus.toAltJSON(path, reference, vcfStem, catalogue)
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
 
     expectedJSON = {
         'meta': {
-            'version': gnomonicus.__version__,
+            'workflow_version': gnomonicus.__version__,
             'guid': vcfStem,
-            'fields': {
-                "EFFECTS": {
-                        "AAA": [
-                        [
-                            "GENE",
-                            "MUTATION",
-                            "PREDICTION"
-                        ],
-                        "PHENOTYPE"
-                        ]
-                    },
-                "MUTATIONS": [
-                    "MUTATION",
-                    "GENE",
-                    "GENE_POSITION",
-                    'VCF_EVIDENCE'
-                    ],
-                "VARIANTS": [
-                    "VARIANT",
-                    "NUCLEOTIDE_INDEX",
-                    'VCF_EVIDENCE'
-                    ]
-            }
+            "status": "success",
+            "workflow_name": "gnomonicus",
+            "workflow_task": "resistance_prediction",
+            "reference": "NC_045512",
+            "catalogue_type": "RFUS",
+            "catalogue_name": "gnomonicus_test",
+            "catalogue_version": "v1.0"
         },
         'data': {
-            'VARIANTS': [
+            'variants': [
                 {
-                    'VARIANT': '23012g>a',
-                    'NUCLEOTIDE_INDEX': 23012,
+                    'variant': '23012g>a',
+                    'nucleotide_index': 23012,
+                    'gene_name': 'S',
+                    'gene_position': 484,
+                    'codon_idx': 0,
+                    'vcf_evidence': {
+                        'GT': [1, 1], 'DP': 44, 'DPF': 0.991, 'COV': [0, 44], 
+                        'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 
+                        'REF': 'g', 'ALTS': ['a'], 'POS': 23012
+                    },
+                    'vcf_idx': 1
                 }
             ],
-            'MUTATIONS': [
+            'mutations': [
                 {
-                    'MUTATION': 'E484K',
-                    'GENE': 'S',
-                    'GENE_POSITION':484,
+                    'mutation': 'E484K',
+                    'gene': 'S',
+                    'gene_position':484,
+                    "ref": "gaa",
+                    "alt": "aaa"
                 }
             ],
-            'EFFECTS': {
+            'effects': {
                 'AAA': [
                     {
-                        'GENE': 'S',
-                        'MUTATION': 'E484K',
-                        'PREDICTION': 'R'
+                        'gene': 'S',
+                        'mutation': 'E484K',
+                        'prediction': 'R',
+                        'evidence': {}
                     },
                     {
-                        'PHENOTYPE': 'R'
+                        'phenotype': 'R'
                     }
                 ],
+            },
+            'antibiogram': {
+                'AAA': 'R',
+                'BBB': 'S'
             }
         }
     }
+    expectedJSON = json.loads(json.dumps(expectedJSON, sort_keys=True))
 
-    #Ensure the same key ordering as actual by running through json dumping and loading
-    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
-    expectedJSON_ = sortValues(json.loads(strJSON))
+    actualJSON = prep_json(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
-    #Remove datetime as this is unreplicable
-    del actualJSON['meta']['UTC-datetime-run']
-
-    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
-    #So compare separately...
-    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('a',)})
-    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
-
-    #Clean up the VCF Evidences
-    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
-    #This already asserts that the inputs are equal so no need for assert
-    recursive_eq(expectedJSON_, actualJSON)
-
-    #Try again with alt JSON format
-    expectedJSON2 = {
-        vcfStem: {
-            'WorkflowInformation': {
-                'gnomonicusVersion': gnomonicus.__version__,
-                'referenceIdentifier': reference.name,
-                'sampleIdentifier': vcfStem,
-                'catalogueName': 'gnomonicus_test'
-            },
-            'gnomonicus': {
-                'aaDeletions': [],
-                'aaInsertions': [],
-                'aaSubsitutions': ['S@E484K'],
-                'deletions': [], 
-                'insertions': [], 
-                'substitutions': ['23012g>a'], 
-                'frameshifts': 0,
-                'effects': {
-                        'AAA': [
-                            {
-                                'GENE': 'S',
-                                'MUTATION': 'E484K',
-                                'PREDICTION': 'R'
-                            },
-                            {
-                                'PHENOTYPE': 'R'
-                            }
-                        ],
-                    }
-            },
-            'gnomonicusOutputJSON': expectedJSON
-        }
-    }
-    # strJSON2 = json.dumps(expectedJSON2, indent=2, sort_keys=True)
-
-    actualJSON2 = json.load(open(os.path.join(path, f'{vcfStem}.alt-gnomonicus-out.json'), 'r'))
-    #Remove datetime as this is unreplicable
-    del actualJSON2[vcfStem]['gnomonicusOutputJSON']['meta']['UTC-datetime-run']
-    #Similarly remove vcf evidences here
-    del actualJSON2['NC_045512.2-S_E484K-minos']['gnomonicusOutputJSON']['data']['VARIANTS'][0]['VCF_EVIDENCE']
-    del actualJSON2['NC_045512.2-S_E484K-minos']['gnomonicusOutputJSON']['data']['MUTATIONS'][0]['VCF_EVIDENCE']
-    recursive_eq(expectedJSON2, actualJSON2)
+    #assert == does work here, but gives ugly errors if mismatch
+    #Recursive_eq reports neat places they differ
+    recursive_eq(ordered(expectedJSON), ordered(actualJSON))
 
 
 
@@ -329,102 +326,118 @@ def test_2():
 
     #Populate the tables
     path = "tests/outputs/2/"
-    gnomonicus.populateVariants(vcfStem, path, diff)
+    gnomonicus.populateVariants(vcfStem, path, diff, True)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
+                                    reference, sample, catalogue, True)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
     mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
+    predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
-    assert variants['VARIANT'][0] == '23012g>a'
+    assert variants['variant'][0] == '23012g>a'
 
-    assert mutations['GENE'][0] == 'S'
-    assert mutations['MUTATION'][0] == 'E484K'
+    assert mutations['gene'][0] == 'S'
+    assert mutations['mutation'][0] == 'E484K'
 
-    assert 'AAA' in effects['DRUG'].to_list()
-    assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
+    assert 'AAA' in effects['drug'].to_list()
+    assert effects['prediction'][effects['drug'].to_list().index('AAA')] == 'R'
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
+    hits = []
+    for _, row in predictions.iterrows():
+        assert row['catalogue_name'] == 'gnomonicus_test'
+        assert row['catalogue_version'] == 'v1.0'
+        assert row['catalogue_values'] == 'RFUS'
+        assert row['evidence'] == '{}'
+        if row['drug'] == 'AAA':
+            hits.append('AAA')
+            assert row['prediction'] == "R"
+        elif row['drug'] == 'BBB':
+            hits.append('BBB')
+            assert row['prediction'] == 'S'
+        else:
+            hits.append(None)
+    assert sorted(hits) == ['AAA', 'BBB']
+
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
 
     expectedJSON = {
         'meta': {
-            'version': gnomonicus.__version__,
+            'workflow_version': gnomonicus.__version__,
             'guid': vcfStem,
-            'fields': {
-                "EFFECTS": {
-                        "AAA": [
-                        [
-                            "GENE",
-                            "MUTATION",
-                            "PREDICTION"
-                        ],
-                        "PHENOTYPE"
-                        ]
-                    },
-                "MUTATIONS": [
-                    "MUTATION",
-                    "GENE",
-                    "GENE_POSITION",
-                    'VCF_EVIDENCE'
-                    ],
-                "VARIANTS": [
-                    "VARIANT",
-                    "NUCLEOTIDE_INDEX",
-                    'VCF_EVIDENCE'
-                    ]
-            }
+            "status": "success",
+            "workflow_name": "gnomonicus",
+            "workflow_task": "resistance_prediction",
+            "reference": "NC_045512",
+            "catalogue_type": "RFUS",
+            "catalogue_name": "gnomonicus_test",
+            "catalogue_version": "v1.0"
         },
         'data': {
-            'VARIANTS': [
+            'variants': [
                 {
-                    'VARIANT': '23012g>a',
-                    'NUCLEOTIDE_INDEX': 23012
+                    'variant': '23012g>a',
+                    'nucleotide_index': 23012,
+                    'gene_name': 'S',
+                    'gene_position': 484,
+                    'codon_idx': 0,
+                    'vcf_evidence': {
+                        "GT": [
+                            1,
+                            1
+                        ],
+                        "PL": [
+                            255,
+                            33,
+                            0
+                        ],
+                        "POS": 23012,
+                        "REF": "g",
+                        "ALTS": [
+                            "a"
+                        ]
+                    },
+                    'vcf_idx': 1
                 }
             ],
-            'MUTATIONS': [
+            'mutations': [
                 {
-                    'MUTATION': 'E484K',
-                    'GENE': 'S',
-                    'GENE_POSITION':484
+                    'mutation': 'E484K',
+                    'gene': 'S',
+                    'gene_position':484,
+                    "ref": "gaa",
+                    "alt": "aaa"
                 }
             ],
-            'EFFECTS': {
+            'effects': {
                 'AAA': [
                     {
-                        'GENE': 'S',
-                        'MUTATION': 'E484K',
-                        'PREDICTION': 'R'
+                        'gene': 'S',
+                        'mutation': 'E484K',
+                        'prediction': 'R',
+                        'evidence': {}
                     },
                     {
-                        'PHENOTYPE': 'R'
+                        'phenotype': 'R'
                     }
                 ],
+            },
+            'antibiogram': {
+                'AAA': 'R',
+                'BBB': 'S'
             }
         }
     }
 
-    #Ensure the same key ordering as actual by running through json dumping and loading
-    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
-    expectedJSON = sortValues(json.loads(strJSON))
+    expectedJSON = json.loads(json.dumps(expectedJSON, sort_keys=True))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
-    #Remove datetime as this is unreplicable
-    del actualJSON['meta']['UTC-datetime-run']
+    actualJSON = prep_json(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
 
-    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
-    #So compare separately...
-    expected_vcf = str({'GT': (1, 1), 'PL': (255, 33, 0), 'REF': 'g', 'ALTS': ('a',)})
-    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
-
-    #Clean up the VCF Evidences
-    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
-
-    #This already asserts that the inputs are equal so no need for assert
-    recursive_eq(expectedJSON, actualJSON)
+    #assert == does work here, but gives ugly errors if mismatch
+    #Recursive_eq reports neat places they differ
+    recursive_eq(ordered(expectedJSON), ordered(actualJSON))
 
 def test_3():
     '''Input:
@@ -448,111 +461,128 @@ def test_3():
 
     #Populate the tables
     path = "tests/outputs/3/"
-    gnomonicus.populateVariants(vcfStem, path, diff)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
+    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    mutations_, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+                                    reference, sample, catalogue, True)
+    gnomonicus.populateEffects(path, catalogue, mutations_, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
     mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
+    predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
-    assert variants['VARIANT'][0] == '21568t>c'
+    assert variants['variant'][0] == '21568t>c'
 
-    assert mutations['GENE'][0] == 'S'
-    assert mutations['MUTATION'][0] == 'F2F'
-    assert mutations['GENE'][1] == 'S'
-    assert mutations['MUTATION'][1] == 't6c'
+    assert mutations['gene'][0] == 'S'
+    assert mutations['mutation'][0] == 'F2F'
 
-    assert 'AAA' in effects['DRUG'].to_list()
-    assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'S'
+    assert 'AAA' in effects['drug'].to_list()
+    assert effects['prediction'][effects['drug'].to_list().index('AAA')] == 'S'
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
+    hits = []
+    for _, row in predictions.iterrows():
+        assert row['catalogue_name'] == 'gnomonicus_test'
+        assert row['catalogue_version'] == 'v1.0'
+        assert row['catalogue_values'] == 'RFUS'
+        assert row['evidence'] == '{}'
+        if row['drug'] == 'AAA':
+            hits.append('AAA')
+            assert row['prediction'] == "S"
+        elif row['drug'] == 'BBB':
+            hits.append('BBB')
+            assert row['prediction'] == 'S'
+        else:
+            hits.append(None)
+    assert sorted(hits) == ['AAA', 'BBB']
+
+    gnomonicus.saveJSON(variants, mutations_, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
 
     expectedJSON = {
         'meta': {
-            'version': gnomonicus.__version__,
+            'workflow_version': gnomonicus.__version__,
             'guid': vcfStem,
-            'fields': {
-                "EFFECTS": {
-                        "AAA": [
-                        [
-                            "GENE",
-                            "MUTATION",
-                            "PREDICTION"
-                        ],
-                        "PHENOTYPE"
-                        ]
-                    },
-                "MUTATIONS": [
-                    "MUTATION",
-                    "GENE",
-                    "GENE_POSITION",
-                    'VCF_EVIDENCE'
-                    ],
-                "VARIANTS": [
-                    "VARIANT",
-                    "NUCLEOTIDE_INDEX",
-                    'VCF_EVIDENCE'
-                    ]
-            }
+            "status": "success",
+            "workflow_name": "gnomonicus",
+            "workflow_task": "resistance_prediction",
+            "reference": "NC_045512",
+            "catalogue_type": "RFUS",
+            "catalogue_name": "gnomonicus_test",
+            "catalogue_version": "v1.0"
         },
         'data': {
-            'VARIANTS': [
+            'variants': [
                 {
-                    'VARIANT': '21568t>c',
-                    'NUCLEOTIDE_INDEX': 21568
+                    'variant': '21568t>c',
+                    'nucleotide_index': 21568,
+                    'gene_name': 'S',
+                    'gene_position': 2,
+                    'codon_idx': 2,
+                    'vcf_evidence': {
+                        "GT": [
+                            1,
+                            1
+                        ],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [
+                            0,
+                            44
+                        ],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 21568,
+                        "REF": "t",
+                        "ALTS": [
+                            "c"
+                        ]
+                    },
+                    'vcf_idx': 1
                 }
             ],
-            'MUTATIONS': [
+            'mutations': [
                 {
-                    'MUTATION': 'F2F',
-                    'GENE': 'S',
-                    'GENE_POSITION': 2
+                    'mutation': 'F2F',
+                    'gene': 'S',
+                    'gene_position': 2,
+                    'ref': 'ttt',
+                    'alt': 'ttc'
                 },
                 {
-                    'MUTATION': 't6c',
-                    'GENE': 'S',
-                    'GENE_POSITION': 6
+                    'mutation': 't6c',
+                    'gene': 'S',
+                    'gene_position': 6
                 },
             ],
-            'EFFECTS': {
+            'effects': {
                 'AAA': [
                     {
-                        'GENE': 'S',
-                        'MUTATION': 'F2F',
-                        'PREDICTION': 'S'
+                        'gene': 'S',
+                        'mutation': 'F2F',
+                        'prediction': 'S',
+                        'evidence': {}
                     },
                     {
-                        'PHENOTYPE': 'S'
+                        'phenotype': 'S'
                     }
                 ],
+            },
+            'antibiogram': {
+                'AAA': 'S',
+                'BBB': 'S'
             }
         }
     }
 
-    #Ensure the same key ordering as actual by running through json dumping and loading
-    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
-    expectedJSON = sortValues(json.loads(strJSON))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
-    #Remove datetime as this is unreplicable
-    del actualJSON['meta']['UTC-datetime-run']
+    expectedJSON = json.loads(json.dumps(expectedJSON, sort_keys=True))
 
-    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
-    #So compare separately...
-    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 't', 'ALTS': ('c',)})
-    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
-    assert sorted(actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+    actualJSON = prep_json(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
 
-    #Clean up the VCF Evidences
-    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']
-
-    #This already asserts that the inputs are equal so no need for assert
-    recursive_eq(expectedJSON, actualJSON)
+    #assert == does work here, but gives ugly errors if mismatch
+    #Recursive_eq reports neat places they differ
+    recursive_eq(ordered(expectedJSON), ordered(actualJSON))
 
 
 def test_4():
@@ -577,103 +607,123 @@ def test_4():
 
     #Populate the tables
     path = "tests/outputs/4/"
-    gnomonicus.populateVariants(vcfStem, path, diff)
+    gnomonicus.populateVariants(vcfStem, path, diff, True)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
+                                    reference, sample, catalogue, True)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
     mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
+    predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
-    assert variants['VARIANT'][0] == '21566t>c'
+    assert variants['variant'][0] == '21566t>c'
 
-    assert mutations['GENE'][0] == 'S'
-    assert mutations['MUTATION'][0] == 'F2L'
+    assert mutations['gene'][0] == 'S'
+    assert mutations['mutation'][0] == 'F2L'
 
-    assert 'AAA' in effects['DRUG'].to_list()
-    assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'U'
+    assert 'AAA' in effects['drug'].to_list()
+    assert effects['prediction'][effects['drug'].to_list().index('AAA')] == 'U'
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
+    hits = []
+    for _, row in predictions.iterrows():
+        assert row['catalogue_name'] == 'gnomonicus_test'
+        assert row['catalogue_version'] == 'v1.0'
+        assert row['catalogue_values'] == 'RFUS'
+        assert row['evidence'] == '{}'
+        if row['drug'] == 'AAA':
+            hits.append('AAA')
+            assert row['prediction'] == "U"
+        elif row['drug'] == 'BBB':
+            hits.append('BBB')
+            assert row['prediction'] == 'S'
+        else:
+            hits.append(None)
+    assert sorted(hits) == ['AAA', 'BBB']
+
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
 
     expectedJSON = {
         'meta': {
-            'version': gnomonicus.__version__,
+            'workflow_version': gnomonicus.__version__,
             'guid': vcfStem,
-            'fields': {
-                "EFFECTS": {
-                        "AAA": [
-                        [
-                            "GENE",
-                            "MUTATION",
-                            "PREDICTION"
-                        ],
-                        "PHENOTYPE"
-                        ]
-                    },
-                "MUTATIONS": [
-                    "MUTATION",
-                    "GENE",
-                    "GENE_POSITION",
-                    'VCF_EVIDENCE'
-                    ],
-                "VARIANTS": [
-                    "VARIANT",
-                    "NUCLEOTIDE_INDEX",
-                    'VCF_EVIDENCE'
-                    ]
-            }
+            "status": "success",
+            "workflow_name": "gnomonicus",
+            "workflow_task": "resistance_prediction",
+            "reference": "NC_045512",
+            "catalogue_type": "RFUS",
+            "catalogue_name": "gnomonicus_test",
+            "catalogue_version": "v1.0"
         },
         'data': {
-            'VARIANTS': [
+            'variants': [
                 {
-                    'VARIANT': '21566t>c',
-                    'NUCLEOTIDE_INDEX': 21566
+                    'variant': '21566t>c',
+                    'nucleotide_index': 21566,
+                    'gene_name': 'S',
+                    'gene_position': 2,
+                    'codon_idx': 0,
+                    'vcf_evidence': {
+                        "GT": [
+                            1,
+                            1
+                        ],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [
+                            0,
+                            44
+                        ],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 21566,
+                        "REF": "t",
+                        "ALTS": [
+                            "c"
+                        ]
+                    },
+                    'vcf_idx': 1
                 }
             ],
-            'MUTATIONS': [
+            'mutations': [
                 {
-                    'MUTATION': 'F2L',
-                    'GENE': 'S',
-                    'GENE_POSITION':2
+                    'mutation': 'F2L',
+                    'gene': 'S',
+                    'gene_position': 2,
+                    'ref': 'ttt',
+                    'alt': 'ctt'
                 }
             ],
-            'EFFECTS': {
+            'effects': {
                 'AAA': [
                     {
-                        'GENE': 'S',
-                        'MUTATION': 'F2L',
-                        'PREDICTION': 'U'
+                        'gene': 'S',
+                        'mutation': 'F2L',
+                        'prediction': 'U',
+                        'evidence': {}
                     },
                     {
-                        'PHENOTYPE': 'U'
+                        'phenotype': 'U'
                     }
                 ],
+            },
+            'antibiogram': {
+                'AAA': 'U',
+                'BBB': 'S'
             }
         }
     }
 
-    #Ensure the same key ordering as actual by running through json dumping and loading
-    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
-    expectedJSON = sortValues(json.loads(strJSON))
+    expectedJSON = json.loads(json.dumps(expectedJSON, sort_keys=True))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
-    #Remove datetime as this is unreplicable
-    del actualJSON['meta']['UTC-datetime-run']
+    actualJSON = prep_json(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
 
-    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
-    #So compare separately...
-    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 't', 'ALTS': ('c',)})
-    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
-
-    #Clean up the VCF Evidences
-    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
-
-
-    #This already asserts that the inputs are equal so no need for assert
-    recursive_eq(expectedJSON, actualJSON)    
+    #assert == does work here, but gives ugly errors if mismatch
+    #Recursive_eq reports neat places they differ
+    recursive_eq(ordered(expectedJSON), ordered(actualJSON))
+   
 
 
 def test_5():
@@ -698,108 +748,126 @@ def test_5():
 
     #Populate the tables
     path = "tests/outputs/5/"
-    gnomonicus.populateVariants(vcfStem, path, diff)
+    gnomonicus.populateVariants(vcfStem, path, diff, True)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
+                                    reference, sample, catalogue, True)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
     mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
+    predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
-    variantGARC = variants['VARIANT'].to_list()
+    variantGARC = variants['variant'].to_list()
     assert '21762_ins_c' in variantGARC
 
-    mutationGenes = mutations['GENE'].to_list()
+    mutationGenes = mutations['gene'].to_list()
     for gene in mutationGenes:
         assert gene == 'S'
 
-    mutationGARC = mutations['MUTATION'].to_list()
+    mutationGARC = mutations['mutation'].to_list()
     assert '200_ins_c' in mutationGARC
 
-    assert 'AAA' in effects['DRUG'].to_list()
-    assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
+    assert 'AAA' in effects['drug'].to_list()
+    assert effects['prediction'][effects['drug'].to_list().index('AAA')] == 'R'
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
+    hits = []
+    for _, row in predictions.iterrows():
+        assert row['catalogue_name'] == 'gnomonicus_test'
+        assert row['catalogue_version'] == 'v1.0'
+        assert row['catalogue_values'] == 'RFUS'
+        assert row['evidence'] == '{}'
+        if row['drug'] == 'AAA':
+            hits.append('AAA')
+            assert row['prediction'] == "R"
+        elif row['drug'] == 'BBB':
+            hits.append('BBB')
+            assert row['prediction'] == 'S'
+        else:
+            hits.append(None)
+    assert sorted(hits) == ['AAA', 'BBB']
+
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
 
     expectedJSON = {
         'meta': {
-            'version': gnomonicus.__version__,
+            'workflow_version': gnomonicus.__version__,
             'guid': vcfStem,
-            'fields': {
-                "EFFECTS": {
-                        "AAA": [
-                        [
-                            "GENE",
-                            "MUTATION",
-                            "PREDICTION"
-                        ],
-                        "PHENOTYPE"
-                        ]
-                    },
-                "MUTATIONS": [
-                    "MUTATION",
-                    "GENE",
-                    "GENE_POSITION",
-                    'VCF_EVIDENCE'
-                    ],
-                "VARIANTS": [
-                    "VARIANT",
-                    "NUCLEOTIDE_INDEX",
-                    'VCF_EVIDENCE'
-                    ]
-            }
+            "status": "success",
+            "workflow_name": "gnomonicus",
+            "workflow_task": "resistance_prediction",
+            "reference": "NC_045512",
+            "catalogue_type": "RFUS",
+            "catalogue_name": "gnomonicus_test",
+            "catalogue_version": "v1.0"
         },
         'data': {
-            'VARIANTS': [
+            'variants': [
                 {
-                    'VARIANT': '21762_ins_c',
-                    'NUCLEOTIDE_INDEX': 21762
+                    'variant': '21762_ins_c',
+                    'nucleotide_index': 21762,
+                    'gene_name': 'S',
+                    'gene_position': 200,
+                    'codon_idx': 1,
+                    'vcf_evidence': {
+                        "GT": [
+                            1,
+                            1
+                        ],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [
+                            0,
+                            44
+                        ],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 21762,
+                        "REF": "c",
+                        "ALTS": [
+                            "cc"
+                        ]
+                    },
+                    'vcf_idx': 1
                 },
             ],
-            'MUTATIONS': [
+            'mutations': [
                 {
-                    'MUTATION': '200_ins_c',
-                    'GENE': 'S',
-                    'GENE_POSITION':200
+                    'mutation': '200_ins_c',
+                    'gene': 'S',
+                    'gene_position':200
                 },
             ],
-            'EFFECTS': {
+            'effects': {
                 'AAA': [
                     {
-                        'GENE': 'S',
-                        'MUTATION': '200_ins_c',
-                        'PREDICTION': 'R'
+                        'gene': 'S',
+                        'mutation': '200_ins_c',
+                        'prediction': 'R',
+                        'evidence': {}
                     },
                     {
-                        'PHENOTYPE': 'R'
+                        'phenotype': 'R'
                     }
                 ],
+            },
+            'antibiogram': {
+                'AAA': 'R',
+                'BBB': 'S'
             }
         }
     }
 
-    #Ensure the same key ordering as actual by running through json dumping and loading
-    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
-    expectedJSON = sortValues(json.loads(strJSON))
+    expectedJSON = json.loads(json.dumps(expectedJSON, sort_keys=True))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
-    #Remove datetime as this is unreplicable
-    del actualJSON['meta']['UTC-datetime-run']
+    actualJSON = prep_json(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
 
-    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
-    #So compare separately...
-    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'c', 'ALTS': ('cc',)})
-    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
-    assert sorted(actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
+    #assert == does work here, but gives ugly errors if mismatch
+    #Recursive_eq reports neat places they differ
+    recursive_eq(ordered(expectedJSON), ordered(actualJSON))
 
-    #Clean up the VCF Evidences
-    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
-
-    #This already asserts that the inputs are equal so no need for assert
-    recursive_eq(expectedJSON, actualJSON)
 
 def test_6():
     '''Input:
@@ -823,133 +891,175 @@ def test_6():
 
     #Populate the tables
     path = "tests/outputs/6/"
-    gnomonicus.populateVariants(vcfStem, path, diff)
+    gnomonicus.populateVariants(vcfStem, path, diff, True)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem)
+                                    reference, sample, catalogue, True)
+    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
     mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
+    predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
-    assert variants['VARIANT'][0] == '27758g>c'
+    assert variants['variant'][0] == '27758g>c'
 
 
-    assert 'ORF7a' in mutations['GENE'].to_list()
-    assert 'ORF7b' in mutations['GENE'].to_list()
+    assert 'ORF7a' in mutations['gene'].to_list()
+    assert 'ORF7b' in mutations['gene'].to_list()
 
-    assert mutations['MUTATION'][mutations['GENE'].to_list().index('ORF7a')] == '!122S'
-    assert mutations['MUTATION'][mutations['GENE'].to_list().index('ORF7b')] == 'M1I'
+    assert mutations['mutation'][mutations['gene'].to_list().index('ORF7a')] == '!122S'
+    assert mutations['mutation'][mutations['gene'].to_list().index('ORF7b')] == 'M1I'
 
-    assert 'AAA' in effects['DRUG'].to_list()
-    assert 'BBB' in effects['DRUG'].to_list()
+    assert 'AAA' in effects['drug'].to_list()
+    assert 'BBB' in effects['drug'].to_list()
     
-    assert effects['PREDICTION'][effects['DRUG'].to_list().index('AAA')] == 'R'
-    assert effects['PREDICTION'][effects['DRUG'].to_list().index('BBB')] == 'R'
+    assert effects['prediction'][effects['drug'].to_list().index('AAA')] == 'R'
+    assert effects['prediction'][effects['drug'].to_list().index('BBB')] == 'R'
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue.catalogue.values, gnomonicus.__version__)
+    hits = []
+    for _, row in predictions.iterrows():
+        assert row['catalogue_name'] == 'gnomonicus_test'
+        assert row['catalogue_version'] == 'v1.0'
+        assert row['catalogue_values'] == 'RFUS'
+        assert row['evidence'] == '{}'
+        if row['drug'] == 'AAA':
+            hits.append('AAA')
+            assert row['prediction'] == "R"
+        elif row['drug'] == 'BBB':
+            hits.append('BBB')
+            assert row['prediction'] == 'R'
+        else:
+            hits.append(None)
+    assert sorted(hits) == ['AAA', 'BBB']
+
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
 
     expectedJSON = {
         'meta': {
-            'version': gnomonicus.__version__,
+            'workflow_version': gnomonicus.__version__,
             'guid': vcfStem,
-            'fields': {
-                "EFFECTS": {
-                        "AAA": [
-                        [
-                            "GENE",
-                            "MUTATION",
-                            "PREDICTION"
-                        ],
-                        "PHENOTYPE"
-                        ], 
-                        "BBB": [
-                        [
-                            "GENE",
-                            "MUTATION",
-                            "PREDICTION"
-                        ],
-                        "PHENOTYPE"
-                        ], 
-                    },
-                "MUTATIONS": [
-                    "MUTATION",
-                    "GENE",
-                    "GENE_POSITION",
-                    'VCF_EVIDENCE'
-                    ],
-                "VARIANTS": [
-                    "VARIANT",
-                    "NUCLEOTIDE_INDEX",
-                    'VCF_EVIDENCE'
-                    ]
-            }
+            "status": "success",
+            "workflow_name": "gnomonicus",
+            "workflow_task": "resistance_prediction",
+            "reference": "NC_045512",
+            "catalogue_type": "RFUS",
+            "catalogue_name": "gnomonicus_test",
+            "catalogue_version": "v1.0"
         },
         'data': {
-            'VARIANTS': [
+            'variants': [
                 {
-                    'VARIANT': '27758g>c',
-                    'NUCLEOTIDE_INDEX': 27758
+                    'variant': '27758g>c',
+                    'nucleotide_index': 27758,
+                    'gene_name': 'ORF7a',
+                    'gene_position': 122,
+                    'codon_idx': 1,
+                    'vcf_evidence': {
+                        "GT": [
+                            1,
+                            1
+                        ],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [
+                            0,
+                            44
+                        ],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 27758,
+                        "REF": "g",
+                        "ALTS": [
+                            "c"
+                        ]
+                    },
+                    'vcf_idx': 1
+                },
+                {
+                    'variant': '27758g>c',
+                    'nucleotide_index': 27758,
+                    'gene_name': 'ORF7b',
+                    'gene_position': 1,
+                    'codon_idx': 2,
+                    'vcf_evidence': {
+                        "GT": [
+                            1,
+                            1
+                        ],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [
+                            0,
+                            44
+                        ],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 27758,
+                        "REF": "g",
+                        "ALTS": [
+                            "c"
+                        ]
+                    },
+                    'vcf_idx': 1
                 }
             ],
-            'MUTATIONS': [
+            'mutations': [
                 {
-                    'MUTATION': '!122S',
-                    'GENE': 'ORF7a',
-                    'GENE_POSITION': 122
+                    'mutation': '!122S',
+                    'gene': 'ORF7a',
+                    'gene_position': 122,
+                    'ref': 'tga',
+                    'alt': 'tca'
                 },
                 {
-                    'MUTATION': 'M1I',
-                    'GENE': 'ORF7b',
-                    'GENE_POSITION': 1
-                },
+                    'mutation': 'M1I',
+                    'gene': 'ORF7b',
+                    'gene_position': 1,
+                    'ref': 'atg',
+                    'alt': 'atc'
+                }
             ],
-            'EFFECTS': {
+            'effects': {
                 'AAA': [
                     {
-                        'GENE': 'ORF7a',
-                        'MUTATION': '!122S',
-                        'PREDICTION': 'R'
+                        'gene': 'ORF7a',
+                        'mutation': '!122S',
+                        'prediction': 'R',
+                        'evidence': {}
                     },
                     {
-                        'PHENOTYPE': 'R'
+                        'phenotype': 'R'
                     }
                 ],
                 'BBB': [
                     {
-                        'GENE': 'ORF7b',
-                        'MUTATION': 'M1I',
-                        'PREDICTION': 'R'
+                        'gene': 'ORF7b',
+                        'mutation': 'M1I',
+                        'prediction': 'R',
+                        'evidence': {}
                     },
                     {
-                        'PHENOTYPE': 'R'
+                        'phenotype': 'R'
                     }
                 ],
+            },
+            'antibiogram': {
+                'AAA': 'R',
+                'BBB': 'R'
             }
         }
     }
 
-    #Ensure the same key ordering as actual by running through json dumping and loading
-    strJSON = json.dumps(expectedJSON, indent=2, sort_keys=True)
-    expectedJSON = sortValues(json.loads(strJSON))
+    expectedJSON = json.loads(json.dumps(expectedJSON, sort_keys=True))
 
-    actualJSON = sortValues(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
-    #Remove datetime as this is unreplicable
-    del actualJSON['meta']['UTC-datetime-run']
+    actualJSON = prep_json(json.load(open(os.path.join(path, f'{vcfStem}.gnomonicus-out.json'), 'r')))
 
-    #For whatever reason, recursive_diff thinks the VCF evidence fields are different types
-    #So compare separately...
-    expected_vcf = str({'GT': (1, 1), 'DP': 44, 'DPF': 0.991, 'COV': (0, 44), 'FRS': 1.0, 'GT_CONF': 300.34, 'GT_CONF_PERCENTILE': 54.73, 'REF': 'g', 'ALTS': ('c',)})
-    assert sorted(actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']) == sorted(expected_vcf) 
-
-    #Clean up the VCF Evidences
-    del actualJSON['data']['VARIANTS'][0]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][0]['VCF_EVIDENCE']
-    del actualJSON['data']['MUTATIONS'][1]['VCF_EVIDENCE']
-
-    #This already asserts that the inputs are equal so no need for assert
-    recursive_eq(expectedJSON, actualJSON)
+    #assert == does work here, but gives ugly errors if mismatch
+    #Recursive_eq reports neat places they differ
+    recursive_eq(ordered(expectedJSON), ordered(actualJSON))
 
 
 def test_7():

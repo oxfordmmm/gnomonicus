@@ -935,7 +935,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                 'gene': mutation['gene'],
                 'gene_position': mutation['gene_position'],
             }
-            if mutation['mutation'][0].isupper():
+            if mutation['mutation'][0].isupper() or mutation['mutation'][0] == "!":
                 #Only add codon ref/alt for AA changes
                 row['ref'] = mutation['ref']
                 row['alt'] = mutation['alt']
