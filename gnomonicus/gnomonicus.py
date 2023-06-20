@@ -376,7 +376,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                 ev = float(evidence)
                 if ev < 1:
                     #We have FRS so (due to rounding) convert the VCF's COV to FRS
-                    cov = [round(x/vcf['DP'], 2) for x in vcf["COV"]]
+                    cov = [round(x/vcf['DP'], 3) for x in vcf["COV"]]
                 else:
                     cov = vcf['COV']
                 minor_call = variant.split(">")[-1]
@@ -411,14 +411,17 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
             ev = float(evidence)
             if ev < 1:
                 #We have FRS so (due to rounding) convert the VCF's COV to FRS
-                cov = [round(x/vcf['DP'], 2) for x in vcf["COV"]]
+                cov = [round(x/vcf['DP'], 3) for x in vcf["COV"]]
             else:
                 cov = vcf['COV']
             
             ref = vcf['REF']
             type_ = variant.split("_")[1]
             bases = variant.split("_")[-1]
+            added = False
             for v_idx, alt in enumerate(vcf['ALTS']):
+                if added:
+                    break
                 v_idx += 1
                 #Use the same `simplify_call` method to decompose the ALTs into indels + snps
                 #Match on the indel + pos + cov
@@ -427,7 +430,9 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                     if vcf['POS'] + offset == idx and type_ == t and bases == b:
                         #Match on pos, type and bases so check cov too
                         if ev == cov[v_idx]:
+                            added = True
                             vcf_idx.append(v_idx)
+            assert added, f"The index of the VCF evidence could not be determined! {variant_} --> {vcf}"                        
             
         if "_" in variant:
             indel_lengths.append(len(variant.split("_")[-1]))
@@ -453,6 +458,8 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                     nc_idx = diff.genome1.stacked_nucleotide_index[diff.genome1.stacked_gene_name == gene]
                     nc_num = diff.genome1.stacked_nucleotide_number[diff.genome1.stacked_gene_name == gene]
                     codon_idx.append(nc_num[nc_idx == idx][0] % 3)
+                else:
+                    codon_idx.append(None)
                 
                 #If this isn't the first one, we need to duplicate the row
                 if first:
@@ -497,6 +504,11 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         'gene_position': gene_pos,
         'codon_idx': codon_idx
         }
+    for key in vals.keys():
+        print(key)
+        print(len(vals[key]))
+        print(vals[key])
+        print()
     #Convert everything to numpy arrays
     vals = {key: np.array(vals[key]) for key in vals.keys()}
     return pd.DataFrame(vals).astype({
