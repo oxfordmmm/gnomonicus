@@ -247,10 +247,9 @@ def populateMutations(
                 'gene_position': diff.gene_position,
                 'alt': diff.alt_nucleotides,
                 'ref': diff.ref_nucleotides,
-                'codes_protein': [diff.codes_protein and pos > 0 for pos in diff.gene_position],
+                'codes_protein': [diff.codes_protein and pos > 0 if pos is not None else diff.codes_protein for pos in diff.gene_position],
                 'indel_length': diff.indel_length,
                 'indel_nucleotides': diff.indel_nucleotides,
-                'variant': diff.variants
                 }
             #As diff does not populate amino acid items for non-coding genes,
             #pull out the sequence or default to None
@@ -504,11 +503,6 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         'gene_position': gene_pos,
         'codon_idx': codon_idx
         }
-    for key in vals.keys():
-        print(key)
-        print(len(vals[key]))
-        print(vals[key])
-        print()
     #Convert everything to numpy arrays
     vals = {key: np.array(vals[key]) for key in vals.keys()}
     return pd.DataFrame(vals).astype({
@@ -816,6 +810,7 @@ def populateEffects(
         #We need to construct a simple table here
         predictions = [phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs]
         vals = {
+            'uniqueid': vcfStem,
             'drug': resistanceCatalogue.catalogue.drugs,
             'prediction': predictions,
             'catalogue_name': resistanceCatalogue.catalogue.name,

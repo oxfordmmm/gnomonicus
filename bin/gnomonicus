@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--progress",action='store_true',default=False,help="whether to show progress using tqdm")
     parser.add_argument("--output_dir", required=False, default=".", help="Directory to save output files to. Defaults to wherever the script is run from.")
     parser.add_argument("--json", required=False, action='store_true', default=False, help="Flag to create a single JSON output as well as the CSVs")
-    parser.add_argument("--fasta", required=False, default=None, help="Use to output a FASTA file of the resultant genome. Specify either 'fixed' or 'variable' for fixed length and variable length FASTA respectively.")
+    parser.add_argument("--fasta", required=False, default=None, help="Use to output a FASTA file of the resultant genome. Specify either 'fixed' or 'variable' for fixed length and variable length FASTA respectively. Alternatively, use 'both' to produce both")
     parser.add_argument("--minor_populations", required=False, default=None, help="Path to a line separated file containing genome indices of minor populations.")
     parser.add_argument("--csvs", required=False, nargs="+", help="Types of CSV to produce. Accepted values are [variants, mutations, effects, predictions, all]. `all` produces all of the CSVs")
     options = parser.parse_args()
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     os.makedirs(options.output_dir, exist_ok=True)
 
     #Get the stem of the VCF filename for use as a unique ID
-    vcfStem = os.path.split(options.vcf_file)[-1].split(".")[0]
+    vcfStem = os.path.split(options.vcf_file)[-1].replace(".vcf", "")
 
     #Logging setup
     logging.basicConfig(filename=os.path.join(options.output_dir, f'{vcfStem}.gnomonicus.log'), filemode='w', format='%(asctime)s -  %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.DEBUG)
@@ -158,4 +158,6 @@ if __name__ == "__main__":
         fixed = options.fasta.lower() == 'fixed'
         #Write the resultant fasta file
         sample.save_fasta(os.path.join(options.output_dir, vcfStem+"-"+options.fasta+".fasta"), fixed_length=fixed)
-        
+    elif options.fasta and options.fasta.lower() == 'both':
+        sample.save_fasta(os.path.join(options.output_dir, vcfStem+"-fixed.fasta"), fixed_length=True)
+        sample.save_fasta(os.path.join(options.output_dir, vcfStem+"-variable.fasta"), fixed_length=False)
