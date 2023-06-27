@@ -184,6 +184,20 @@ def test_misc():
     with pytest.raises(gnomonicus.InvalidMutationException):
         gnomonicus.populateEffects(path, catalogue, should_raise_error, referenceGenes, vcfStem, False, False)
 
+    #Edge case of minor variant which is in >1 gene
+    reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk.gz", False)
+    vcf = gumpy.VCFFile("tests/test-cases/NC_045512.2-minors-gene-overlap.vcf", ignore_filter=True, minor_population_indices={267}) 
+    sample = reference + vcf
+
+    diff = reference - sample
+
+    variants = gnomonicus.minority_population_variants(diff, None)
+    assert variants['variant'].tolist() == ['267t>c:0.045', '267t>c:0.045']
+    assert sorted(variants['gene_name'].tolist()) == sorted(['ORF1ab', 'ORF1ab_2'])
+    #These genes are weird and start in the same place (so have matching positions)
+    assert variants['gene_position'].tolist() == [1, 1]
+    assert variants['codon_idx'].tolist() == [2, 2]
+
     
 
 def test_1():

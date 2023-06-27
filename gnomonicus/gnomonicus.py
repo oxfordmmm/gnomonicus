@@ -354,9 +354,11 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
     gene_name = []
     gene_pos = []
     codon_idx = []
+    variants = []
 
     for variant_ in variants_:
         variant, evidence = variant_.split(":")
+        variants.append(variant_)
         
         if ">" in variant:
             idx = int(variant.split(">")[0][:-1])
@@ -465,9 +467,11 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                     first = False
                 else:
                     variants.append(variants[-1])
-                    nucleotide_indices.append(indices[-1])
-                    indel_length.append(indel_length[-1])
+                    nucleotide_indices.append(nucleotide_indices[-1])
+                    indel_lengths.append(indel_lengths[-1])
                     indel_nucleotides.append(indel_nucleotides[-1])
+                    vcf_evidences.append(vcf_evidences[-1])
+                    vcf_idx.append(vcf_idx[-1])
 
         else:
             #We have 1 gene or none, so set to None if no gene is present
@@ -493,7 +497,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
 
 
     vals = {
-        'variant': variants_, 
+        'variant': variants, 
         'nucleotide_index': nucleotide_indices,
         'indel_length': indel_lengths,
         'indel_nucleotides': indel_nucleotides,
@@ -549,7 +553,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
         mutations = diff.minor_populations(interpretation=minor_type)
         
         #Without gene names/evidence
-        muts = [mut.split("&")[0].split("@")[1].split(":")[0] if "&" in mut else mut.split(":")[0]for mut in mutations]
+        muts = [ mut.split(":")[0]for mut in mutations]
         #Gene numbers
         numbers = [
             int(mut.split("_")[0]) if "_" in mut #Indel index: <idx>_<type>_<bases>
@@ -592,20 +596,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                 indel_length.append(None)
                 indel_nucleotides.append(None)
 
-            if "&" in full_mut:
-                #Multi mutation
-                nucleotide_number.append(None)
-                nucleotide_index.append(None)
-
-                ref.append(diff.gene1.codons[diff.gene1.amino_acid_number == num][0])
-                #As these are all minor multis, alt is abiguous, so set to None
-                alt.append(None)
-                is_snp.append(True)
-                aa_num.append(num)
-                aa_seq.append("Z")
-                
-
-            elif mut[0].isupper() or mut[0] == '!':
+            if mut[0].isupper() or mut[0] == '!':
                 #Protein coding SNP
                 nucleotide_number.append(None)
                 nucleotide_index.append(None)
