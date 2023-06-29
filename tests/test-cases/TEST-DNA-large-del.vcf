@@ -1,0 +1,12 @@
+##fileformat=VCFv4.2
+##source=minos, version 0.4.1
+##fileDate=2018-04-26
+##FORMAT=<ID=COV,Number=R,Type=Integer,Description="Number of reads on ref and alt alleles">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="total kmer depth from gramtools",Source="minos">
+##FORMAT=<ID=GT_CONF,Number=1,Type=Float,Description="Genotype confidence. Difference in log likelihood of most likely and next most likely genotype">
+##INFO=<ID=KMER,Number=1,Type=Integer,Description="Kmer size at which variant was discovered (kmer-size used by gramtools build)">
+##minos_max_read_length=200
+##contig=<ID=TEST_DNA,length=99>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	03.vcf
+TEST_DNA	2	.	AAAAAAAAACCCCCCCCCCGGGGGGGGGGTTTTTTTTTTAAAAAAAAAACCCCCCCCCCGGGGGGGGGGTTTTTTTTTTAAAAAAAAAACCC	A	.	PASS	KMER=15	GT:DP:COV:GT_CONF	1/1:2:1,1:2.05

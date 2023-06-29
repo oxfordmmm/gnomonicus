@@ -303,7 +303,6 @@ def populateMutations(
     if mutations is not None:
 
         #Add the number of mutations which occured for this mutation
-        # mutations['number_nucleotide_changes'] = mutations.apply(countNucleotideChanges, axis=1)
 
         #Add VCF stem as the uniqueID
         mutations['uniqueid'] = vcfStem
@@ -476,7 +475,6 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         else:
             #We have 1 gene or none, so set to None if no gene is present
             gene = genes[0] if genes[0] != '' else None
-            gene_name.append(gene)
             if gene is not None:
                 #Single gene, so pull out data
                 gene_name.append(gene)
@@ -647,20 +645,6 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                                         'number_nucleotide_changes': 'int'
                                     })
 
-def countNucleotideChanges(row: pd.Series) -> int:
-    '''Calculate the number of nucleotide changes required for a given row's amino acid mutation
-
-    Args:
-        row (pd.Series): A row of the mutations dataframe
-
-    Returns:
-        int: The number of mutations which occured to cause this mutation
-    '''
-    if row['ref'] is not None and len(row['ref'])==3:
-        #Numpy sum is considerably slower for this...
-        return sum(i!=j for (i,j) in zip(row['ref'],row['alt'] ))
-    return 0
-
 def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceGenes: dict) -> [[str, str]]:
     '''Get all of the mutations (including multi-mutations) from the mutations df
     Multi-mutations currently only exist within the converted WHO catalogue, and are a highly specific combination 
@@ -740,6 +724,9 @@ def populateEffects(
     Returns:
         (pd.DataFrame, dict): (DataFrame containing the effects data, A metadata dictionary mapping drugs to their predictions)
     '''
+    if resistanceCatalogue is None:
+        logging.debug("Catalogue was None, skipping effects and predictions generation")
+        return
     #Assume wildtype behaviour unless otherwise specified
     phenotype = {drug: 'S' for drug in resistanceCatalogue.catalogue.drugs}
 
@@ -969,7 +956,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
         for d in catalogue.catalogue.drugs:
             if d not in drugs:
                 antibiogram[d] = "S"
-    data['antibiogram'] = antibiogram
+        data['antibiogram'] = antibiogram
 
     #Convert fields to a list so it can be json serialised
     with open(os.path.join(path, f'{guid}.gnomonicus-out.json'), 'w') as f:
