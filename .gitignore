@@ -152,6 +152,8 @@ tests/outputs/**
 
 *.json
 *.vcf
+*.csv
+*.txt
 
 #Make sure we track all of the test cases though
 !tests/test-cases/*

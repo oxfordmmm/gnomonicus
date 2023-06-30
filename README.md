@@ -13,8 +13,7 @@ Provides a library of functions for use within scripts, as well as a CLI tool fo
 API reference for developers, and CLI instructions can be found here: https://oxfordmmm.github.io/gnomonicus/ 
 ## Usage
 ```
-usage: gnomonicus [-h] --vcf_file VCF_FILE --genome_object GENOME_OBJECT [--catalogue_file CATALOGUE_FILE] [--ignore_vcf_filter] [--progress] [--output_dir OUTPUT_DIR] [--json] [--alt_json] [--fasta FASTA]
-                  [--minor_populations MINOR_POPULATIONS]
+usage: gnomonicus [-h] --vcf_file VCF_FILE --genome_object GENOME_OBJECT [--catalogue_file CATALOGUE_FILE] [--ignore_vcf_filter] [--progress] [--output_dir OUTPUT_DIR] [--json] [--fasta FASTA] [--minor_populations MINOR_POPULATIONS]
 
 options:
   -h, --help            show this help message and exit
@@ -28,7 +27,6 @@ options:
   --output_dir OUTPUT_DIR
                         Directory to save output files to. Defaults to wherever the script is run from.
   --json                Flag to create a single JSON output as well as the CSVs
-  --alt_json            Whether to produce the alternate JSON format. Requires the --json flag too
   --fasta FASTA         Use to output a FASTA file of the resultant genome. Specify either 'fixed' or 'variable' for fixed length and variable length FASTA respectively.
   --minor_populations MINOR_POPULATIONS
                         Path to a line separated file containing genome indices of minor populations.

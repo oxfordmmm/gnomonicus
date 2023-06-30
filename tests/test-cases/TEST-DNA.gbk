@@ -1,0 +1,75 @@
+LOCUS       TEST_DNA              99 bp DNA     linear   VRL 21-JUL-2021
+DEFINITION  TEST_DNA, complete genome.
+ACCESSION   TEST_DNA
+VERSION     TEST_DNA.1
+DBLINK      BioProject: DNAID
+KEYWORDS    DNA.
+SOURCE      TEST_DNA_SOURCE
+  ORGANISM  TEST_DNA_ORGANISM
+REFERENCE   1  (bases 1 to 99)
+  AUTHORS   Test,1., Test,2., Test,3.
+  TITLE     Test title for a reference for an DNA strand
+  JOURNAL   Test journal for an DNA strand
+   PUBMED   1
+COMMENT     This is some comment about TEST_DNA genome.
+FEATURES             Location/Qualifiers
+     source          1..99
+                     /organism="TEST_DNA"
+                     /mol_type="genomic DNA"
+                     /isolate="DNA_ISO"
+                     /db_xref="taxon:1"
+     gene            4..30
+                     /gene="A"
+                     /locus_tag="TEST_DNA_A"
+                     /db_xref="GeneID:1"
+     mDNA            4..30
+                     /gene="A"
+                     /locus_tag="TEST_DNA_A"
+                     /product="nucleoprotein"
+                     /db_xref="GeneID:1"
+     CDS             4..30
+                     /gene="A"
+                     /locus_tag="TEST_DNA_A"
+                     /codon_start=1
+                     /product="nucleoprotein"
+                     /protein_id="PROTEIN_A"
+                     /db_xref="GeneID:1"
+                     /translation="KKTPPPGGG"
+     gene            28..60
+                     /gene="B"
+                     /locus_tag="TEST_DNA_B"
+                     /db_xref="GeneID:2"
+     mDNA            28..60
+                     /gene="B"
+                     /locus_tag="TEST_DNA_B"
+                     /product="nucleoprotein"
+                     /db_xref="GeneID:2"
+     CDS             28..60
+                     /gene="B"
+                     /locus_tag="TEST_DNA_B"
+                     /codon_start=1
+                     /product="nucleoprotein"
+                     /protein_id="PROTEIN_B"
+                     /db_xref="GeneID:2"
+                     /translation="GGFFF!KKNPPP"
+     gene            complement(91..96)
+                     /gene="C"
+                     /locus_tag="TEST_DNA_C"
+                     /db_xref="GeneID:3"
+     mDNA            complement(91..96)
+                     /gene="C"
+                     /locus_tag="TEST_DNA_C"
+                     /product="nucleoprotein"
+                     /db_xref="GeneID:3"
+     CDS             complement(91..96)
+                     /gene="C"
+                     /locus_tag="TEST_DNA_C"
+                     /codon_start=1
+                     /product="nucleoprotein"
+                     /protein_id="PROTEIN_C"
+                     /db_xref="GeneID:3"
+                     /translation="PP"
+ORIGIN      
+        1 aaaaaaaaaa cccccccccc gggggggggg tttttttttt aaaaaaaaaa cccccccccc
+       61 gggggggggg tttttttttt aaaaaaaaaa ccccccccc
+//
