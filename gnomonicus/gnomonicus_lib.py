@@ -127,7 +127,6 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'codon_idx': diff.codon_idx
             }
     variants = pd.DataFrame(vals)
-
     if diff.genome1.minor_populations or diff.genome2.minor_populations:
         variants = pd.concat([variants, minority_population_variants(diff, catalogue)])
 
