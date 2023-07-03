@@ -34,6 +34,14 @@ class InvalidMutationException(Exception):
         self.message = f"{gene}@{mutation} is not a valid mutation!"
         super().__init__(self.message)
 
+class OutdatedGumpyException(Exception):
+    '''Custom exception raised if a pickled gumpy.Genome object doesn't match
+    the version currently being used here. 
+    '''
+    def __init__(self):
+        self.message = "This Genome object is outdated! Pass a genbank file to re-instanciate"
+        super().__init__(self.message)
+
 def checkGzip(path: str) -> bool:
     '''Check if a given path is a gzipped file
 
@@ -70,6 +78,10 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     #Check if the file is gzipped
     gzipped = checkGzip(path)
 
+    #Get the gumpy version we are using
+    gumpy_major, gumpy_minor, gumpy_maintainance = gumpy.__version__[1:].split(".")
+    outdated = False
+
     #Try to load as a pickle
     try:
         if gzipped:
@@ -78,7 +90,23 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
         else:
             logging.info("Path was not to a gzipped file. Defaulting to normal reading")
             f = open(path, 'rb')
-        return pickle.load(f)
+        g = pickle.load(f)
+        if hasattr(g, 'gumpy_version'):
+            #Has the version set, so check it
+            major, minor, maintainance = g.gumpy_version[1:].split(".")
+            if major == gumpy_major and minor == gumpy_minor and maintainance == gumpy_maintainance:
+                #Exact match to the gumpy version
+                return g
+            else:
+                outdated = True
+        else:
+            outdated = True
+        if outdated:
+            logging.error("Genome object is outdated!")
+            raise OutdatedGumpyException()
+    except OutdatedGumpyException as e:
+        logging.error("Genome object is outdated!")
+        raise e
     except Exception as e:
         logging.info(f"Genome object not a pickle, checking if pickled version exists. Error: {e}")
 
@@ -92,12 +120,25 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
         else:
             logging.info("Path was not to a gzipped file. Defaulting to normal reading")
             f = open(path+".pkl", 'rb')
-        return pickle.load(f)
+        g = pickle.load(f)
+        if hasattr(g, 'gumpy_version'):
+            #Has the version set, so check it
+            major, minor, maintainance = g.gumpy_version[1:].split(".")
+            if major == gumpy_major and minor == gumpy_minor and maintainance == gumpy_maintainance:
+                #Exact match to the gumpy version
+                return g
+            else:
+                outdated = True
+        else:
+            outdated = True
+        if outdated:
+            logging.info("Genome object is outdated! Trying with the original filepath")
     except Exception as e:
         logging.info(f"No pickled version of genome object, instanciating and dumping. Error: {e}")
     
     #Create new gumpy.Genome and pickle dump for speed later
     reference = gumpy.Genome(path, show_progress_bar=progress)
+    reference.gumpy_version = gumpy.__version__
     pickle.dump(reference, open(path+'.pkl', 'wb'))
     return reference
 
