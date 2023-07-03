@@ -135,7 +135,7 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
             logging.info("Genome object is outdated! Trying with the original filepath")
     except Exception as e:
         logging.info(f"No pickled version of genome object, instanciating and dumping. Error: {e}")
-    print(path)
+    
     #Create new gumpy.Genome and pickle dump for speed later
     reference = gumpy.Genome(path, show_progress_bar=progress)
     reference.gumpy_version = gumpy.__version__

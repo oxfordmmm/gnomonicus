@@ -8,7 +8,6 @@ import os
 nav = mkdocs_gen_files.Nav()
 
 for path in sorted(Path("gnomonicus").rglob("*.py")):
-    print(path)
     module_path = path.relative_to("gnomonicus").with_suffix("")
     doc_path = path.relative_to("gnomonicus").with_suffix(".md")
     full_doc_path = Path("reference", doc_path)
