@@ -416,7 +416,8 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                 ev = float(evidence)
                 if ev < 1:
                     #We have FRS so (due to rounding) convert the VCF's COV to FRS
-                    cov = [round(x/vcf['DP'], 3) for x in vcf["COV"]]
+                    total_depth = sum(vcf['COV'])
+                    cov = [round(x/total_depth, 3) for x in vcf["COV"]]
                 else:
                     cov = vcf['COV']
                 minor_call = variant.split(">")[-1]
@@ -451,7 +452,8 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
             ev = float(evidence)
             if ev < 1:
                 #We have FRS so (due to rounding) convert the VCF's COV to FRS
-                cov = [round(x/vcf['DP'], 3) for x in vcf["COV"]]
+                total_depth = sum(vcf['COV'])
+                cov = [round(x/total_depth, 3) for x in vcf["COV"]]
             else:
                 cov = vcf['COV']
             
