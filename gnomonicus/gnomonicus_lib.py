@@ -958,9 +958,9 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
     _variants = []
     for _, variant in variants.iterrows():
         row = {
-            'variant': variant['variant'],
-            'nucleotide_index': variant['nucleotide_index'],
-            'gene_name': variant['gene_name'],
+            'variant': variant['variant'] if pd.notnull(variant['variant']) else None,
+            'nucleotide_index': variant['nucleotide_index'] if pd.notnull(variant['nucleotide_index']) else None,
+            'gene_name': variant['gene_name'] if pd.notnull(variant['gene_name']) else None,
             'gene_position': variant['gene_position'] if pd.notnull(variant['gene_position']) else None,
             'codon_idx': variant['codon_idx'] if pd.notnull(variant['codon_idx']) else None,
             'vcf_evidence': json.loads(variant['vcf_evidence']),
@@ -974,14 +974,14 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
     if mutations is not None:
         for _, mutation in mutations.iterrows():
             row = {
-                'mutation': mutation['mutation'],
-                'gene': mutation['gene'],
-                'gene_position': mutation['gene_position'],
+                'mutation': mutation['mutation'] if pd.notnull(mutation['mutation']) else None,
+                'gene': mutation['gene'] if pd.notnull(mutation['gene']) else None,
+                'gene_position': mutation['gene_position'] if pd.notnull(mutation['gene_position']) else None,
             }
             if mutation['mutation'][0].isupper() or mutation['mutation'][0] == "!":
                 #Only add codon ref/alt for AA changes
-                row['ref'] = mutation['ref']
-                row['alt'] = mutation['alt']
+                row['ref'] = mutation['ref'] if pd.notnull(mutation['ref']) else None
+                row['alt'] = mutation['alt'] if pd.notnull(mutation['alt']) else None
             _mutations.append(row)
         data['mutations'] = _mutations
 
@@ -991,9 +991,9 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
     if effects is not None and len(effects) > 0:
         for _, effect in effects.iterrows():
             prediction = {
-                'gene': effect['gene'],
-                'mutation': effect['mutation'],
-                'prediction': effect['prediction'],
+                'gene': effect['gene'] if pd.notnull(effect['gene']) else None,
+                'mutation': effect['mutation'] if pd.notnull(effect['mutation']) else None,
+                'prediction': effect['prediction'] if pd.notnull(effect['prediction']) else None,
                 'evidence': {}
             }
             _effects[effect['drug']].append(prediction)
