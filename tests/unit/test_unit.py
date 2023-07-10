@@ -221,8 +221,8 @@ def test_misc():
     variants = gnomonicus.minority_population_variants(diff, None)
     assert variants['variant'].tolist() == ['78t>g:0.5', '93_del_cc:0.5']
     assert variants['gene_name'].tolist() == [None, 'C']
-    assert variants['gene_position'].tolist() == [None, 3]
-    assert variants['codon_idx'].tolist() == [None, 1]
+    assert variants['gene_position'].tolist() == [pd.NA, 3]
+    assert variants['codon_idx'].tolist() == [pd.NA, 1]
 
     
 
