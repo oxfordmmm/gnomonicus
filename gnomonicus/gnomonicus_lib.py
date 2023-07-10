@@ -167,7 +167,18 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'gene_position': diff.gene_pos,
             'codon_idx': diff.codon_idx
             }
-    variants = pd.DataFrame(vals)
+        
+    #Use of Int64 rather than int is required here as pandas doesn't allow mixed int/None
+    variants = pd.DataFrame(vals).astype(
+        {
+            'vcf_evidence': 'object',
+            'nucleotide_index': 'Int64',
+            'indel_length': 'Int64',
+            'vcf_idx': 'Int64',
+            'gene_position': 'Int64',
+            'codon_idx': 'Int64'
+        }
+    )
     if diff.genome1.minor_populations or diff.genome2.minor_populations:
         variants = pd.concat([variants, minority_population_variants(diff, catalogue)])
 
@@ -323,15 +334,15 @@ def populateMutations(
         #Ensure correct datatypes
         mutations = mutations.astype({'mutation': 'str',
                                     'gene': 'str',
-                                    'nucleotide_number': 'float',
-                                    'nucleotide_index': 'float',
-                                    'gene_position': 'float',
+                                    'nucleotide_number': 'Int64',
+                                    'nucleotide_index': 'Int64',
+                                    'gene_position': 'Int64',
                                     'alt': 'str',
                                     'ref': 'str',
                                     'codes_protein': 'bool',
-                                    'indel_length': 'float',
+                                    'indel_length': 'Int64',
                                     'indel_nucleotides': 'str',
-                                    'amino_acid_number': 'float',
+                                    'amino_acid_number': 'Int64',
                                     'amino_acid_sequence': 'str',
                                 })
     #Add minor mutations (these are stored separately)
@@ -550,7 +561,12 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
     #Convert everything to numpy arrays
     vals = {key: np.array(vals[key]) for key in vals.keys()}
     return pd.DataFrame(vals).astype({
-                                    'vcf_evidence': 'object'
+                                    'vcf_evidence': 'object',
+                                    'nucleotide_index': 'Int64',
+                                    'indel_length': 'Int64',
+                                    'vcf_idx': 'Int64',
+                                    'gene_position': 'Int64',
+                                    'codon_idx': 'Int64'
                                 })
 
 
@@ -945,10 +961,10 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
             'variant': variant['variant'],
             'nucleotide_index': variant['nucleotide_index'],
             'gene_name': variant['gene_name'],
-            'gene_position': variant['gene_position'],
-            'codon_idx': variant['codon_idx'],
+            'gene_position': variant['gene_position'] if pd.notnull(variant['gene_position']) else None,
+            'codon_idx': variant['codon_idx'] if pd.notnull(variant['codon_idx']) else None,
             'vcf_evidence': json.loads(variant['vcf_evidence']),
-            'vcf_idx': variant['vcf_idx']
+            'vcf_idx': variant['vcf_idx'] if pd.notnull(variant['vcf_idx']) else None
         }
         _variants.append(row)
     data['variants'] = _variants
