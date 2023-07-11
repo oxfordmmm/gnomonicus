@@ -174,13 +174,13 @@ def test_misc():
 
     #Populate the tables
     path = "tests/outputs/0/"
-    gnomonicus.populateVariants(vcfStem, path, diff, False)
+    gnomonicus.populateVariants(vcfStem, path, diff, False, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, False)
+                                    reference, sample, catalogue, False, False)
     
     #Check for differences if a catalogue is not given. Should be the same mutations but different referenceGenes
     mutations_, referenceGenes_ = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, None, False)
+                                    reference, sample, None, False, False)
     
     assert mutations.equals(mutations_)
     assert referenceGenes != referenceGenes_
@@ -204,7 +204,7 @@ def test_misc():
 
     diff = reference - sample
 
-    variants = gnomonicus.minority_population_variants(diff, None)
+    variants = gnomonicus.minority_population_variants(diff, None, None)
     assert variants['variant'].tolist() == ['267t>c:0.045', '267t>c:0.045']
     assert sorted(variants['gene_name'].tolist()) == sorted(['ORF1ab', 'ORF1ab_2'])
     #These genes are weird and start in the same place (so have matching positions)
@@ -218,7 +218,7 @@ def test_misc():
 
     diff = reference - sample
 
-    variants = gnomonicus.minority_population_variants(diff, None)
+    variants = gnomonicus.minority_population_variants(diff, None, None)
     assert variants['variant'].tolist() == ['78t>g:0.5', '93_del_cc:0.5']
     assert variants['gene_name'].tolist() == [None, 'C']
     assert variants['gene_position'].tolist() == [pd.NA, 3]
@@ -248,9 +248,9 @@ def test_1():
 
     #Populate the tables
     path = "tests/outputs/1/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
@@ -352,9 +352,9 @@ def test_1():
     #Running the same test again, but with no catalogue
     #Should just produce variants and mutations sections of the JSON
     setupOutput('1')
-    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, None, True)
+                                    reference, sample, None, True, False)
     gnomonicus.populateEffects(path, None, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
@@ -438,9 +438,9 @@ def test_2():
 
     #Populate the tables
     path = "tests/outputs/2/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
@@ -573,9 +573,9 @@ def test_3():
 
     #Populate the tables
     path = "tests/outputs/3/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations_, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations_, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
@@ -719,9 +719,9 @@ def test_4():
 
     #Populate the tables
     path = "tests/outputs/4/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
@@ -860,9 +860,9 @@ def test_5():
 
     #Populate the tables
     path = "tests/outputs/5/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
@@ -1003,9 +1003,9 @@ def test_6():
 
     #Populate the tables
     path = "tests/outputs/6/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
@@ -1196,9 +1196,9 @@ def test_7():
 
     #Populate the tables
     path = "tests/outputs/7/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
@@ -1406,9 +1406,9 @@ def test_8():
 
     #Populate the tables
     path = "tests/outputs/8/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
@@ -1550,9 +1550,9 @@ def test_9():
 
     #Populate the tables
     path = "tests/outputs/9/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
@@ -1822,9 +1822,9 @@ def test_10():
 
     #Populate the tables
     path = "tests/outputs/10/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, catalogue=catalogue)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False, catalogue=catalogue)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
     
 
@@ -2094,9 +2094,9 @@ def test_11():
 
     #Populate the tables
     path = "tests/outputs/11/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, catalogue=catalogue)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False, catalogue=catalogue)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
-                                    reference, sample, catalogue, True)
+                                    reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
     
 

@@ -444,13 +444,17 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
     codon_idx = []
     variants = []
 
-    #Using the gene names, find out which genome indices we want to look out for
-    indices_we_care_about = []
-    for gene in genes:
-        mask = diff.genome1.stacked_gene_name == gene
-        gene_indices = diff.genome1.stacked_nucleotide_index[mask].tolist()
-        indices_we_care_about += gene_indices
-    indices_we_care_about = set(indices_we_care_about)
+    if genes is not None:
+        #Using the gene names, find out which genome indices we want to look out for
+        indices_we_care_about = []
+        for gene in genes:
+            mask = diff.genome1.stacked_gene_name == gene
+            gene_indices = diff.genome1.stacked_nucleotide_index[mask].tolist()
+            indices_we_care_about += gene_indices
+        indices_we_care_about = set(indices_we_care_about)
+    else:
+        #Genes was none, so fetch everything
+        indices_we_care_about = set(diff.genome1.nucleotide_index)
 
 
     for variant_ in variants_:
@@ -460,6 +464,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         if ">" in variant:
             idx = int(variant.split(">")[0][:-1])
             if idx not in indices_we_care_about:
+                variants.pop()
                 continue
             nucleotide_indices.append(idx)
             vcf = diff.genome2.vcf_evidence.get(int(variant.split(">")[0][:-1]))
@@ -505,6 +510,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         else:
             idx = int(variant.split("_")[0])
             if idx not in indices_we_care_about:
+                variants.pop()
                 continue
             nucleotide_indices.append(idx)
             vcf = diff.genome2.vcf_evidence.get(int(variant.split("_")[0]))
