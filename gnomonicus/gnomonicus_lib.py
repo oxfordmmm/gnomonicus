@@ -142,7 +142,7 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     pickle.dump(reference, open(path+'.pkl', 'wb'))
     return reference
 
-def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, make_csv: bool, catalogue: piezo.ResistanceCatalogue=None) -> pd.DataFrame:
+def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, make_csv: bool, resistanceGenesOnly: bool, catalogue: piezo.ResistanceCatalogue=None) -> pd.DataFrame:
     '''Populate and save the variants DataFrame as a CSV
 
     Args:
@@ -167,7 +167,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'gene_position': diff.gene_pos,
             'codon_idx': diff.codon_idx
             }
-        
+
     #Use of Int64 rather than int is required here as pandas doesn't allow mixed int/None
     variants = pd.DataFrame(vals).astype(
         {
@@ -179,8 +179,22 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'codon_idx': 'Int64'
         }
     )
+
+    if catalogue is not None:
+        #Figure out if we want to keep all of the variants
+        genes = getGenes(diff, catalogue, resistanceGenesOnly)
+        to_drop = []
+        for idx, row in variants.iterrows():
+            if row['gene_name'] not in genes:
+                #Not a variant we're interested in, so remove
+                to_drop.append(idx)
+                
+        variants.drop(index=to_drop, inplace=True)
+    else:
+        genes = set(diff.genome2.genes.keys())
+
     if diff.genome1.minor_populations or diff.genome2.minor_populations:
-        variants = pd.concat([variants, minority_population_variants(diff, catalogue)])
+        variants = pd.concat([variants, minority_population_variants(diff, catalogue, genes)])
 
     #If there are variants, save them to a csv
     if not variants.empty:
@@ -226,29 +240,26 @@ def get_minority_population_type(catalogue: piezo.ResistanceCatalogue) -> str:
     #We have anything else
     return 'percentage'
 
-def populateMutations(
-        vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome,
-        sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue, make_csv: bool) -> (pd.DataFrame, dict):
-    '''Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
+def getGenes(diff: gumpy.GenomeDifference, resistanceCatalogue: piezo.ResistanceCatalogue, resistanceGenesOnly: bool) -> set[str]:
+    '''Get the genes we're interested in. 
+    
+    This is either just resistance genes which have variants, or all which have variants
 
     Args:
-        vcfStem (str): The stem of the filename of the VCF file. Used as a uniqueID
-        outputDir (str): Path to the desired output directory
-        diff (gumpy.GenomeDifference): GenomeDifference object between reference and this sample
-        reference (gumpy.Genome): Reference genome
-        sample (gumpy.Genome): Sample genome
-        resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue (used to find which genes to check)
-        make_csv (bool): Whether to write the CSV of the dataframe
-
-    Raises:
-        MissingFieldException: Raised when the mutations DataFrame does not contain the required fields
+        diff (gumpy.GenomeDifference): Genome Difference between reference and sample
+        resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue
+        resistanceGenesOnly (bool): Whether to just use genes within the catalogue
 
     Returns:
-        pd.DataFrame: The mutations DataFrame
-        dict: Dictionary mapping gene name --> reference gumpy.Gene object
+        set[str]: Set of gene names
     '''
-    #For the sake of consistency, moving towards including all genes with mutations (not just those in the catalogue)
+    reference = diff.genome1
+    sample = diff.genome2
     if resistanceCatalogue:
+        if resistanceGenesOnly:
+            resistanceGenes = set(resistanceCatalogue.catalogue.genes)
+        else:
+            resistanceGenes = set(sample.genes)
         #Find the genes which have mutations regardless of being in the catalogue
         #Still cuts back time considerably, and ensures all mutations are included in outputs
         mask = np.isin(reference.stacked_nucleotide_index, diff.nucleotide_index)
@@ -268,9 +279,35 @@ def populateMutations(
             deletions += np.unique(name[sample.is_deleted]).tolist()
         genesWithMutations = set(genesWithMutations + deletions)
 
+        return genesWithMutations.intersection(resistanceGenes)
+
     else:
         #No catalogue, so just stick to genes in the sample
-        genesWithMutations = sample.genes
+        return sample.genes
+
+def populateMutations(
+        vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome,
+        sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue, make_csv: bool, resistanceGenesOnly: bool) -> (pd.DataFrame, dict):
+    '''Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
+
+    Args:
+        vcfStem (str): The stem of the filename of the VCF file. Used as a uniqueID
+        outputDir (str): Path to the desired output directory
+        diff (gumpy.GenomeDifference): GenomeDifference object between reference and this sample
+        reference (gumpy.Genome): Reference genome
+        sample (gumpy.Genome): Sample genome
+        resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue (used to find which genes to check)
+        make_csv (bool): Whether to write the CSV of the dataframe
+        resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
+
+    Raises:
+        MissingFieldException: Raised when the mutations DataFrame does not contain the required fields
+
+    Returns:
+        pd.DataFrame: The mutations DataFrame
+        dict: Dictionary mapping gene name --> reference gumpy.Gene object
+    '''
+    genesWithMutations = getGenes(diff, resistanceCatalogue, resistanceGenesOnly)
 
     #Iter resistance genes with variation to produce gene level mutations - concating into a single dataframe
     mutations = None
@@ -380,12 +417,13 @@ def populateMutations(
 
     return mutations, referenceGenes
 
-def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.ResistanceCatalogue) -> pd.DataFrame:
+def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.ResistanceCatalogue, genes: set[str]) -> pd.DataFrame:
     '''Handle the logic for pulling out minority population calls for genome level variants
 
     Args:
         diff: (gumpy.GenomeDifference): GenomeDifference object for this comparison
         catalogue: (piezo.ResistanceCatalogue): Catalogue to use. Used for determining whether FRS or COV should be used
+        genes (set[str]): Set of gene names we care about
 
     Returns:
         pd.DataFrame: DataFrame containing the minority population data
@@ -406,12 +444,23 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
     codon_idx = []
     variants = []
 
+    #Using the gene names, find out which genome indices we want to look out for
+    indices_we_care_about = []
+    for gene in genes:
+        mask = diff.genome1.stacked_gene_name == gene
+        gene_indices = diff.genome1.stacked_nucleotide_index[mask].tolist()
+        indices_we_care_about += gene_indices
+    indices_we_care_about = set(indices_we_care_about)
+
+
     for variant_ in variants_:
         variant, evidence = variant_.split(":")
         variants.append(variant_)
         
         if ">" in variant:
             idx = int(variant.split(">")[0][:-1])
+            if idx not in indices_we_care_about:
+                continue
             nucleotide_indices.append(idx)
             vcf = diff.genome2.vcf_evidence.get(int(variant.split(">")[0][:-1]))
             vcf_evidences.append(json.dumps(vcf))
@@ -455,6 +504,8 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
 
         else:
             idx = int(variant.split("_")[0])
+            if idx not in indices_we_care_about:
+                continue
             nucleotide_indices.append(idx)
             vcf = diff.genome2.vcf_evidence.get(int(variant.split("_")[0]))
             vcf_evidences.append(json.dumps(vcf))
@@ -755,7 +806,7 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceG
         if not large_dels:
             #Check if this is a large del
             large = re.compile(r"""
-                                del_(1\.0)|(0\.[0-9][0-9])
+                                del_(1\.0)|(0\.[0-9][0-9]?[0-9]?)
                                 """, re.VERBOSE)
             if large.fullmatch(mutation):
                 continue

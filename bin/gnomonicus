@@ -29,6 +29,7 @@ if __name__ == "__main__":
     parser.add_argument("--minor_populations", required=False, default=None, help="Path to a line separated file containing genome indices of minor populations.")
     parser.add_argument("--csvs", required=False, nargs="+", help="Types of CSV to produce. Accepted values are [variants, mutations, effects, predictions, all]. `all` produces all of the CSVs")
     parser.add_argument("--debug", default=False, action='store_true', help='Whether to log debugging messages to the log. Defaults to False')
+    parser.add_argument("--resistance_genes", required=False, default=False, action="store_true", help="Flag to filter mutations and variants to only include genes present in the resistance catalogue")
     options = parser.parse_args()
 
     options.output_dir = os.path.realpath(options.output_dir)
@@ -115,11 +116,11 @@ if __name__ == "__main__":
         raise Exception("No variants detected!")
 
     #Get the variations and mutations
-    variants = populateVariants(vcfStem, options.output_dir, diff, make_variants_csv, catalogue=resistanceCatalogue)
+    variants = populateVariants(vcfStem, options.output_dir, diff, make_variants_csv, options.resistance_genes, catalogue=resistanceCatalogue)
     logging.debug("Populated and saved variants.csv")
 
     mutations, referenceGenes = populateMutations(vcfStem, options.output_dir, diff, 
-                        reference, sample, resistanceCatalogue, make_mutations_csv)
+                        reference, sample, resistanceCatalogue, make_mutations_csv, options.resistance_genes)
     if mutations is None:
         logging.info("No mutations found - probably due to exclusively inter-gene variation or no variation.\n\t\t\t\t\t\t\t No effects.csv written")
     else:
