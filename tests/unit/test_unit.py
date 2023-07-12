@@ -350,7 +350,7 @@ def test_1():
     recursive_eq(ordered(expectedJSON), ordered(actualJSON))
 
     #Running the same test again, but with no catalogue
-    #Should just produce variants and mutations sections of the JSON
+    #Should just produce variants and mutations sections of the JSON with empty sections for effects+antibiogram
     setupOutput('1')
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
@@ -405,6 +405,8 @@ def test_1():
                     "alt": "aaa"
                 }
             ],
+            'effects': {},
+            'antibiogram': {}
         }
     }
     expectedJSON = json.loads(json.dumps(expectedJSON, sort_keys=True))
