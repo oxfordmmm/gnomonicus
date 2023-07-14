@@ -1040,7 +1040,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                 row['ref'] = mutation['ref'] if pd.notnull(mutation['ref']) else None
                 row['alt'] = mutation['alt'] if pd.notnull(mutation['alt']) else None
             _mutations.append(row)
-        data['mutations'] = _mutations
+    data['mutations'] = _mutations
 
     _effects = defaultdict(list)
     antibiogram = {}
@@ -1066,12 +1066,12 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
             _effects[drug].append({'phenotype': phenotype})
             antibiogram[drug] = phenotype
             drugs.add(drug)
-        data['effects'] = _effects
+    data['effects'] = _effects
     if catalogue is not None:
         for d in catalogue.catalogue.drugs:
             if d not in drugs:
                 antibiogram[d] = "S"
-        data['antibiogram'] = antibiogram
+    data['antibiogram'] = antibiogram
 
     #Convert fields to a list so it can be json serialised
     with open(os.path.join(path, f'{guid}.gnomonicus-out.json'), 'w') as f:
