@@ -691,14 +691,20 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
 
             if "_" in mut:
                 #Indel
-                _, t, bases = mut.split("_")
+                if len(mut.split("_")) == 3:
+                    _, t, bases = mut.split("_")
+                    indel_nucleotides.append(bases)
+                    if t == "del":
+                        indel_length.append(-1 * len(bases))
+                    else:
+                        indel_length.append(len(bases))              
+                else:
+                    #We have a `<pos>_indel` or `<pos>_mixed`
+                    indel_nucleotides.append(None)
+                    indel_length.append(None)
                 ref.append(None)
                 alt.append(None)
-                if t == "del":
-                    indel_length.append(-1 * len(bases))
-                else:
-                    indel_length.append(len(bases))
-                indel_nucleotides.append(bases)
+
                 is_snp.append(False)
                 nucleotide_number.append(num)
                 nucleotide_index.append(diff.gene1.nucleotide_index[diff.gene1.nucleotide_number == num][0])
