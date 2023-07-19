@@ -240,7 +240,7 @@ def get_minority_population_type(catalogue: piezo.ResistanceCatalogue) -> str:
     #We have anything else
     return 'percentage'
 
-def getGenes(diff: gumpy.GenomeDifference, resistanceCatalogue: piezo.ResistanceCatalogue, resistanceGenesOnly: bool) -> set[str]:
+def getGenes(diff: gumpy.GenomeDifference, resistanceCatalogue: piezo.ResistanceCatalogue, resistanceGenesOnly: bool) -> set:
     '''Get the genes we're interested in. 
     
     This is either just resistance genes which have variants, or all which have variants
@@ -417,7 +417,7 @@ def populateMutations(
 
     return mutations, referenceGenes
 
-def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.ResistanceCatalogue, genes: set[str]) -> pd.DataFrame:
+def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.ResistanceCatalogue, genes: set) -> pd.DataFrame:
     '''Handle the logic for pulling out minority population calls for genome level variants
 
     Args:
