@@ -58,6 +58,9 @@ A Docker image should be built on releases. To open a shell with gnomonicus inst
 docker run -it oxfordmmm/gnomonicus:latest
 ```
 
+## Updating
+If a `gnomonicus` update changes the version of `gumpy` used, an `OutdatedGumpyException` will be thrown if using a pickled `Genome` object which was instantiated with the old version. This can be fixed by simply re-instantiating the `Genome` object by passing a genbank file once.
+
 ## Notes
 When generating mutations, in cases of synonymous amino acid mutation, the nucelotides changed are also included. This can lead to a mix of nucleotides and amino acids for coding genes, but these are excluded from generating effects unless specified in the catalogue. This means that the default rule of `gene@*= --> S` is still in place regardless of the introduced `gene@*?` which would otherwise take precedence. For example:
 ```
