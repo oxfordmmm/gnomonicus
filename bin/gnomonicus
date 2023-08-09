@@ -11,13 +11,15 @@ import time
 import gumpy
 import piezo
 
-from gnomonicus import loadGenome, populateVariants, populateMutations, populateEffects, saveJSON
 import gnomonicus
+from gnomonicus import (loadGenome, populateEffects, populateMutations,
+                        populateVariants, saveJSON)
 
 if __name__ == "__main__":
     start = time.time()
     #Argparser setup
     parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--version', action='version', version=f'gnomonicus {gnomonicus.__version__}')
     parser.add_argument("--vcf_file",required=True,help="the path to a single VCF file")
     parser.add_argument("--genome_object",required=True,help="the path to a compressed gumpy Genome object or a genbank file")
     parser.add_argument("--catalogue_file",default=None,required=False,help="the path to the resistance catalogue")
