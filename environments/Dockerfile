@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 
 #Install requirements
-RUN apt update && apt install -y git python3 python3-pip
+RUN apt update && apt install -y git python3 python3-pip s3fs
 
 #Install gnomonicus from git
 # RUN git clone https://github.com/oxfordmmm/gnomonicus && cd gnomonicus && pip install .
