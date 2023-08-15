@@ -163,7 +163,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
             'indel_nucleotides': diff.indel_nucleotides,
             'vcf_evidence': [json.dumps(x) for x in diff.vcf_evidences],
             'vcf_idx': diff.vcf_idx,
-            'gene_name': diff.gene_name,
+            'gene': diff.gene_name,
             'gene_position': diff.gene_pos,
             'codon_idx': diff.codon_idx
             }
@@ -185,7 +185,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
         genes = getGenes(diff, catalogue, resistanceGenesOnly)
         to_drop = []
         for idx, row in variants.iterrows():
-            if row['gene_name'] not in genes:
+            if row['gene'] not in genes:
                 #Not a variant we're interested in, so remove
                 to_drop.append(idx)
                 
@@ -201,7 +201,7 @@ def populateVariants(vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference,
         #Add unique ID to each record
         variants['uniqueid'] = vcfStem
 
-        variants = variants[['uniqueid', 'variant', 'gene_name', 'gene_position', 'codon_idx', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence', 'vcf_idx']]
+        variants = variants[['uniqueid', 'variant', 'gene', 'gene_position', 'codon_idx', 'nucleotide_index', 'indel_length', 'indel_nucleotides', 'vcf_evidence', 'vcf_idx']]
         variants = variants.drop_duplicates()
         if make_csv:
             #Save CSV
@@ -611,7 +611,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
         'indel_nucleotides': indel_nucleotides,
         'vcf_evidence': vcf_evidences,
         'vcf_idx': vcf_idx,
-        'gene_name': gene_name,
+        'gene': gene_name,
         'gene_position': gene_pos,
         'codon_idx': codon_idx
         }
@@ -1023,7 +1023,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
         row = {
             'variant': variant['variant'] if pd.notnull(variant['variant']) else None,
             'nucleotide_index': variant['nucleotide_index'] if pd.notnull(variant['nucleotide_index']) else None,
-            'gene_name': variant['gene_name'] if pd.notnull(variant['gene_name']) else None,
+            'gene_name': variant['gene'] if pd.notnull(variant['gene']) else None,
             'gene_position': variant['gene_position'] if pd.notnull(variant['gene_position']) else None,
             'codon_idx': variant['codon_idx'] if pd.notnull(variant['codon_idx']) else None,
             'vcf_evidence': json.loads(variant['vcf_evidence']),
