@@ -206,7 +206,7 @@ def test_misc():
 
     variants = gnomonicus.minority_population_variants(diff, None, None)
     assert variants['variant'].tolist() == ['267t>c:0.045', '267t>c:0.045']
-    assert sorted(variants['gene_name'].tolist()) == sorted(['ORF1ab', 'ORF1ab_2'])
+    assert sorted(variants['gene'].tolist()) == sorted(['ORF1ab', 'ORF1ab_2'])
     #These genes are weird and start in the same place (so have matching positions)
     assert variants['gene_position'].tolist() == [1, 1]
     assert variants['codon_idx'].tolist() == [2, 2]
@@ -220,7 +220,7 @@ def test_misc():
 
     variants = gnomonicus.minority_population_variants(diff, None, None)
     assert variants['variant'].tolist() == ['78t>g:0.5', '93_del_cc:0.5']
-    assert variants['gene_name'].tolist() == [None, 'C']
+    assert variants['gene'].tolist() == [None, 'C']
     assert variants['gene_position'].tolist() == [pd.NA, 3]
     assert variants['codon_idx'].tolist() == [pd.NA, 1]
 
