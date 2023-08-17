@@ -119,7 +119,7 @@ if __name__ == "__main__":
     variants = populateVariants(vcfStem, options.output_dir, diff, make_variants_csv, options.resistance_genes, catalogue=resistanceCatalogue)
     logging.debug("Populated and saved variants.csv")
 
-    mutations, referenceGenes = populateMutations(vcfStem, options.output_dir, diff, 
+    mutations, referenceGenes, minor_errors = populateMutations(vcfStem, options.output_dir, diff, 
                         reference, sample, resistanceCatalogue, make_mutations_csv, options.resistance_genes)
     if mutations is None:
         logging.info("No mutations found - probably due to exclusively inter-gene variation or no variation.\n\t\t\t\t\t\t\t No effects.csv written")
@@ -158,7 +158,7 @@ if __name__ == "__main__":
         if values is None:
             values = list("RFUS")
         logging.info(f"Saving a JSON... See {options.output_dir}/gnomonicus-out.json")
-        saveJSON(variants, mutations, effects, options.output_dir, vcfStem, resistanceCatalogue, gnomonicus.__version__, time.time()-start, reference, options.vcf_file, options.genome_object, options.catalogue_file)
+        saveJSON(variants, mutations, effects, options.output_dir, vcfStem, resistanceCatalogue, gnomonicus.__version__, time.time()-start, reference, options.vcf_file, options.genome_object, options.catalogue_file, minor_errors)
 
     if options.fasta and options.fasta.lower() in ['fixed', 'variable']:
         fixed = options.fasta.lower() == 'fixed'

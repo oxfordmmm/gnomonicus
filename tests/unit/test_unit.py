@@ -175,11 +175,11 @@ def test_misc():
     #Populate the tables
     path = "tests/outputs/0/"
     gnomonicus.populateVariants(vcfStem, path, diff, False, False)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, False, False)
     
     #Check for differences if a catalogue is not given. Should be the same mutations but different referenceGenes
-    mutations_, referenceGenes_ = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations_, referenceGenes_, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, None, False, False)
     
     assert mutations.equals(mutations_)
@@ -249,7 +249,7 @@ def test_1():
     #Populate the tables
     path = "tests/outputs/1/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
@@ -283,7 +283,7 @@ def test_1():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -353,7 +353,7 @@ def test_1():
     #Should just produce variants and mutations sections of the JSON with empty sections for effects+antibiogram
     setupOutput('1')
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, None, True, False)
     gnomonicus.populateEffects(path, None, mutations, referenceGenes, vcfStem, True, True)
 
@@ -366,7 +366,7 @@ def test_1():
     with pytest.raises(Exception):
         predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
-    gnomonicus.saveJSON(variants, mutations, None, path, vcfStem, None, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, None, path, vcfStem, None, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -441,7 +441,7 @@ def test_2():
     #Populate the tables
     path = "tests/outputs/2/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
@@ -475,7 +475,7 @@ def test_2():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -576,7 +576,7 @@ def test_3():
     #Populate the tables
     path = "tests/outputs/3/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
-    mutations_, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations_, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations_, referenceGenes, vcfStem, True, True)
 
@@ -610,7 +610,7 @@ def test_3():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations_, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations_, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -722,7 +722,7 @@ def test_4():
     #Populate the tables
     path = "tests/outputs/4/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
@@ -756,7 +756,7 @@ def test_4():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -863,7 +863,7 @@ def test_5():
     #Populate the tables
     path = "tests/outputs/5/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
@@ -902,7 +902,7 @@ def test_5():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -1006,7 +1006,7 @@ def test_6():
     #Populate the tables
     path = "tests/outputs/6/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
@@ -1047,7 +1047,7 @@ def test_6():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -1199,7 +1199,7 @@ def test_7():
     #Populate the tables
     path = "tests/outputs/7/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
@@ -1249,7 +1249,7 @@ def test_7():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -1409,7 +1409,7 @@ def test_8():
     #Populate the tables
     path = "tests/outputs/8/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
@@ -1443,7 +1443,7 @@ def test_8():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -1553,7 +1553,7 @@ def test_9():
     #Populate the tables
     path = "tests/outputs/9/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
@@ -1597,7 +1597,7 @@ def test_9():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -1825,7 +1825,7 @@ def test_10():
     #Populate the tables
     path = "tests/outputs/10/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False, catalogue=catalogue)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
     
@@ -1870,7 +1870,7 @@ def test_10():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -2097,7 +2097,7 @@ def test_11():
     #Populate the tables
     path = "tests/outputs/11/"
     gnomonicus.populateVariants(vcfStem, path, diff, True, False, catalogue=catalogue)
-    mutations, referenceGenes = gnomonicus.populateMutations(vcfStem, path, diff, 
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
     gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
     
@@ -2141,7 +2141,7 @@ def test_11():
             hits.append(None)
     assert sorted(hits) == ['AAA']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '')
+    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
