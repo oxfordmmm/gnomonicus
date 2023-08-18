@@ -12,6 +12,8 @@ import logging
 import os
 import pickle
 import re
+import traceback
+import warnings
 from collections import defaultdict
 from collections.abc import Iterable
 
@@ -20,6 +22,7 @@ import numpy as np
 import pandas as pd
 import piezo
 from tqdm import tqdm
+
 
 class InvalidMutationException(Exception):
     '''Custom exception raised when an invalid mutation is detected
@@ -287,7 +290,7 @@ def getGenes(diff: gumpy.GenomeDifference, resistanceCatalogue: piezo.Resistance
 
 def populateMutations(
         vcfStem: str, outputDir: str, diff: gumpy.GenomeDifference, reference: gumpy.Genome,
-        sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue, make_csv: bool, resistanceGenesOnly: bool) -> (pd.DataFrame, dict):
+        sample: gumpy.Genome, resistanceCatalogue: piezo.ResistanceCatalogue, make_csv: bool, resistanceGenesOnly: bool) -> (pd.DataFrame, dict, dict):
     '''Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
 
     Args:
@@ -385,8 +388,10 @@ def populateMutations(
     #Add minor mutations (these are stored separately)
     if reference.minor_populations or sample.minor_populations:
         #Only do this if they exist
-        x = minority_population_mutations(diffs, resistanceCatalogue)
+        x, errors = minority_population_mutations(diffs, resistanceCatalogue)
         mutations = pd.concat([mutations, x])
+    else:
+        errors = {}
     #If there were mutations, write them to a CSV
     if mutations is not None:
 
@@ -415,7 +420,7 @@ def populateMutations(
             #Save it as CSV
             mutations_.to_csv(os.path.join(outputDir, f'{vcfStem}.mutations.csv'), index=False)
 
-    return mutations, referenceGenes
+    return mutations, referenceGenes, errors
 
 def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.ResistanceCatalogue, genes: set) -> pd.DataFrame:
     '''Handle the logic for pulling out minority population calls for genome level variants
@@ -627,7 +632,7 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                                 })
 
 
-def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piezo.ResistanceCatalogue) -> pd.DataFrame:
+def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piezo.ResistanceCatalogue) -> (pd.DataFrame, dict):
     '''Handle the logic for pulling out minority population calls for gene level variants
 
     Args:
@@ -658,12 +663,20 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
     variants = []
     number_nucleotide_changes = []
 
+    #Track errors (if any) for reporting but not throwing
+    errors = {}
+
     #Determine if FRS or COV should be used
     minor_type = get_minority_population_type(catalogue)
 
     for diff in diffs:
         #As mutations returns in GARC, split into constituents for symmetry with others
-        mutations = diff.minor_populations(interpretation=minor_type)
+        try:
+            mutations = diff.minor_populations(interpretation=minor_type)
+        except Exception as e:
+            warnings.warn(f"An error occurred within {diff.gene2.name}! Check JSON for stack trace.")
+            errors[diff.gene2.name] = traceback.format_exc()
+            continue
         
         #Without gene names/evidence
         muts = [ mut.split(":")[0]for mut in mutations]
@@ -764,7 +777,7 @@ def minority_population_mutations(diffs: [gumpy.GeneDifference], catalogue: piez
                                         'amino_acid_number': 'float',
                                         'amino_acid_sequence': 'str',
                                         'number_nucleotide_changes': 'int'
-                                    })
+                                    }), errors
 
 def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceGenes: dict) -> [[str, str]]:
     '''Get all of the mutations (including multi-mutations) from the mutations df
@@ -922,7 +935,7 @@ def populateEffects(
     #Return  the metadata dict to log later
     return effects, {"WGS_PREDICTION_"+drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs}
 
-def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piezo.ResistanceCatalogue, gnomonicusVersion: str, time_taken: float, reference: gumpy.Genome, vcf_path: str, reference_path: str, catalogue_path: str) -> None:
+def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piezo.ResistanceCatalogue, gnomonicusVersion: str, time_taken: float, reference: gumpy.Genome, vcf_path: str, reference_path: str, catalogue_path: str, minor_errors: dict) -> None:
     '''Create and save a single JSON output file for use within GPAS. JSON structure:
     {
         'meta': {
@@ -940,6 +953,9 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
             'reference_file': Path to the reference file,
             'vcf_file': Path to the VCF file
         },
+        ?'errors': {
+            <gene name>: <stack trace>
+        }
         'data': {
             'variants': [
                 {
@@ -992,6 +1008,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
         vcf_path (str): Path to the VCF file used for this run
         reference_path (str): Path to the reference genome used for this run
         catalogue_path (str): Path to the catalogue used for this run
+        minor_errors (dict): Mapping of gene name --> stack trace of any errors occurring when parsing minor mutations
     '''
     values = catalogue.catalogue.values if catalogue is not None else list("RFUS")
     #Define some metadata for the json
@@ -1081,5 +1098,9 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
 
     #Convert fields to a list so it can be json serialised
     with open(os.path.join(path, f'{guid}.gnomonicus-out.json'), 'w') as f:
-        f.write(json.dumps({'meta': meta, 'data': data}, indent=2))
+        #Add errors (if any)
+        if len(minor_errors) > 0:
+            f.write(json.dumps({'meta': meta, 'data': data, 'errors': minor_errors}, indent=2))
+        else:
+            f.write(json.dumps({'meta': meta, 'data': data}, indent=2))
 
