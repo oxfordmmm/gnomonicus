@@ -20,6 +20,7 @@ if __name__ == "__main__":
     options = parser.parse_args()
     
     g = gumpy.Genome(options.genbank_file, show_progress_bar=True)
+    g.gumpy_version = gumpy.__version__
     if options.compress:
         #Save as gzipped version
         print("Compressing with gzip...")
