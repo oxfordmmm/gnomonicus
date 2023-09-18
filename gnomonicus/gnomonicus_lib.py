@@ -508,7 +508,11 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                                 added = True
 
                 #Shouldn't be possible, but check anyway
-                assert added, f"The index of the VCF evidence could not be determined! {variant_} --> {vcf}"                        
+                if added is False:
+                    warnings.warn(
+                        f"The index of the VCF evidence could not be determined! {variant_} --> {vcf}. "
+                        "Continuing with None values")
+                    vcf_idx.append(None)
 
 
 
@@ -547,7 +551,12 @@ def minority_population_variants(diff: gumpy.GenomeDifference, catalogue: piezo.
                         if ev == cov[v_idx]:
                             added = True
                             vcf_idx.append(v_idx)
-            assert added, f"The index of the VCF evidence could not be determined! {variant_} --> {vcf}"                        
+
+            if added is False:
+                warnings.warn(
+                    f"The index of the VCF evidence could not be determined! {variant_} --> {vcf}. "
+                    "Continuing with None values")
+                vcf_idx.append(None)                      
             
         if "_" in variant:
             indel_lengths.append(len(variant.split("_")[-1]))
