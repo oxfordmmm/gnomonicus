@@ -879,53 +879,55 @@ def populateEffects(
     #Default prediction values are RFUS but use piezo catalogue's values if existing
     values = resistanceCatalogue.catalogue.values
 
-    for (gene, mutation) in tqdm(getMutations(mutations, resistanceCatalogue, referenceGenes)):
-        #Ensure its a valid mutation
-        if gene is not None and not referenceGenes[gene].valid_variant(mutation):
-            logging.error(f"Not a valid mutation {gene}@{mutation}")
-            raise InvalidMutationException(gene, mutation)
+    # only try and build an effects table if there are mutations
+    if mutations is not None:
+        for (gene, mutation) in tqdm(getMutations(mutations, resistanceCatalogue, referenceGenes)):
+            #Ensure its a valid mutation
+            if gene is not None and not referenceGenes[gene].valid_variant(mutation):
+                logging.error(f"Not a valid mutation {gene}@{mutation}")
+                raise InvalidMutationException(gene, mutation)
+            
+            #Get the prediction
+            if gene is not None:
+                prediction = resistanceCatalogue.predict(gene+'@'+mutation)
+            else:
+                #This is a multi-mutation so is already of required format
+                prediction = resistanceCatalogue.predict(mutation)
+
+            #If the prediction is interesting, iter through drugs to find predictions
+            if prediction != 'S':
+                for drug in prediction.keys():
+                    #Check for empty strings
+                    #I don't think this can be reached... Commenting out for now
+                    # if not drug:
+                        # continue
+
+                    #Prioritise values based on order within the values list
+                    if values.index(prediction[drug]) < values.index(phenotype[drug]):
+                        #The prediction is closer to the start of the values list, so should take priority
+                        phenotype[drug] = prediction[drug]
+
+                    #Add to the dict
+                    effects[effectsCounter] = [vcfStem, gene, mutation, resistanceCatalogue.catalogue.name, drug, prediction[drug]]
+                    #Increment counter
+                    effectsCounter += 1
         
-        #Get the prediction
-        if gene is not None:
-            prediction = resistanceCatalogue.predict(gene+'@'+mutation)
-        else:
-            #This is a multi-mutation so is already of required format
-            prediction = resistanceCatalogue.predict(mutation)
+        #Build the DataFrame
+        effects = pd.DataFrame.from_dict(effects, 
+                                            orient="index", 
+                                            columns=["uniqueid", "gene", "mutation", 
+                                                "catalogue_name", "drug", "prediction"]
+                                            )
+        effects = effects[["uniqueid", "gene", "mutation", "drug", "prediction", "catalogue_name"]]
+        effects['catalogue_version'] = resistanceCatalogue.catalogue.version
+        effects['prediction_values'] = ''.join(resistanceCatalogue.catalogue.values)
+        effects['evidence'] = "{}"
+        
+        #Save as CSV
+        if len(effects) > 0 and make_csv:
+            effects.to_csv(os.path.join(outputDir, f'{vcfStem}.effects.csv'), index=False)
 
-        #If the prediction is interesting, iter through drugs to find predictions
-        if prediction != 'S':
-            for drug in prediction.keys():
-                #Check for empty strings
-                #I don't think this can be reached... Commenting out for now
-                # if not drug:
-                    # continue
-
-                #Prioritise values based on order within the values list
-                if values.index(prediction[drug]) < values.index(phenotype[drug]):
-                    #The prediction is closer to the start of the values list, so should take priority
-                    phenotype[drug] = prediction[drug]
-
-                #Add to the dict
-                effects[effectsCounter] = [vcfStem, gene, mutation, resistanceCatalogue.catalogue.name, drug, prediction[drug]]
-                #Increment counter
-                effectsCounter += 1
-    
-    #Build the DataFrame
-    effects = pd.DataFrame.from_dict(effects, 
-                                        orient="index", 
-                                        columns=["uniqueid", "gene", "mutation", 
-                                            "catalogue_name", "drug", "prediction"]
-                                        )
-    effects = effects[["uniqueid", "gene", "mutation", "drug", "prediction", "catalogue_name"]]
-    effects['catalogue_version'] = resistanceCatalogue.catalogue.version
-    effects['prediction_values'] = ''.join(resistanceCatalogue.catalogue.values)
-    effects['evidence'] = "{}"
-    
-    #Save as CSV
-    if len(effects) > 0 and make_csv:
-        effects.to_csv(os.path.join(outputDir, f'{vcfStem}.effects.csv'), index=False)
-
-    effects.reset_index(inplace=True)
+        effects.reset_index(inplace=True)
 
     if make_prediction_csv:
         #We need to construct a simple table here
