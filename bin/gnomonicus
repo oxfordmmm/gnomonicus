@@ -128,10 +128,10 @@ if __name__ == "__main__":
     else:
         logging.debug("Populated and saved mutatons.csv")
 
-    #Get the effects of the mutations
-    if resistanceCatalogue is not None and mutations is not None:
+    #Get the effects and predictions of the mutations
+    if resistanceCatalogue is not None:
         effects, metadata = populateEffects(options.output_dir, resistanceCatalogue, mutations, referenceGenes, vcfStem, make_effects_csv, make_prediction_csv)
-        logging.debug("Populated and saved effects.csv")
+        logging.debug("Populated and saved effects.csv and predictions.csv")
     else:
         metadata = {}
         effects = None
