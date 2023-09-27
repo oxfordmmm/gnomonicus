@@ -805,7 +805,7 @@ def getMutations(mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceG
     #Grab the multi-mutations from the catalogue
     #By doing this, we can check a fixed sample space rather than every permutation of the mutations
     #This makes the problem tractable, but does not address a possible issue with multi-mutations not encapsulating full codons
-    multis = catalogue.catalogue.rules[catalogue.catalogue.rules['MUTATION_TYPE']=='MULTI']['MUTATION']
+    multis = set(catalogue.catalogue.rules[catalogue.catalogue.rules['MUTATION_TYPE']=='MULTI']['MUTATION'])
     if len(multis) > 0:
         #We have a catalogue including multi rules, so check if any of these are present in the mutations
         joined = [gene+'@'+mut for (gene, mut) in mutations]
