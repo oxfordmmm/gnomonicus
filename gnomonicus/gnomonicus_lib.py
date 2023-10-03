@@ -934,7 +934,6 @@ def populateEffects(
     if make_prediction_csv:
         #We need to construct a simple table here
         predictions = [phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs]
-        evidences = [phenotype_evidence[drug] for drug in resistanceCatalogue.catalogue.drugs]
         vals = {
             'uniqueid': vcfStem,
             'drug': resistanceCatalogue.catalogue.drugs,
@@ -942,7 +941,6 @@ def populateEffects(
             'catalogue_name': resistanceCatalogue.catalogue.name,
             'catalogue_version': resistanceCatalogue.catalogue.version,
             'catalogue_values': ''.join(resistanceCatalogue.catalogue.values),
-            'evidence': evidences
         }
         predictions = pd.DataFrame(vals)
         predictions.to_csv(os.path.join(outputDir, f"{vcfStem}.predictions.csv"), index=False)
