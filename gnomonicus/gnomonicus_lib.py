@@ -924,8 +924,7 @@ def populateEffects(
         effects = effects[["uniqueid", "gene", "mutation", "drug", "prediction", "catalogue_name", "evidence"]]
         effects['catalogue_version'] = resistanceCatalogue.catalogue.version
         effects['prediction_values'] = ''.join(resistanceCatalogue.catalogue.values)
-        # effects['evidence'] = "{}"
-        
+
         #Save as CSV
         if len(effects) > 0 and make_csv:
             effects.to_csv(os.path.join(outputDir, f'{vcfStem}.effects.csv'), index=False)
@@ -1118,4 +1117,4 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
             f.write(json.dumps({'meta': meta, 'data': data, 'errors': minor_errors}, indent=2))
         else:
             f.write(json.dumps({'meta': meta, 'data': data}, indent=2))
-
+    

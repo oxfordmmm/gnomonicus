@@ -251,7 +251,7 @@ def test_1():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -272,7 +272,6 @@ def test_1():
         assert row['catalogue_name'] == 'gnomonicus_test'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "R"
@@ -283,7 +282,7 @@ def test_1():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -328,7 +327,7 @@ def test_1():
                         'gene': 'S',
                         'mutation': 'E484K',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 0}
                     },
                     {
                         'phenotype': 'R'
@@ -443,7 +442,7 @@ def test_2():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -464,7 +463,6 @@ def test_2():
         assert row['catalogue_name'] == 'gnomonicus_test'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "R"
@@ -475,7 +473,7 @@ def test_2():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -531,7 +529,7 @@ def test_2():
                         'gene': 'S',
                         'mutation': 'E484K',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 0}
                     },
                     {
                         'phenotype': 'R'
@@ -578,7 +576,7 @@ def test_3():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations_, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations_, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations_, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -599,7 +597,6 @@ def test_3():
         assert row['catalogue_name'] == 'gnomonicus_test'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "S"
@@ -610,7 +607,7 @@ def test_3():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations_, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations_, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -675,7 +672,7 @@ def test_3():
                         'gene': 'S',
                         'mutation': 'F2F',
                         'prediction': 'S',
-                        'evidence': {}
+                        'evidence': {'row': 6}
                     },
                     {
                         'phenotype': 'S'
@@ -724,7 +721,7 @@ def test_4():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -745,7 +742,6 @@ def test_4():
         assert row['catalogue_name'] == 'gnomonicus_test'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "U"
@@ -756,7 +752,7 @@ def test_4():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -816,7 +812,7 @@ def test_4():
                         'gene': 'S',
                         'mutation': 'F2L',
                         'prediction': 'U',
-                        'evidence': {}
+                        'evidence': {'row': 3}
                     },
                     {
                         'phenotype': 'U'
@@ -865,7 +861,7 @@ def test_5():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -891,7 +887,6 @@ def test_5():
         assert row['catalogue_name'] == 'gnomonicus_test'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "R"
@@ -902,7 +897,7 @@ def test_5():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -960,7 +955,7 @@ def test_5():
                         'gene': 'S',
                         'mutation': '200_ins_c',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 11}
                     },
                     {
                         'phenotype': 'R'
@@ -1008,7 +1003,7 @@ def test_6():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -1036,7 +1031,6 @@ def test_6():
         assert row['catalogue_name'] == 'gnomonicus_test'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "R"
@@ -1047,7 +1041,7 @@ def test_6():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -1142,7 +1136,7 @@ def test_6():
                         'gene': 'ORF7a',
                         'mutation': '!122S',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 12}
                     },
                     {
                         'phenotype': 'R'
@@ -1153,7 +1147,7 @@ def test_6():
                         'gene': 'ORF7b',
                         'mutation': 'M1I',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 13}
                     },
                     {
                         'phenotype': 'R'
@@ -1201,7 +1195,7 @@ def test_7():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -1238,7 +1232,6 @@ def test_7():
         assert row['catalogue_name'] == 'gnomonicus_test'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "R"
@@ -1249,7 +1242,7 @@ def test_7():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -1342,13 +1335,13 @@ def test_7():
                         'gene': 'S',
                         'mutation': 'E484K',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 0}
                     },
                     {
                         'gene': 'S',
                         'mutation': '1450_ins_a',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 11}
                     },
                     {
                         'phenotype': 'R'
@@ -1359,7 +1352,7 @@ def test_7():
                         'gene': None,
                         'mutation': 'S@1450_ins_a&S@E484K',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 1}
                     },
                     {
                         'phenotype': 'R'
@@ -1411,7 +1404,7 @@ def test_8():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -1432,7 +1425,6 @@ def test_8():
         assert row['catalogue_name'] == 'gnomonicus_test'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "U"
@@ -1443,7 +1435,7 @@ def test_8():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -1501,7 +1493,7 @@ def test_8():
                         'gene': 'S',
                         'mutation': 'g1450a',
                         'prediction': 'U',
-                        'evidence': {}
+                        'evidence': {'row': 3}
                     },
                     {
                         'phenotype': 'U'
@@ -1555,7 +1547,7 @@ def test_9():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False)
     mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
 
     #Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -1586,7 +1578,6 @@ def test_9():
         assert row['catalogue_name'] == 'gnomonicus_test'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "R"
@@ -1597,7 +1588,7 @@ def test_9():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -1756,25 +1747,25 @@ def test_9():
                         'gene': 'S',
                         'mutation': '!1274Q:0.045',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 20}
                     },
                     {
                         'gene': 'S',
                         'mutation': 'g-5a:0.045',
                         'prediction': 'U',
-                        'evidence': {}
+                        'evidence': {'row': 8}
                     },
                     {
                         'gene': 'S',
                         'mutation': '3721_del_t:0.045',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 19}
                     },
                     {
                         'gene': 'S',
                         'mutation': '3690_ins_cc:0.045',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 11}
                     },
                     {
                         'phenotype': 'R'
@@ -1827,7 +1818,7 @@ def test_10():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False, catalogue=catalogue)
     mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
     
 
     #Check for expected values within csvs
@@ -1859,7 +1850,6 @@ def test_10():
         assert row['catalogue_name'] == 'gnomonicus_test'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "R"
@@ -1870,7 +1860,7 @@ def test_10():
             hits.append(None)
     assert sorted(hits) == ['AAA', 'BBB']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -2029,25 +2019,25 @@ def test_10():
                         'gene': 'S',
                         'mutation': '!1274Q:2',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 20}
                     },
                     {
                         'gene': 'S',
                         'mutation': 'g-5a:2',
                         'prediction': 'U',
-                        'evidence': {}
+                        'evidence': {'row': 8}
                     },
                     {
                         'gene': 'S',
                         'mutation': '3721_del_t:2',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 19}
                     },
                     {
                         'gene': 'S',
                         'mutation': '3690_ins_cc:2',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 11}
                     },
                     {
                         'phenotype': 'R'
@@ -2099,7 +2089,7 @@ def test_11():
     gnomonicus.populateVariants(vcfStem, path, diff, True, False, catalogue=catalogue)
     mutations, referenceGenes, errors = gnomonicus.populateMutations(vcfStem, path, diff, 
                                     reference, sample, catalogue, True, False)
-    gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
+    e, _ = gnomonicus.populateEffects(path, catalogue, mutations, referenceGenes, vcfStem, True, True)
     
 
     #Check for expected values within csvs
@@ -2133,7 +2123,6 @@ def test_11():
         assert row['catalogue_name'] == 'gnomonicus_test_dna'
         assert row['catalogue_version'] == 'v1.0'
         assert row['catalogue_values'] == 'RFUS'
-        assert row['evidence'] == '{}'
         if row['drug'] == 'AAA':
             hits.append('AAA')
             assert row['prediction'] == "R"
@@ -2141,7 +2130,7 @@ def test_11():
             hits.append(None)
     assert sorted(hits) == ['AAA']
 
-    gnomonicus.saveJSON(variants, mutations, effects, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
+    gnomonicus.saveJSON(variants, mutations, e, path, vcfStem, catalogue, gnomonicus.__version__, -1, reference, '', '', '', {})
 
     expectedJSON = {
         'meta': {
@@ -2261,25 +2250,25 @@ def test_11():
                         'gene': 'A',
                         'mutation': '-1_del_aaaaaaaaccccccccccgggggggggg',
                         'prediction': 'U',
-                        'evidence': {}
+                        'evidence': {'row': 5}
                     },
                     {
                         'gene': 'A',
                         'mutation': 'del_0.93',
                         'prediction': 'R',
-                        'evidence': {}
+                        'evidence': {'row': 16}
                     },
                     {
                         'gene': 'B',
                         'mutation': 'del_1.0',
                         'prediction': 'U',
-                        'evidence': {}
+                        'evidence': {'row': 17}
                     },
                     {
                         'gene': 'C',
                         'mutation': '4_del_ggg',
                         'prediction': 'U',
-                        'evidence': {}
+                        'evidence': {'row': 14}
                     },
                     {
                         'phenotype': 'R'

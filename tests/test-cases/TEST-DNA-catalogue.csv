@@ -1,20 +1,20 @@
 GENBANK_REFERENCE,CATALOGUE_NAME,CATALOGUE_VERSION,CATALOGUE_GRAMMAR,PREDICTION_VALUES,DRUG,MUTATION,PREDICTION,SOURCE,EVIDENCE,OTHER
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@*X,F,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@*=,S,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@*?,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@-*?,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@*_indel,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@-*_indel,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@*=,S,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@*?,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@-*?,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@*_indel,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@-*_indel,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,C@*=,S,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,C@*?,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,C@-*?,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,C@*_indel,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,C@-*_indel,U,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@del_0.3,R,{},{},{}
-TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@del_0.5,U,{},{},{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@*X,F,{},"{""row"": 0}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@*=,S,{},"{""row"": 1}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@*?,U,{},"{""row"": 2}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@-*?,U,{},"{""row"": 3}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@*_indel,U,{},"{""row"": 4}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@-*_indel,U,{},"{""row"": 5}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@*=,S,{},"{""row"": 6}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@*?,U,{},"{""row"": 7}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@-*?,U,{},"{""row"": 8}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@*_indel,U,{},"{""row"": 9}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@-*_indel,U,{},"{""row"": 10}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,C@*=,S,{},"{""row"": 11}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,C@*?,U,{},"{""row"": 12}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,C@-*?,U,{},"{""row"": 13}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,C@*_indel,U,{},"{""row"": 14}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,C@-*_indel,U,{},"{""row"": 15}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,A@del_0.3,R,{},"{""row"": 16}",{}
+TEST-DNA,gnomonicus_test_dna,v1.0,GARC1,RFUS,AAA,B@del_0.5,U,{},"{""row"": 17}",{}
 
