@@ -872,7 +872,6 @@ def populateEffects(
         return
     #Assume wildtype behaviour unless otherwise specified
     phenotype = {drug: 'S' for drug in resistanceCatalogue.catalogue.drugs}
-    phenotype_evidence = {drug: '' for drug in resistanceCatalogue.catalogue.drugs}
 
     effects = {}
     effectsCounter = 0
@@ -903,8 +902,6 @@ def populateEffects(
                     if values.index(pred) < values.index(phenotype[drug]):
                         #The prediction is closer to the start of the values list, so should take priority
                         phenotype[drug] = pred
-                        #Track the evidence of this for the antibiogram's evidence field
-                        phenotype_evidence[drug] = evidence
 
                     #Add to the dict
                     effects[effectsCounter] = [
