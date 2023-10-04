@@ -889,26 +889,25 @@ def populateEffects(
             
             #Get the prediction
             if gene is not None:
-                prediction = resistanceCatalogue.predict(gene+'@'+mutation)
+                prediction = resistanceCatalogue.predict(gene+'@'+mutation, show_evidence=True)
             else:
                 #This is a multi-mutation so is already of required format
-                prediction = resistanceCatalogue.predict(mutation)
+                prediction = resistanceCatalogue.predict(mutation, show_evidence=True)
 
             #If the prediction is interesting, iter through drugs to find predictions
             if prediction != 'S':
                 for drug in prediction.keys():
-                    #Check for empty strings
-                    #I don't think this can be reached... Commenting out for now
-                    # if not drug:
-                        # continue
-
+                    pred, evidence = prediction[drug]
                     #Prioritise values based on order within the values list
-                    if values.index(prediction[drug]) < values.index(phenotype[drug]):
+                    if values.index(pred) < values.index(phenotype[drug]):
                         #The prediction is closer to the start of the values list, so should take priority
-                        phenotype[drug] = prediction[drug]
+                        phenotype[drug] = pred
 
                     #Add to the dict
-                    effects[effectsCounter] = [vcfStem, gene, mutation, resistanceCatalogue.catalogue.name, drug, prediction[drug]]
+                    effects[effectsCounter] = [
+                            vcfStem, gene, mutation, resistanceCatalogue.catalogue.name, 
+                            drug, pred, evidence
+                    ]
                     #Increment counter
                     effectsCounter += 1
         
@@ -916,13 +915,13 @@ def populateEffects(
         effects = pd.DataFrame.from_dict(effects, 
                                             orient="index", 
                                             columns=["uniqueid", "gene", "mutation", 
-                                                "catalogue_name", "drug", "prediction"]
+                                                "catalogue_name", "drug", "prediction",
+                                                "evidence"]
                                             )
-        effects = effects[["uniqueid", "gene", "mutation", "drug", "prediction", "catalogue_name"]]
+        effects = effects[["uniqueid", "gene", "mutation", "drug", "prediction", "catalogue_name", "evidence"]]
         effects['catalogue_version'] = resistanceCatalogue.catalogue.version
         effects['prediction_values'] = ''.join(resistanceCatalogue.catalogue.values)
-        effects['evidence'] = "{}"
-        
+
         #Save as CSV
         if len(effects) > 0 and make_csv:
             effects.to_csv(os.path.join(outputDir, f'{vcfStem}.effects.csv'), index=False)
@@ -939,7 +938,6 @@ def populateEffects(
             'catalogue_name': resistanceCatalogue.catalogue.name,
             'catalogue_version': resistanceCatalogue.catalogue.version,
             'catalogue_values': ''.join(resistanceCatalogue.catalogue.values),
-            'evidence': "{}" #TODO: Add evidence
         }
         predictions = pd.DataFrame(vals)
         predictions.to_csv(os.path.join(outputDir, f"{vcfStem}.predictions.csv"), index=False)
@@ -1085,7 +1083,7 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
                 'gene': effect['gene'] if pd.notnull(effect['gene']) else None,
                 'mutation': effect['mutation'] if pd.notnull(effect['mutation']) else None,
                 'prediction': effect['prediction'] if pd.notnull(effect['prediction']) else None,
-                'evidence': {}
+                'evidence': effect['evidence']
             }
             _effects[effect['drug']].append(prediction)
         
@@ -1114,4 +1112,4 @@ def saveJSON(variants, mutations, effects, path: str, guid: str, catalogue: piez
             f.write(json.dumps({'meta': meta, 'data': data, 'errors': minor_errors}, indent=2))
         else:
             f.write(json.dumps({'meta': meta, 'data': data}, indent=2))
-
+    
