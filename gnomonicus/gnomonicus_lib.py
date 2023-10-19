@@ -1007,7 +1007,7 @@ def fasta_adjudication(
     effectsCounter: int,
     resistanceCatalogue: piezo.ResistanceCatalogue,
     referenceGenes: Dict[str, gumpy.Gene],
-    reference: gumpy.Genome
+    reference: gumpy.Genome,
 ) -> None:
     """Use `null` rules from the catalogue to check against positions in the fasta file - applying the rules if the fasta file gives an `N` for these bases
 
@@ -1029,20 +1029,22 @@ def fasta_adjudication(
     for _, rule in resistanceCatalogue.catalogue.rules.iterrows():
         if rule["MUTATION_TYPE"] == "SNP" and rule["POSITION"] != "*":
             # We only care about specific SNPs here
-            if referenceGenes.get(rule['GENE']) is None:
+            if referenceGenes.get(rule["GENE"]) is None:
                 # Gene not already built, so add it
-                referenceGenes[rule['GENE']] = reference.build_gene(rule['GENE'])
+                referenceGenes[rule["GENE"]] = reference.build_gene(rule["GENE"])
 
             if rule["MUTATION"][-1] == "x":
                 # Nucleotide SNP so pull out the FASTA index
                 g = referenceGenes[rule["GENE"]]
-                
+
                 if int(rule["POSITION"]) not in g.nucleotide_number:
                     # There are some rules detailing far beyond gumpy assigned promoter regions
                     # Skip these for now. FIXME if required.
                     continue
 
-                pos = g.nucleotide_index[g.nucleotide_number == int(rule["POSITION"])][0]
+                pos = g.nucleotide_index[g.nucleotide_number == int(rule["POSITION"])][
+                    0
+                ]
                 if fasta[pos - 1] == "N":
                     # FASTA matches this rule
                     effects[effectsCounter] = [
@@ -1086,7 +1088,7 @@ def populateEffects(
     make_csv: bool,
     make_prediction_csv: bool,
     fasta: str | None = None,
-    reference: gumpy.Genome | None = None
+    reference: gumpy.Genome | None = None,
 ) -> (pd.DataFrame, dict):
     """Populate and save the effects DataFrame as a CSV
 
@@ -1168,7 +1170,7 @@ def populateEffects(
                 effectsCounter,
                 resistanceCatalogue,
                 referenceGenes,
-                reference
+                reference,
             )
 
         # Build the DataFrame
