@@ -32,6 +32,7 @@ if __name__ == "__main__":
     parser.add_argument("--csvs", required=False, nargs="+", help="Types of CSV to produce. Accepted values are [variants, mutations, effects, predictions, all]. `all` produces all of the CSVs")
     parser.add_argument("--debug", default=False, action='store_true', help='Whether to log debugging messages to the log. Defaults to False')
     parser.add_argument("--resistance_genes", required=False, default=False, action="store_true", help="Flag to filter mutations and variants to only include genes present in the resistance catalogue")
+    parser.add_argument("--fasta_adjudication", required=False, default=None, help="Path to a FASTA file to use for null rule adjudication. This returns matches for null-call rules in cases of corresponding `N` values in a FASTA file.")
     options = parser.parse_args()
 
     options.output_dir = os.path.realpath(options.output_dir)
@@ -130,7 +131,7 @@ if __name__ == "__main__":
 
     #Get the effects and predictions of the mutations
     if resistanceCatalogue is not None:
-        effects, metadata = populateEffects(options.output_dir, resistanceCatalogue, mutations, referenceGenes, vcfStem, make_effects_csv, make_prediction_csv)
+        effects, metadata = populateEffects(options.output_dir, resistanceCatalogue, mutations, referenceGenes, vcfStem, make_effects_csv, make_prediction_csv, fasta=options.fasta_adjudication, reference=reference)
         logging.debug("Populated and saved effects.csv and predictions.csv")
     else:
         metadata = {}

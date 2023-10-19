@@ -1,4 +1,4 @@
-'''gnomonicus is a library providing functions which pull together output VCF of the Lodestone TB pipeline
+"""gnomonicus is a library providing functions which pull together output VCF of the Lodestone TB pipeline
     with a reference genome and a resistance catalogue, and utilise gumpy and
     piezo to produce variants, mutations and an antibiogram.
 
@@ -17,11 +17,11 @@ Functions:
     * assignMutationBools
     * countNucleotideChanges
     * saveJSON
-'''
+"""
 import importlib.metadata
 
 __version__ = importlib.metadata.version("gnomonicus")
 
-from .gnomonicus_lib import (loadGenome, populateVariants, populateMutations, populateEffects,
-                        minority_population_variants, InvalidMutationException,
-                        saveJSON)
+from .gnomonicus_lib import (InvalidMutationException, loadGenome,
+                             minority_population_variants, populateEffects,
+                             populateMutations, populateVariants, saveJSON)
