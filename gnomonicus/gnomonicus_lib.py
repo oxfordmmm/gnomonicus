@@ -15,7 +15,6 @@ import re
 import traceback
 import warnings
 from collections import defaultdict
-from collections.abc import Iterable
 from typing import Dict
 
 import gumpy
@@ -64,7 +63,7 @@ def checkGzip(path: str) -> bool:
         with gzip.open(path) as f:
             f.read()
         return True
-    except:
+    except gzip.BadGzipFile:
         return False
 
 

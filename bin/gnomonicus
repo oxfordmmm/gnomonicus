@@ -1,8 +1,8 @@
 #!/usr/bin/python3
-'''gnomonicus is a script which links together the functions defined in gnomonicus.py as a CLI script to 
+"""gnomonicus is a script which links together the functions defined in gnomonicus.py as a CLI script to 
     produce variants, mutations and an antibiogram from a minos VCF, reference genome and a resistance
     catalogue
-'''
+"""
 import argparse
 import logging
 import os
@@ -12,46 +12,125 @@ import gumpy
 import piezo
 
 import gnomonicus
-from gnomonicus import (loadGenome, populateEffects, populateMutations,
-                        populateVariants, saveJSON)
+from gnomonicus import (
+    loadGenome,
+    populateEffects,
+    populateMutations,
+    populateVariants,
+    saveJSON,
+)
 
 if __name__ == "__main__":
     start = time.time()
-    #Argparser setup
+    # Argparser setup
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v', '--version', action='version', version=f'gnomonicus {gnomonicus.__version__}')
-    parser.add_argument("--vcf_file",required=True,help="the path to a single VCF file")
-    parser.add_argument("--genome_object",required=True,help="the path to a compressed gumpy Genome object or a genbank file")
-    parser.add_argument("--catalogue_file",default=None,required=False,help="the path to the resistance catalogue")
-    parser.add_argument("--ignore_vcf_filter",action='store_true',default=False,help="whether to ignore the FILTER field in the vcf (e.g. necessary for some versions of Clockwork VCFs)")
-    parser.add_argument("--progress",action='store_true',default=False,help="whether to show progress using tqdm")
-    parser.add_argument("--output_dir", required=False, default=".", help="Directory to save output files to. Defaults to wherever the script is run from.")
-    parser.add_argument("--json", required=False, action='store_true', default=False, help="Flag to create a single JSON output as well as the CSVs")
-    parser.add_argument("--fasta", required=False, default=None, help="Use to output a FASTA file of the resultant genome. Specify either 'fixed' or 'variable' for fixed length and variable length FASTA respectively. Alternatively, use 'both' to produce both")
-    parser.add_argument("--minor_populations", required=False, default=None, help="Path to a line separated file containing genome indices of minor populations.")
-    parser.add_argument("--csvs", required=False, nargs="+", help="Types of CSV to produce. Accepted values are [variants, mutations, effects, predictions, all]. `all` produces all of the CSVs")
-    parser.add_argument("--debug", default=False, action='store_true', help='Whether to log debugging messages to the log. Defaults to False')
-    parser.add_argument("--resistance_genes", required=False, default=False, action="store_true", help="Flag to filter mutations and variants to only include genes present in the resistance catalogue")
-    parser.add_argument("--fasta_adjudication", required=False, default=None, help="Path to a FASTA file to use for null rule adjudication. This returns matches for null-call rules in cases of corresponding `N` values in a FASTA file.")
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"gnomonicus {gnomonicus.__version__}",
+    )
+    parser.add_argument(
+        "--vcf_file", required=True, help="the path to a single VCF file"
+    )
+    parser.add_argument(
+        "--genome_object",
+        required=True,
+        help="the path to a compressed gumpy Genome object or a genbank file",
+    )
+    parser.add_argument(
+        "--catalogue_file",
+        default=None,
+        required=False,
+        help="the path to the resistance catalogue",
+    )
+    parser.add_argument(
+        "--ignore_vcf_filter",
+        action="store_true",
+        default=False,
+        help="whether to ignore the FILTER field in the vcf (e.g. necessary for some versions of Clockwork VCFs)",
+    )
+    parser.add_argument(
+        "--progress",
+        action="store_true",
+        default=False,
+        help="whether to show progress using tqdm",
+    )
+    parser.add_argument(
+        "--output_dir",
+        required=False,
+        default=".",
+        help="Directory to save output files to. Defaults to wherever the script is run from.",
+    )
+    parser.add_argument(
+        "--json",
+        required=False,
+        action="store_true",
+        default=False,
+        help="Flag to create a single JSON output as well as the CSVs",
+    )
+    parser.add_argument(
+        "--fasta",
+        required=False,
+        default=None,
+        help="Use to output a FASTA file of the resultant genome. Specify either 'fixed' or 'variable' for fixed length and variable length FASTA respectively. Alternatively, use 'both' to produce both",
+    )
+    parser.add_argument(
+        "--minor_populations",
+        required=False,
+        default=None,
+        help="Path to a line separated file containing genome indices of minor populations.",
+    )
+    parser.add_argument(
+        "--csvs",
+        required=False,
+        nargs="+",
+        help="Types of CSV to produce. Accepted values are [variants, mutations, effects, predictions, all]. `all` produces all of the CSVs",
+    )
+    parser.add_argument(
+        "--debug",
+        default=False,
+        action="store_true",
+        help="Whether to log debugging messages to the log. Defaults to False",
+    )
+    parser.add_argument(
+        "--resistance_genes",
+        required=False,
+        default=False,
+        action="store_true",
+        help="Flag to filter mutations and variants to only include genes present in the resistance catalogue",
+    )
+    parser.add_argument(
+        "--fasta_adjudication",
+        required=False,
+        default=None,
+        help="Path to a FASTA file to use for null rule adjudication. This returns matches for null-call rules in cases of corresponding `N` values in a FASTA file.",
+    )
     options = parser.parse_args()
 
     options.output_dir = os.path.realpath(options.output_dir)
 
-    #Make the output directory if it doesn't already exist
+    # Make the output directory if it doesn't already exist
     os.makedirs(options.output_dir, exist_ok=True)
 
-    #Get the stem of the VCF filename for use as a unique ID
+    # Get the stem of the VCF filename for use as a unique ID
     vcfStem = os.path.split(options.vcf_file)[-1].replace(".vcf", "")
 
-    #Logging setup
+    # Logging setup
     if options.debug:
         LOG_LEVEL = logging.DEBUG
     else:
         LOG_LEVEL = logging.WARNING
-    logging.basicConfig(filename=os.path.join(options.output_dir, f'{vcfStem}.gnomonicus.log'), filemode='w', format='%(asctime)s -  %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=LOG_LEVEL)
+    logging.basicConfig(
+        filename=os.path.join(options.output_dir, f"{vcfStem}.gnomonicus.log"),
+        filemode="w",
+        format="%(asctime)s -  %(levelname)s - %(message)s",
+        datefmt="%d-%b-%y %H:%M:%S",
+        level=LOG_LEVEL,
+    )
     logging.info(f"gnomonicus starting with output directory {options.output_dir}")
 
-    #Figure out which CSVs should be produced
+    # Figure out which CSVs should be produced
     if options.csvs is None:
         make_variants_csv = False
         make_mutations_csv = False
@@ -67,24 +146,25 @@ if __name__ == "__main__":
         make_mutations_csv = "mutations" in options.csvs
         make_effects_csv = "effects" in options.csvs
         make_prediction_csv = "predictions" in options.csvs
-    
+
     if options.csvs is None and options.json is False and options.fasta is None:
-        #No files will be created so warn the user
-        print("[WARNING]: No outputs selected. No files will be created. For help, try `gnomonicus --help`")
+        # No files will be created so warn the user
+        print(
+            "[WARNING]: No outputs selected. No files will be created. For help, try `gnomonicus --help`"
+        )
         logging.warning("No outputs selected. No files will be created")
 
-
-    #Get reference genome
+    # Get reference genome
     reference = loadGenome(options.genome_object, options.progress)
     logging.debug("Loaded reference genome")
 
-    #Check if we have minor population indices
+    # Check if we have minor population indices
     if options.minor_populations is not None:
-        #Load from line separated file
+        # Load from line separated file
         with open(options.minor_populations) as f:
             minor_indices_ = [line.strip() for line in f]
             minor_indices = []
-            #Try converting line by line so we can produce a nice error if invalid
+            # Try converting line by line so we can produce a nice error if invalid
             for idx, index in enumerate(minor_indices_):
                 try:
                     minor_indices.append(int(index))
@@ -92,60 +172,95 @@ if __name__ == "__main__":
                     raise ValueError(f"Invalid index on line {idx}: {index}") from e
     else:
         minor_indices = []
-    #Build the mutated genome using gumpy
+    # Build the mutated genome using gumpy
     vcf = gumpy.VCFFile(
-                        options.vcf_file, 
-                        ignore_filter=options.ignore_vcf_filter, 
-                        minor_population_indices=minor_indices
+        options.vcf_file,
+        ignore_filter=options.ignore_vcf_filter,
+        minor_population_indices=minor_indices,
     )
     sample = reference + vcf
     logging.debug("Applied the VCF to the reference")
 
-    #Get resistance catalogue
+    # Get resistance catalogue
     if options.catalogue_file:
-        resistanceCatalogue = piezo.ResistanceCatalogue(options.catalogue_file, prediction_subset_only=True)
+        resistanceCatalogue = piezo.ResistanceCatalogue(
+            options.catalogue_file, prediction_subset_only=True
+        )
         logging.debug("Loaded resistance catalogue")
     else:
         resistanceCatalogue = None
-        logging.info("No resistance catalogue provided, producing variants and mutations only")
+        logging.info(
+            "No resistance catalogue provided, producing variants and mutations only"
+        )
 
-    #Get the GenomeDifference for extracting genome level mutations
+    # Get the GenomeDifference for extracting genome level mutations
     diff = reference - sample
     logging.debug("Got the genome difference")
 
-    #Complain if there are no variants
+    # Complain if there are no variants
     if diff.variants is None:
         logging.error("No variants detected!")
         raise Exception("No variants detected!")
 
-    #Get the variations and mutations
-    variants = populateVariants(vcfStem, options.output_dir, diff, make_variants_csv, options.resistance_genes, catalogue=resistanceCatalogue)
+    # Get the variations and mutations
+    variants = populateVariants(
+        vcfStem,
+        options.output_dir,
+        diff,
+        make_variants_csv,
+        options.resistance_genes,
+        catalogue=resistanceCatalogue,
+    )
     logging.debug("Populated and saved variants.csv")
 
-    mutations, referenceGenes, minor_errors = populateMutations(vcfStem, options.output_dir, diff, 
-                        reference, sample, resistanceCatalogue, make_mutations_csv, options.resistance_genes)
+    mutations, referenceGenes, minor_errors = populateMutations(
+        vcfStem,
+        options.output_dir,
+        diff,
+        reference,
+        sample,
+        resistanceCatalogue,
+        make_mutations_csv,
+        options.resistance_genes,
+    )
     if mutations is None:
-        logging.info("No mutations found - probably due to exclusively inter-gene variation or no variation.\n\t\t\t\t\t\t\t No effects.csv written")
+        logging.info(
+            "No mutations found - probably due to exclusively inter-gene variation or no variation.\n\t\t\t\t\t\t\t No effects.csv written"
+        )
     else:
         logging.debug("Populated and saved mutatons.csv")
 
-    #Get the effects and predictions of the mutations
+    # Get the effects and predictions of the mutations
     if resistanceCatalogue is not None:
-        effects, metadata = populateEffects(options.output_dir, resistanceCatalogue, mutations, referenceGenes, vcfStem, make_effects_csv, make_prediction_csv, fasta=options.fasta_adjudication, reference=reference)
+        effects, metadata = populateEffects(
+            options.output_dir,
+            resistanceCatalogue,
+            mutations,
+            referenceGenes,
+            vcfStem,
+            make_effects_csv,
+            make_prediction_csv,
+            fasta=options.fasta_adjudication,
+            reference=reference,
+        )
         logging.debug("Populated and saved effects.csv and predictions.csv")
     else:
         metadata = {}
         effects = None
-        logging.info("Skipped effects.csv due to lack of resistance catalogue or mutations")
+        logging.info(
+            "Skipped effects.csv due to lack of resistance catalogue or mutations"
+        )
 
-    #Add data to the log
+    # Add data to the log
     logging.info("********** Successfully completed **********")
-    
+
     logging.info(f"VCF file: {options.vcf_file}")
     logging.info(f"Reference genome file: {options.genome_object}")
 
     if resistanceCatalogue:
-        logging.info(f"Catalogue reference genome: {resistanceCatalogue.catalogue.genbank_reference}")
+        logging.info(
+            f"Catalogue reference genome: {resistanceCatalogue.catalogue.genbank_reference}"
+        )
         logging.info(f"Catalogue name: {resistanceCatalogue.catalogue.name}")
         logging.info(f"Catalogue version: {resistanceCatalogue.catalogue.version}")
         logging.info(f"Catalogue grammar: {resistanceCatalogue.catalogue.grammar}")
@@ -156,17 +271,44 @@ if __name__ == "__main__":
     logging.info(f"Completed in {time.time()-start}s")
 
     if options.json:
-        #Default prediction values are RFUS but use piezo catalogue's values if existing
-        values = resistanceCatalogue.catalogue.values if resistanceCatalogue is not None else None
+        # Default prediction values are RFUS but use piezo catalogue's values if existing
+        values = (
+            resistanceCatalogue.catalogue.values
+            if resistanceCatalogue is not None
+            else None
+        )
         if values is None:
             values = list("RFUS")
         logging.info(f"Saving a JSON... See {options.output_dir}/gnomonicus-out.json")
-        saveJSON(variants, mutations, effects, options.output_dir, vcfStem, resistanceCatalogue, gnomonicus.__version__, time.time()-start, reference, options.vcf_file, options.genome_object, options.catalogue_file, minor_errors)
+        saveJSON(
+            variants,
+            mutations,
+            effects,
+            options.output_dir,
+            vcfStem,
+            resistanceCatalogue,
+            gnomonicus.__version__,
+            time.time() - start,
+            reference,
+            options.vcf_file,
+            options.genome_object,
+            options.catalogue_file,
+            minor_errors,
+        )
 
-    if options.fasta and options.fasta.lower() in ['fixed', 'variable']:
-        fixed = options.fasta.lower() == 'fixed'
-        #Write the resultant fasta file
-        sample.save_fasta(os.path.join(options.output_dir, vcfStem+"-"+options.fasta+".fasta"), fixed_length=fixed)
-    elif options.fasta and options.fasta.lower() == 'both':
-        sample.save_fasta(os.path.join(options.output_dir, vcfStem+"-fixed.fasta"), fixed_length=True)
-        sample.save_fasta(os.path.join(options.output_dir, vcfStem+"-variable.fasta"), fixed_length=False)
+    if options.fasta and options.fasta.lower() in ["fixed", "variable"]:
+        fixed = options.fasta.lower() == "fixed"
+        # Write the resultant fasta file
+        sample.save_fasta(
+            os.path.join(options.output_dir, vcfStem + "-" + options.fasta + ".fasta"),
+            fixed_length=fixed,
+        )
+    elif options.fasta and options.fasta.lower() == "both":
+        sample.save_fasta(
+            os.path.join(options.output_dir, vcfStem + "-fixed.fasta"),
+            fixed_length=True,
+        )
+        sample.save_fasta(
+            os.path.join(options.output_dir, vcfStem + "-variable.fasta"),
+            fixed_length=False,
+        )
