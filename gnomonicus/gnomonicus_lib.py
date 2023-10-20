@@ -65,6 +65,8 @@ def checkGzip(path: str) -> bool:
         return True
     except gzip.BadGzipFile:
         return False
+    except FileNotFoundError:
+        return False
 
 
 def loadGenome(path: str, progress: bool) -> gumpy.Genome:
