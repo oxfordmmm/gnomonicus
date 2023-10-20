@@ -14,8 +14,9 @@ import pickle
 import re
 import traceback
 import warnings
+import io
 from collections import defaultdict
-from typing import Dict
+from typing import Dict, List, Tuple
 
 import gumpy
 import numpy as np
@@ -91,6 +92,7 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     # Get the gumpy version we are using
     gumpy_major, gumpy_minor, gumpy_maintainance = gumpy.__version__[1:].split(".")
     outdated = False
+    f: io.BufferedReader | gzip.GzipFile
 
     # Try to load as a pickle
     try:
@@ -171,7 +173,7 @@ def populateVariants(
     diff: gumpy.GenomeDifference,
     make_csv: bool,
     resistanceGenesOnly: bool,
-    catalogue: piezo.ResistanceCatalogue = None,
+    catalogue: piezo.ResistanceCatalogue | None = None,
 ) -> pd.DataFrame:
     """Populate and save the variants DataFrame as a CSV
 
@@ -180,7 +182,7 @@ def populateVariants(
         outputDir (str): Path to the desired output directory
         diff (gumpy.GenomeDifference): GenomeDifference object between reference and the sample
         make_csv (bool): Whether to write the CSV of the dataframe
-        catalogue (piezo.ResistanceCatalogue, optional): Catalogue for determining FRS or COV for minority populations. If None is given, FRS is assumed. Defaults to None
+        catalogue (piezo.ResistanceCatalogue | None, optional): Catalogue for determining FRS or COV for minority populations. If None is given, FRS is assumed. Defaults to None
 
     Returns:
         pd.DataFrame: DataFrame of the variants
@@ -259,11 +261,11 @@ def populateVariants(
     return variants
 
 
-def get_minority_population_type(catalogue: piezo.ResistanceCatalogue) -> str:
+def get_minority_population_type(catalogue: piezo.ResistanceCatalogue | None) -> str:
     """Figure out if a catalogue uses FRS or COV. If neither or both, default to FRS
 
     Args:
-        catalogue (piezo.ResistanceCatalogue): Catalogue
+        catalogue (piezo.ResistanceCatalogue | None): Catalogue
 
     Returns:
         str: Either 'percentage' or 'reads' for FRS or COV respectively
@@ -346,19 +348,19 @@ def getGenes(
 def populateMutations(
     vcfStem: str,
     outputDir: str,
-    diff: gumpy.GenomeDifference,
+    genome_diff: gumpy.GenomeDifference,
     reference: gumpy.Genome,
     sample: gumpy.Genome,
     resistanceCatalogue: piezo.ResistanceCatalogue,
     make_csv: bool,
     resistanceGenesOnly: bool,
-) -> (pd.DataFrame, dict, dict):
+) -> Tuple[pd.DataFrame | None, Dict[str, gumpy.Gene], Dict]:
     """Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
 
     Args:
         vcfStem (str): The stem of the filename of the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
-        diff (gumpy.GenomeDifference): GenomeDifference object between reference and this sample
+        genome_diff (gumpy.GenomeDifference): GenomeDifference object between reference and this sample
         reference (gumpy.Genome): Reference genome
         sample (gumpy.Genome): Sample genome
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue (used to find which genes to check)
@@ -372,16 +374,13 @@ def populateMutations(
         pd.DataFrame: The mutations DataFrame
         dict: Dictionary mapping gene name --> reference gumpy.Gene object
     """
-    genesWithMutations = getGenes(diff, resistanceCatalogue, resistanceGenesOnly)
+    genesWithMutations = getGenes(genome_diff, resistanceCatalogue, resistanceGenesOnly)
 
     # Iter resistance genes with variation to produce gene level mutations - concating into a single dataframe
     mutations = None
     referenceGenes = {}
-    diffs = []
-    # This is where the majority of the time to process is used.
-    # However, I have tried a few ways to improve this involving reducing reliance on DF concat
-    # This has potential for improvement (an actual TB sample can take ~2.5mins), but likely will
-    #   come from optimising the underlying gumpy.GeneDifference code...
+    diffs: List[gumpy.GeneDifference] = []
+
     for gene in tqdm(genesWithMutations):
         if gene:
             logging.debug(f"Found a gene with mutation: {gene}")
@@ -466,7 +465,10 @@ def populateMutations(
     if reference.minor_populations or sample.minor_populations:
         # Only do this if they exist
         x, errors = minority_population_mutations(diffs, resistanceCatalogue)
-        mutations = pd.concat([mutations, x])
+        if mutations is None:
+            mutations = x
+        else:
+            mutations = pd.concat([mutations, x])
     else:
         errors = {}
     # If there were mutations, write them to a CSV
@@ -503,7 +505,7 @@ def populateMutations(
             # Filter out nucleotide variants from synonymous mutations to avoid duplication of data
             mutations_ = copy.deepcopy(mutations)
             to_drop = []
-            for idx, row in mutations_.iterrows():
+            for idx2, row in mutations_.iterrows():
                 if (
                     row["codes_protein"]
                     and row["ref"] is not None
@@ -512,7 +514,7 @@ def populateMutations(
                     # Protein coding so check if nucleotide within coding region
                     if len(row["ref"]) == 1:
                         # Nucleotide SNP
-                        to_drop.append(idx)
+                        to_drop.append(idx2)
             mutations_.drop(index=to_drop, inplace=True)
             # Save it as CSV
             mutations_.to_csv(
@@ -523,14 +525,16 @@ def populateMutations(
 
 
 def minority_population_variants(
-    diff: gumpy.GenomeDifference, catalogue: piezo.ResistanceCatalogue, genes: set
+    diff: gumpy.GenomeDifference,
+    catalogue: piezo.ResistanceCatalogue | None,
+    genes_set: set,
 ) -> pd.DataFrame:
     """Handle the logic for pulling out minority population calls for genome level variants
 
     Args:
         diff: (gumpy.GenomeDifference): GenomeDifference object for this comparison
         catalogue: (piezo.ResistanceCatalogue): Catalogue to use. Used for determining whether FRS or COV should be used
-        genes (set[str]): Set of gene names we care about
+        genes_set (set[str]): Set of gene names we care about
 
     Returns:
         pd.DataFrame: DataFrame containing the minority population data
@@ -542,26 +546,26 @@ def minority_population_variants(
     variants_ = diff.minor_populations(interpretation=minor_type)
 
     nucleotide_indices = []
-    indel_lengths = []
-    indel_nucleotides = []
+    indel_lengths: List[int | None] = []
+    indel_nucleotides: List[str | None] = []
     vcf_evidences = []
-    vcf_idx = []
+    vcf_idx: List[int | None] = []
     gene_name = []
-    gene_pos = []
+    gene_pos: List[int | None] = []
     codon_idx = []
     variants = []
 
-    if genes is not None:
+    if genes_set is not None:
         # Using the gene names, find out which genome indices we want to look out for
         indices_we_care_about = []
-        for gene in genes:
+        for gene in genes_set:
             mask = diff.genome1.stacked_gene_name == gene
             gene_indices = diff.genome1.stacked_nucleotide_index[mask].tolist()
             indices_we_care_about += gene_indices
-        indices_we_care_about = set(indices_we_care_about)
+        indices_we_care_about = list(set(indices_we_care_about))
     else:
         # Genes was none, so fetch everything
-        indices_we_care_about = set(diff.genome1.nucleotide_index)
+        indices_we_care_about = diff.genome1.nucleotide_index.tolist()
 
     for variant_ in variants_:
         variant, evidence = variant_.split(":")
@@ -685,8 +689,9 @@ def minority_population_variants(
                     continue
 
                 gene_name.append(gene)
-                gene_pos.append(diff.get_gene_pos(gene, idx, variant))
-                if diff.genome1.genes[gene]["codes_protein"] and gene_pos[-1] > 0:
+                g_pos = diff.get_gene_pos(gene, idx, variant)
+                gene_pos.append(g_pos)
+                if diff.genome1.genes[gene]["codes_protein"] and g_pos > 0:
                     # Get codon idx
                     nc_idx = diff.genome1.stacked_nucleotide_index[
                         diff.genome1.stacked_gene_name == gene
@@ -715,9 +720,10 @@ def minority_population_variants(
             if gene is not None:
                 # Single gene, so pull out data
                 gene_name.append(gene)
-                gene_pos.append(diff.get_gene_pos(gene, idx, variant))
+                g_pos = diff.get_gene_pos(gene, idx, variant)
+                gene_pos.append(g_pos)
 
-                if diff.genome1.genes[gene]["codes_protein"] and gene_pos[-1] > 0:
+                if diff.genome1.genes[gene]["codes_protein"] and g_pos > 0:
                     # Get codon idx
                     nc_idx = diff.genome1.stacked_nucleotide_index[
                         diff.genome1.stacked_gene_name == gene
@@ -759,8 +765,8 @@ def minority_population_variants(
 
 
 def minority_population_mutations(
-    diffs: [gumpy.GeneDifference], catalogue: piezo.ResistanceCatalogue
-) -> (pd.DataFrame, dict):
+    diffs: List[gumpy.GeneDifference], catalogue: piezo.ResistanceCatalogue
+) -> Tuple[pd.DataFrame, Dict]:
     """Handle the logic for pulling out minority population calls for gene level variants
 
     Args:
@@ -774,21 +780,20 @@ def minority_population_mutations(
     mutations_ = []
     genes = []
     gene_pos = []
-    nucleotide_number = []
-    nucleotide_index = []
-    alt = []
-    ref = []
-    codes_protein = []
-    indel_length = []
-    indel_nucleotides = []
+    nucleotide_number: List[int | None] = []
+    nucleotide_index: List[int | None] = []
+    alt: List[str | None] = []
+    ref: List[str | None] = []
+    codes_protein: List[bool] = []
+    indel_length: List[int | None] = []
+    indel_nucleotides: List[str | None] = []
     is_cds = []
     is_het = []
     is_null = []
     is_promoter = []
     is_snp = []
-    aa_num = []
-    aa_seq = []
-    variants = []
+    aa_num: List[int | None] = []
+    aa_seq: List[str | None] = []
     number_nucleotide_changes = []
 
     # Track errors (if any) for reporting but not throwing
@@ -830,7 +835,6 @@ def minority_population_mutations(
             is_het.append("Z" in mut.upper())
             is_null.append("X" in mut.upper())
             is_promoter.append(num < 0)
-            variants.append(None)
             number_nucleotide_changes.append(diff.gene2.minor_nc_changes[num])
 
             if "_" in mut:
@@ -930,21 +934,25 @@ def minority_population_mutations(
 
 
 def getMutations(
-    mutations: pd.DataFrame, catalogue: piezo.catalogue, referenceGenes: dict
-) -> [[str, str]]:
+    mutations_df: pd.DataFrame,
+    catalogue: piezo.ResistanceCatalogue,
+    referenceGenes: Dict,
+) -> List[Tuple[str | None, str]]:
     """Get all of the mutations (including multi-mutations) from the mutations df
     Multi-mutations currently only exist within the converted WHO catalogue, and are a highly specific combination
         of mutations which must all be present for a single resistance value.
 
     Args:
-        mutations (pd.DataFrame): Mutations dataframe
-        catalogue (piezo.catalogue): The resistance catalogue. Used to find which multi-mutations we care about
+        mutations_df (pd.DataFrame): Mutations dataframe
+        catalogue (piezo.ResistanceCatalogue): The resistance catalogue. Used to find which multi-mutations we care about
         referenceGenes (dict): Dictionary of geneName->gumpy.Gene
 
     Returns:
-        [[str, str]]: List of [gene, mutation] or in the case of multi-mutations, [None, multi-mutation]
+        List[Tuple[str | None, str]]: List of [gene, mutation] or in the case of multi-mutations, [None, multi-mutation]
     """
-    mutations = list(zip(mutations["gene"], mutations["mutation"]))
+    mutations: List[Tuple[str | None, str]] = list(
+        zip(mutations_df["gene"], mutations_df["mutation"])
+    )
     # Grab the multi-mutations from the catalogue
     # By doing this, we can check a fixed sample space rather than every permutation of the mutations
     # This makes the problem tractable, but does not address a possible issue with multi-mutations not encapsulating full codons
@@ -955,7 +963,7 @@ def getMutations(
     )
     if len(multis) > 0:
         # We have a catalogue including multi rules, so check if any of these are present in the mutations
-        joined = [gene + "@" + mut for (gene, mut) in mutations]
+        joined = [gene + "@" + mut for (gene, mut) in mutations if gene is not None]
         for multi in multis:
             check = True
             for mutation in multi.split("&"):
@@ -1009,6 +1017,7 @@ def fasta_adjudication(
     resistanceCatalogue: piezo.ResistanceCatalogue,
     referenceGenes: Dict[str, gumpy.Gene],
     reference: gumpy.Genome,
+    phenotype: Dict[str, str],
 ) -> None:
     """Use `null` rules from the catalogue to check against positions in the fasta file - applying the rules if the fasta file gives an `N` for these bases
 
@@ -1020,11 +1029,15 @@ def fasta_adjudication(
         resistanceCatalogue (piezo.ResistanceCatalogue): Catalogue
         referenceGenes (Dict[str, gumpy.Gene]): Dictionary mapping gene name --> reference Gene object
         reference (gumpy.Genome): Reference genome object. Used to build extra genes on the fly (if required)
+        phenotype (Dict[str, str]): Phenotype
     """
     with open(fasta_path) as f:
         # Parse the FASTA file
         data = [line.strip().replace("\n", "") for line in f]
         fasta = "".join(data[1:])
+
+    # Default prediction values are RFUS but use piezo catalogue's values if existing
+    values = resistanceCatalogue.catalogue.values
 
     # Parse the catalogue to find null rules
     for _, rule in resistanceCatalogue.catalogue.rules.iterrows():
@@ -1059,6 +1072,11 @@ def fasta_adjudication(
                     ]
                     effectsCounter += 1
 
+                    # Prioritise values based on order within the values list
+                    if values.index("F") < values.index(phenotype[rule["DRUG"]]):
+                        # The prediction is closer to the start of the values list, so should take priority
+                        phenotype[rule["DRUG"]] = "F"
+
             elif rule["MUTATION"][-1] == "X":
                 # AA SNP so check each item of the codon
                 g = referenceGenes[rule["GENE"]]
@@ -1079,6 +1097,11 @@ def fasta_adjudication(
                         ]
                         effectsCounter += 1
 
+                        # Prioritise values based on order within the values list
+                        if values.index("F") < values.index(phenotype[rule["DRUG"]]):
+                            # The prediction is closer to the start of the values list, so should take priority
+                            phenotype[rule["DRUG"]] = "F"
+
 
 def populateEffects(
     outputDir: str,
@@ -1090,7 +1113,7 @@ def populateEffects(
     make_prediction_csv: bool,
     fasta: str | None = None,
     reference: gumpy.Genome | None = None,
-) -> (pd.DataFrame, dict):
+) -> Tuple[pd.DataFrame, Dict]:
     """Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -1142,9 +1165,16 @@ def populateEffects(
                 prediction = resistanceCatalogue.predict(mutation, show_evidence=True)
 
             # If the prediction is interesting, iter through drugs to find predictions
-            if prediction != "S":
+            if prediction != "S" and not isinstance(prediction, str):
                 for drug in prediction.keys():
-                    pred, evidence = prediction[drug]
+                    drug_pred = prediction[drug]
+                    if isinstance(drug_pred, str):
+                        # This shouldn't happen because we're showing evidence
+                        # Adding to appease mypy...
+                        pred: str = drug_pred
+                        evidence: Dict = {}
+                    else:
+                        pred, evidence = drug_pred
                     # Prioritise values based on order within the values list
                     if values.index(pred) < values.index(phenotype[drug]):
                         # The prediction is closer to the start of the values list, so should take priority
@@ -1164,6 +1194,7 @@ def populateEffects(
                     effectsCounter += 1
 
         if fasta is not None and reference is not None:
+            # Implicitly uses `effects` and `pheotype` for returns
             fasta_adjudication(
                 vcfStem,
                 fasta,
@@ -1172,10 +1203,11 @@ def populateEffects(
                 resistanceCatalogue,
                 referenceGenes,
                 reference,
+                phenotype,
             )
 
         # Build the DataFrame
-        effects = pd.DataFrame.from_dict(
+        effects_df = pd.DataFrame.from_dict(
             effects,
             orient="index",
             columns=[
@@ -1188,7 +1220,7 @@ def populateEffects(
                 "evidence",
             ],
         )
-        effects = effects[
+        effects_df = effects_df[
             [
                 "uniqueid",
                 "gene",
@@ -1199,16 +1231,16 @@ def populateEffects(
                 "evidence",
             ]
         ]
-        effects["catalogue_version"] = resistanceCatalogue.catalogue.version
-        effects["prediction_values"] = "".join(resistanceCatalogue.catalogue.values)
+        effects_df["catalogue_version"] = resistanceCatalogue.catalogue.version
+        effects_df["prediction_values"] = "".join(resistanceCatalogue.catalogue.values)
 
         # Save as CSV
         if len(effects) > 0 and make_csv:
-            effects.to_csv(
+            effects_df.to_csv(
                 os.path.join(outputDir, f"{vcfStem}.effects.csv"), index=False
             )
 
-        effects.reset_index(inplace=True)
+        effects_df.reset_index(inplace=True)
 
     if make_prediction_csv:
         # We need to construct a simple table here
@@ -1221,12 +1253,12 @@ def populateEffects(
             "catalogue_version": resistanceCatalogue.catalogue.version,
             "catalogue_values": "".join(resistanceCatalogue.catalogue.values),
         }
-        predictions = pd.DataFrame(vals)
-        predictions.to_csv(
+        predictions_df = pd.DataFrame(vals)
+        predictions_df.to_csv(
             os.path.join(outputDir, f"{vcfStem}.predictions.csv"), index=False
         )
     # Return  the metadata dict to log later
-    return effects, {
+    return effects_df, {
         "WGS_PREDICTION_" + drug: phenotype[drug]
         for drug in resistanceCatalogue.catalogue.drugs
     }
@@ -1245,7 +1277,7 @@ def saveJSON(
     vcf_path: str,
     reference_path: str,
     catalogue_path: str,
-    minor_errors: dict,
+    minor_errors: Dict,
 ) -> None:
     """Create and save a single JSON output file for use within GPAS. JSON structure:
     {
@@ -1344,7 +1376,7 @@ def saveJSON(
         meta["catalogue_type"] = None
         meta["catalogue_name"] = None
         meta["catalogue_version"] = None
-    data = {}
+    data: Dict = {}
     # Variants field
     _variants = []
     for _, variant in variants.iterrows():
