@@ -1039,6 +1039,8 @@ def fasta_adjudication(
     # Default prediction values are RFUS but use piezo catalogue's values if existing
     values = resistanceCatalogue.catalogue.values
 
+    seen = set()
+
     # Parse the catalogue to find null rules
     for _, rule in resistanceCatalogue.catalogue.rules.iterrows():
         if rule["MUTATION_TYPE"] == "SNP" and rule["POSITION"] != "*":
@@ -1061,7 +1063,7 @@ def fasta_adjudication(
                 ]
                 if fasta[pos - 1] == "N":
                     # FASTA matches this rule
-                    effects[effectsCounter] = [
+                    this_e = [
                         vcfStem,
                         rule["GENE"],
                         rule["MUTATION"],
@@ -1070,6 +1072,11 @@ def fasta_adjudication(
                         rule["PREDICTION"],
                         {"FASTA called": "N"},
                     ]
+                    if str(this_e) in seen:
+                        # Avoid duplicate entries
+                        continue
+                    effects[effectsCounter] = this_e
+                    seen.add(str(this_e))
                     effectsCounter += 1
 
                     # Prioritise values based on order within the values list
@@ -1086,7 +1093,7 @@ def fasta_adjudication(
                 for pos in positions:
                     if fasta[pos - 1] == "N":
                         # FASTA matches this rule
-                        effects[effectsCounter] = [
+                        this_e = [
                             vcfStem,
                             rule["GENE"],
                             rule["MUTATION"],
@@ -1095,6 +1102,11 @@ def fasta_adjudication(
                             rule["PREDICTION"],
                             {"FASTA called": "N"},
                         ]
+                        if str(this_e) in seen:
+                            # Avoid duplicate entries
+                            continue
+                        effects[effectsCounter] = this_e
+                        seen.add(str(this_e))
                         effectsCounter += 1
 
                         # Prioritise values based on order within the values list
