@@ -15,15 +15,22 @@ jobs:
       with:
         timezone: UTC
 
-    - name: Set up Python 3.9
+    - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
-        python-version: 3.9
+        python-version: '3.10'
 
     - name: Install Python dependencies
       run: |
         python3 -m pip install --upgrade pip
         pip3 install .
+        pip3 install black ruff mypy pandas-stubs typing_extensions types-tqdm types-pytz
+
+    - name: Run format checks
+      run: | 
+        black --check .
+        ruff check gnomonicus
+        mypy gnomonicus
 
     - name: Test with pytest
       run: |

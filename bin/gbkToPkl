@@ -1,33 +1,38 @@
 #!/usr/bin/python3
-'''
+"""
 gbkToPkl is a simple script which instanciates a gumpy.Genome object from a specified
 genbank file, and saves it as a pickle. Due to the security implications of 
 pickle, use at your own risk!!
 
 Designed to be run once on the host to provide significant speed up for containerised
 workflows. Resultant pickles should not be sent/recieved!!
-'''
-import sys
-import pickle
-import gzip
-import gumpy
+"""
 import argparse
+import gzip
+import pickle
+
+import gumpy
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("genbank_file", help="Path to a genbank file")
-    parser.add_argument("--compress", required=False, action='store_true', default=False, help="Whether to gzip compress the output pickle.")
+    parser.add_argument(
+        "--compress",
+        required=False,
+        action="store_true",
+        default=False,
+        help="Whether to gzip compress the output pickle.",
+    )
     options = parser.parse_args()
-    
+
     g = gumpy.Genome(options.genbank_file, show_progress_bar=True)
     g.gumpy_version = gumpy.__version__
     if options.compress:
-        #Save as gzipped version
+        # Save as gzipped version
         print("Compressing with gzip...")
-        f = gzip.open(options.genbank_file+".pkl", 'wb', compresslevel=2)
+        f = gzip.open(options.genbank_file + ".pkl", "wb", compresslevel=2)
     else:
-        #Save without gzip
-        f = open(options.genbank_file+".pkl", 'wb')
+        # Save without gzip
+        f = open(options.genbank_file + ".pkl", "wb")
     pickle.dump(g, f)
     f.close()
-
