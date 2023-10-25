@@ -1272,7 +1272,7 @@ def populateEffects(
     if len(effects) == 0:
         # We have no effects to report so populate empty df
         effects_df = pd.DataFrame.from_dict(effects)
-        
+
     # Return  the metadata dict to log later
     return effects_df, {
         "WGS_PREDICTION_" + drug: phenotype[drug]
