@@ -1018,7 +1018,7 @@ def fasta_adjudication(
     referenceGenes: Dict[str, gumpy.Gene],
     reference: gumpy.Genome,
     phenotype: Dict[str, str],
-) -> None:
+) -> pd.DataFrame:
     """Use `null` rules from the catalogue to check against positions in the fasta file - applying the rules if the fasta file gives an `N` for these bases
 
     Args:
@@ -1030,6 +1030,8 @@ def fasta_adjudication(
         referenceGenes (Dict[str, gumpy.Gene]): Dictionary mapping gene name --> reference Gene object
         reference (gumpy.Genome): Reference genome object. Used to build extra genes on the fly (if required)
         phenotype (Dict[str, str]): Phenotype
+    Returns:
+        pd.DataFrame: Dataframe of new mutations introduced by this. This should allow writing them to the JSON
     """
     with open(fasta_path) as f:
         # Parse the FASTA file
@@ -1040,6 +1042,7 @@ def fasta_adjudication(
     values = resistanceCatalogue.catalogue.values
 
     seen = set()
+    mutations = {}
 
     # Parse the catalogue to find null rules
     for _, rule in resistanceCatalogue.catalogue.rules.iterrows():
@@ -1090,6 +1093,37 @@ def fasta_adjudication(
                 positions = g.nucleotide_index[g.nucleotide_number > 0][
                     g.codon_number == int(rule["POSITION"])
                 ]
+                adjusted_positions = [x - 1 for x in positions]
+                if "N" in [fasta[p] for p in adjusted_positions]:
+                    # There is >= 1 N in this codon so add to mutations
+                    pos = int(rule["MUTATION"][1:-1])
+                    r = "".join(
+                        g.nucleotide_sequence[g.nucleotide_number > 0][
+                            g.codon_number == int(rule["POSITION"])
+                        ]
+                    )
+                    a = (
+                        "".join([fasta[p] for p in adjusted_positions])
+                        .lower()
+                        .replace("n", "x")
+                    )
+                    mutations[effectsCounter] = [
+                        vcfStem,
+                        rule["GENE"],
+                        rule["MUTATION"],
+                        r,
+                        a,
+                        None,
+                        None,
+                        pos,
+                        True,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ]
+
                 for pos in positions:
                     if fasta[pos - 1] == "N":
                         # FASTA matches this rule
@@ -1114,6 +1148,27 @@ def fasta_adjudication(
                             # The prediction is closer to the start of the values list, so should take priority
                             phenotype[rule["DRUG"]] = "F"
 
+    return pd.DataFrame.from_dict(
+        mutations,
+        orient="index",
+        columns=[
+            "uniqueid",
+            "gene",
+            "mutation",
+            "ref",
+            "alt",
+            "nucleotide_number",
+            "nucleotide_index",
+            "gene_position",
+            "codes_protein",
+            "indel_length",
+            "indel_nucleotides",
+            "amino_acid_number",
+            "amino_acid_sequence",
+            "number_nucleotide_changes",
+        ],
+    )
+
 
 def populateEffects(
     outputDir: str,
@@ -1125,7 +1180,7 @@ def populateEffects(
     make_prediction_csv: bool,
     fasta: str | None = None,
     reference: gumpy.Genome | None = None,
-) -> Tuple[pd.DataFrame, Dict]:
+) -> Tuple[pd.DataFrame, Dict, pd.DataFrame]:
     """Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -1143,7 +1198,11 @@ def populateEffects(
         InvalidMutationException: Raised if an invalid mutation is detected
 
     Returns:
-        (pd.DataFrame, dict): (DataFrame containing the effects data, A metadata dictionary mapping drugs to their predictions)
+        (pd.DataFrame, dict): (
+            DataFrame containing the effects data,
+            A metadata dictionary mapping drugs to their predictions,
+            DataFrame containing the mutations data (with fasta null calls as appropriate)
+        )
     """
     if resistanceCatalogue is None:
         logging.debug("Catalogue was None, skipping effects and predictions generation")
@@ -1207,7 +1266,7 @@ def populateEffects(
 
         if fasta is not None and reference is not None:
             # Implicitly uses `effects` and `pheotype` for returns
-            fasta_adjudication(
+            new_mutations = fasta_adjudication(
                 vcfStem,
                 fasta,
                 effects,
@@ -1217,6 +1276,8 @@ def populateEffects(
                 reference,
                 phenotype,
             )
+            mutations = pd.concat([mutations, new_mutations])
+            mutations.reset_index(inplace=True)
 
         # Build the DataFrame
         effects_df = pd.DataFrame.from_dict(
@@ -1274,10 +1335,14 @@ def populateEffects(
         effects_df = pd.DataFrame.from_dict(effects)
 
     # Return  the metadata dict to log later
-    return effects_df, {
-        "WGS_PREDICTION_" + drug: phenotype[drug]
-        for drug in resistanceCatalogue.catalogue.drugs
-    }
+    return (
+        effects_df,
+        {
+            "WGS_PREDICTION_" + drug: phenotype[drug]
+            for drug in resistanceCatalogue.catalogue.drugs
+        },
+        mutations,
+    )
 
 
 def saveJSON(

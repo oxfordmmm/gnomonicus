@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
     # Get the effects and predictions of the mutations
     if resistanceCatalogue is not None:
-        effects, metadata = populateEffects(
+        effects, metadata, mutations = populateEffects(
             options.output_dir,
             resistanceCatalogue,
             mutations,
