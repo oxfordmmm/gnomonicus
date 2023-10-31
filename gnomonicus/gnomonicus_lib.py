@@ -479,49 +479,63 @@ def populateMutations(
         mutations["uniqueid"] = vcfStem
 
         if make_csv:
-            # Reorder the columns
-            mutations = mutations[
-                [
-                    "uniqueid",
-                    "gene",
-                    "mutation",
-                    "ref",
-                    "alt",
-                    "nucleotide_number",
-                    "nucleotide_index",
-                    "gene_position",
-                    "codes_protein",
-                    "indel_length",
-                    "indel_nucleotides",
-                    "amino_acid_number",
-                    "amino_acid_sequence",
-                    "number_nucleotide_changes",
-                ]
-            ]
-
-            # As we have concated several dataframes, the index is 0,1,2,0,1...
-            # Reset it so that we can use it to delete
-            mutations.reset_index(drop=True, inplace=True)
-            # Filter out nucleotide variants from synonymous mutations to avoid duplication of data
-            mutations_ = copy.deepcopy(mutations)
-            to_drop = []
-            for idx2, row in mutations_.iterrows():
-                if (
-                    row["codes_protein"]
-                    and row["ref"] is not None
-                    and row["alt"] is not None
-                ):
-                    # Protein coding so check if nucleotide within coding region
-                    if len(row["ref"]) == 1:
-                        # Nucleotide SNP
-                        to_drop.append(idx2)
-            mutations_.drop(index=to_drop, inplace=True)
-            # Save it as CSV
-            mutations_.to_csv(
-                os.path.join(outputDir, f"{vcfStem}.mutations.csv"), index=False
+            write_mutations_csv(
+                mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
             )
 
     return mutations, referenceGenes, errors
+
+
+def write_mutations_csv(
+    mutations: pd.DataFrame, path: str, filter: bool = True
+) -> None:
+    """Prep and write the mutations CSV to the given filepath.
+
+    Args:
+        mutations (pd.DataFrame): Muations CSV
+        path (str): Path to write to
+        filter (bool, optional): Whether to filter nucleotide changes
+    """
+    # Reorder the columns
+    mutations = mutations[
+        [
+            "uniqueid",
+            "gene",
+            "mutation",
+            "ref",
+            "alt",
+            "nucleotide_number",
+            "nucleotide_index",
+            "gene_position",
+            "codes_protein",
+            "indel_length",
+            "indel_nucleotides",
+            "amino_acid_number",
+            "amino_acid_sequence",
+            "number_nucleotide_changes",
+        ]
+    ]
+
+    # As we have concated several dataframes, the index is 0,1,2,0,1...
+    # Reset it so that we can use it to delete
+    mutations.reset_index(drop=True, inplace=True)
+    mutations_ = copy.deepcopy(mutations)
+    if filter:
+        # Filter out nucleotide variants from synonymous mutations to avoid duplication of data
+        to_drop = []
+        for idx2, row in mutations_.iterrows():
+            if (
+                row["codes_protein"]
+                and row["ref"] is not None
+                and row["alt"] is not None
+            ):
+                # Protein coding so check if nucleotide within coding region
+                if len(row["ref"]) == 1:
+                    # Nucleotide SNP
+                    to_drop.append(idx2)
+        mutations_.drop(index=to_drop, inplace=True)
+    # Save it as CSV
+    mutations_.to_csv(path, index=False)
 
 
 def minority_population_variants(
@@ -1018,7 +1032,7 @@ def fasta_adjudication(
     referenceGenes: Dict[str, gumpy.Gene],
     reference: gumpy.Genome,
     phenotype: Dict[str, str],
-) -> None:
+) -> pd.DataFrame:
     """Use `null` rules from the catalogue to check against positions in the fasta file - applying the rules if the fasta file gives an `N` for these bases
 
     Args:
@@ -1030,6 +1044,8 @@ def fasta_adjudication(
         referenceGenes (Dict[str, gumpy.Gene]): Dictionary mapping gene name --> reference Gene object
         reference (gumpy.Genome): Reference genome object. Used to build extra genes on the fly (if required)
         phenotype (Dict[str, str]): Phenotype
+    Returns:
+        pd.DataFrame: Dataframe of new mutations introduced by this. This should allow writing them to the JSON
     """
     with open(fasta_path) as f:
         # Parse the FASTA file
@@ -1040,6 +1056,7 @@ def fasta_adjudication(
     values = resistanceCatalogue.catalogue.values
 
     seen = set()
+    mutations = {}
 
     # Parse the catalogue to find null rules
     for _, rule in resistanceCatalogue.catalogue.rules.iterrows():
@@ -1063,6 +1080,22 @@ def fasta_adjudication(
                 ]
                 if fasta[pos - 1] == "N":
                     # FASTA matches this rule
+                    mutations[effectsCounter] = [
+                        vcfStem,
+                        rule["GENE"],
+                        rule["MUTATION"],
+                        rule["MUTATION"][0],
+                        "x",
+                        None,
+                        None,
+                        pos,
+                        False,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ]
                     this_e = [
                         vcfStem,
                         rule["GENE"],
@@ -1090,6 +1123,37 @@ def fasta_adjudication(
                 positions = g.nucleotide_index[g.nucleotide_number > 0][
                     g.codon_number == int(rule["POSITION"])
                 ]
+                adjusted_positions = [x - 1 for x in positions]
+                if "N" in [fasta[p] for p in adjusted_positions]:
+                    # There is >= 1 N in this codon so add to mutations
+                    pos = int(rule["MUTATION"][1:-1])
+                    r = "".join(
+                        g.nucleotide_sequence[g.nucleotide_number > 0][
+                            g.codon_number == int(rule["POSITION"])
+                        ]
+                    )
+                    a = (
+                        "".join([fasta[p] for p in adjusted_positions])
+                        .lower()
+                        .replace("n", "x")
+                    )
+                    mutations[effectsCounter] = [
+                        vcfStem,
+                        rule["GENE"],
+                        rule["MUTATION"],
+                        r,
+                        a,
+                        None,
+                        None,
+                        pos,
+                        True,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ]
+
                 for pos in positions:
                     if fasta[pos - 1] == "N":
                         # FASTA matches this rule
@@ -1114,6 +1178,27 @@ def fasta_adjudication(
                             # The prediction is closer to the start of the values list, so should take priority
                             phenotype[rule["DRUG"]] = "F"
 
+    return pd.DataFrame.from_dict(
+        mutations,
+        orient="index",
+        columns=[
+            "uniqueid",
+            "gene",
+            "mutation",
+            "ref",
+            "alt",
+            "nucleotide_number",
+            "nucleotide_index",
+            "gene_position",
+            "codes_protein",
+            "indel_length",
+            "indel_nucleotides",
+            "amino_acid_number",
+            "amino_acid_sequence",
+            "number_nucleotide_changes",
+        ],
+    )
+
 
 def populateEffects(
     outputDir: str,
@@ -1125,7 +1210,8 @@ def populateEffects(
     make_prediction_csv: bool,
     fasta: str | None = None,
     reference: gumpy.Genome | None = None,
-) -> Tuple[pd.DataFrame, Dict]:
+    make_mutations_csv: bool = False,
+) -> Tuple[pd.DataFrame, Dict, pd.DataFrame]:
     """Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -1138,12 +1224,17 @@ def populateEffects(
         make_prediction_csv (bool): Whether to write the CSV of the antibiogram
         fasta (str | None, optional): Path to a FASTA if given. Defaults to None.
         reference (gumpy.Genome | None, optional): Reference genome. Defaults to None.
+        make_mutations_csv (bool, optional): Whether to write the mutations CSV to disk with new mutations. Defaults to False.
 
     Raises:
         InvalidMutationException: Raised if an invalid mutation is detected
 
     Returns:
-        (pd.DataFrame, dict): (DataFrame containing the effects data, A metadata dictionary mapping drugs to their predictions)
+        (pd.DataFrame, dict): (
+            DataFrame containing the effects data,
+            A metadata dictionary mapping drugs to their predictions,
+            DataFrame containing the mutations data (with fasta null calls as appropriate)
+        )
     """
     if resistanceCatalogue is None:
         logging.debug("Catalogue was None, skipping effects and predictions generation")
@@ -1207,7 +1298,7 @@ def populateEffects(
 
         if fasta is not None and reference is not None:
             # Implicitly uses `effects` and `pheotype` for returns
-            fasta_adjudication(
+            new_mutations = fasta_adjudication(
                 vcfStem,
                 fasta,
                 effects,
@@ -1217,6 +1308,14 @@ def populateEffects(
                 reference,
                 phenotype,
             )
+            mutations = pd.concat([mutations, new_mutations])
+            mutations.reset_index(inplace=True)
+            if make_mutations_csv:
+                write_mutations_csv(
+                    mutations,
+                    os.path.join(outputDir, f"{vcfStem}.mutations.csv"),
+                    filter=False,
+                )
 
         # Build the DataFrame
         effects_df = pd.DataFrame.from_dict(
@@ -1274,10 +1373,14 @@ def populateEffects(
         effects_df = pd.DataFrame.from_dict(effects)
 
     # Return  the metadata dict to log later
-    return effects_df, {
-        "WGS_PREDICTION_" + drug: phenotype[drug]
-        for drug in resistanceCatalogue.catalogue.drugs
-    }
+    return (
+        effects_df,
+        {
+            "WGS_PREDICTION_" + drug: phenotype[drug]
+            for drug in resistanceCatalogue.catalogue.drugs
+        },
+        mutations,
+    )
 
 
 def saveJSON(

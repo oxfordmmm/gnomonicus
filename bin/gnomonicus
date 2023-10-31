@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
     # Get the effects and predictions of the mutations
     if resistanceCatalogue is not None:
-        effects, metadata = populateEffects(
+        effects, metadata, mutations = populateEffects(
             options.output_dir,
             resistanceCatalogue,
             mutations,
@@ -242,6 +242,7 @@ if __name__ == "__main__":
             make_prediction_csv,
             fasta=options.fasta_adjudication,
             reference=reference,
+            make_mutations_csv=make_mutations_csv,
         )
         logging.debug("Populated and saved effects.csv and predictions.csv")
     else:

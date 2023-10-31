@@ -297,7 +297,7 @@ def test_1():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -541,7 +541,7 @@ def test_2():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -687,7 +687,7 @@ def test_3():
     mutations_, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations_, referenceGenes, vcfStem, True, True
     )
 
@@ -839,7 +839,7 @@ def test_3_fasta_adjudicated():
     mutations_, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, mutations = gnomonicus.populateEffects(
         path,
         catalogue,
         mutations_,
@@ -849,18 +849,30 @@ def test_3_fasta_adjudicated():
         True,
         fasta="tests/test-cases/NC_045512.2.all_n.fasta",
         reference=reference,
+        make_mutations_csv=True,
     )
 
     # Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
-    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    mutations_csv = pd.read_csv(path + f"{vcfStem}.mutations.csv")
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
     predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
     assert variants["variant"][0] == "21568t>c"
 
-    assert mutations["gene"][0] == "S"
-    assert mutations["mutation"][0] == "F2F"
+    # Sort the mutations for comparing
+    mutations_ = sorted(
+        list(zip(mutations_csv["gene"], mutations_csv["mutation"])),
+        key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
+    )
+    assert mutations_ == sorted(
+        [
+            ("S", "F2F"),
+            ("S", "F2X"),
+            ("S", "E484X"),
+            ("S", "t6c"),
+        ]
+    )
 
     assert "AAA" in effects["drug"].to_list()
 
@@ -881,7 +893,7 @@ def test_3_fasta_adjudicated():
 
     gnomonicus.saveJSON(
         variants,
-        mutations_,
+        mutations,
         e,
         path,
         vcfStem,
@@ -937,6 +949,20 @@ def test_3_fasta_adjudicated():
                     "gene_position": 2,
                     "ref": "ttt",
                     "alt": "ttc",
+                },
+                {
+                    "mutation": "F2X",
+                    "gene": "S",
+                    "gene_position": 2,
+                    "ref": "ttt",
+                    "alt": "xxx",
+                },
+                {
+                    "mutation": "E484X",
+                    "gene": "S",
+                    "gene_position": 484,
+                    "ref": "gaa",
+                    "alt": "xxx",
                 },
                 {"mutation": "t6c", "gene": "S", "gene_position": 6},
             ],
@@ -1010,7 +1036,7 @@ def test_4():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1161,7 +1187,7 @@ def test_5():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1311,7 +1337,7 @@ def test_6():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1504,7 +1530,7 @@ def test_7():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1713,7 +1739,7 @@ def test_8():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1858,7 +1884,7 @@ def test_9():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -2113,7 +2139,7 @@ def test_10():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -2366,7 +2392,7 @@ def test_11():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _ = gnomonicus.populateEffects(
+    e, _, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
