@@ -486,7 +486,9 @@ def populateMutations(
     return mutations, referenceGenes, errors
 
 
-def write_mutations_csv(mutations: pd.DataFrame, path: str, filter: bool = True) -> None:
+def write_mutations_csv(
+    mutations: pd.DataFrame, path: str, filter: bool = True
+) -> None:
     """Prep and write the mutations CSV to the given filepath.
 
     Args:
@@ -522,7 +524,11 @@ def write_mutations_csv(mutations: pd.DataFrame, path: str, filter: bool = True)
         # Filter out nucleotide variants from synonymous mutations to avoid duplication of data
         to_drop = []
         for idx2, row in mutations_.iterrows():
-            if row["codes_protein"] and row["ref"] is not None and row["alt"] is not None:
+            if (
+                row["codes_protein"]
+                and row["ref"] is not None
+                and row["alt"] is not None
+            ):
                 # Protein coding so check if nucleotide within coding region
                 if len(row["ref"]) == 1:
                     # Nucleotide SNP
@@ -1078,7 +1084,7 @@ def fasta_adjudication(
                         vcfStem,
                         rule["GENE"],
                         rule["MUTATION"],
-                        rule['MUTATION'][0],
+                        rule["MUTATION"][0],
                         "x",
                         None,
                         None,
@@ -1306,7 +1312,9 @@ def populateEffects(
             mutations.reset_index(inplace=True)
             if make_mutations_csv:
                 write_mutations_csv(
-                    mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv"), filter=False
+                    mutations,
+                    os.path.join(outputDir, f"{vcfStem}.mutations.csv"),
+                    filter=False,
                 )
 
         # Build the DataFrame
