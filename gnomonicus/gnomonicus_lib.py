@@ -1080,6 +1080,7 @@ def fasta_adjudication(
                 ]
                 if fasta[pos - 1] == "N":
                     # FASTA matches this rule
+                    p = int(rule["MUTATION"][1:-1])
                     mutations[effectsCounter] = [
                         vcfStem,
                         rule["GENE"],
@@ -1088,7 +1089,7 @@ def fasta_adjudication(
                         "x",
                         None,
                         None,
-                        pos,
+                        p,
                         False,
                         None,
                         None,
