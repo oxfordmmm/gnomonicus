@@ -479,50 +479,58 @@ def populateMutations(
         mutations["uniqueid"] = vcfStem
 
         if make_csv:
-            # Reorder the columns
-            mutations = mutations[
-                [
-                    "uniqueid",
-                    "gene",
-                    "mutation",
-                    "ref",
-                    "alt",
-                    "nucleotide_number",
-                    "nucleotide_index",
-                    "gene_position",
-                    "codes_protein",
-                    "indel_length",
-                    "indel_nucleotides",
-                    "amino_acid_number",
-                    "amino_acid_sequence",
-                    "number_nucleotide_changes",
-                ]
-            ]
-
-            # As we have concated several dataframes, the index is 0,1,2,0,1...
-            # Reset it so that we can use it to delete
-            mutations.reset_index(drop=True, inplace=True)
-            # Filter out nucleotide variants from synonymous mutations to avoid duplication of data
-            mutations_ = copy.deepcopy(mutations)
-            to_drop = []
-            for idx2, row in mutations_.iterrows():
-                if (
-                    row["codes_protein"]
-                    and row["ref"] is not None
-                    and row["alt"] is not None
-                ):
-                    # Protein coding so check if nucleotide within coding region
-                    if len(row["ref"]) == 1:
-                        # Nucleotide SNP
-                        to_drop.append(idx2)
-            mutations_.drop(index=to_drop, inplace=True)
-            # Save it as CSV
-            mutations_.to_csv(
-                os.path.join(outputDir, f"{vcfStem}.mutations.csv"), index=False
-            )
+            write_mutations_csv(mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv"))
 
     return mutations, referenceGenes, errors
 
+def write_mutations_csv(mutations: pd.DataFrame, path: str) -> None:
+    """Prep and write the mutations CSV to the given filepath.
+
+    Args:
+        mutations (pd.DataFrame): Muations CSV
+        path (str): Path to write to
+    """
+    # Reorder the columns
+    mutations = mutations[
+        [
+            "uniqueid",
+            "gene",
+            "mutation",
+            "ref",
+            "alt",
+            "nucleotide_number",
+            "nucleotide_index",
+            "gene_position",
+            "codes_protein",
+            "indel_length",
+            "indel_nucleotides",
+            "amino_acid_number",
+            "amino_acid_sequence",
+            "number_nucleotide_changes",
+        ]
+    ]
+
+    # As we have concated several dataframes, the index is 0,1,2,0,1...
+    # Reset it so that we can use it to delete
+    mutations.reset_index(drop=True, inplace=True)
+    # Filter out nucleotide variants from synonymous mutations to avoid duplication of data
+    mutations_ = copy.deepcopy(mutations)
+    to_drop = []
+    for idx2, row in mutations_.iterrows():
+        if (
+            row["codes_protein"]
+            and row["ref"] is not None
+            and row["alt"] is not None
+        ):
+            # Protein coding so check if nucleotide within coding region
+            if len(row["ref"]) == 1:
+                # Nucleotide SNP
+                to_drop.append(idx2)
+    mutations_.drop(index=to_drop, inplace=True)
+    # Save it as CSV
+    mutations_.to_csv(
+        path, index=False
+    )
 
 def minority_population_variants(
     diff: gumpy.GenomeDifference,
@@ -1180,6 +1188,7 @@ def populateEffects(
     make_prediction_csv: bool,
     fasta: str | None = None,
     reference: gumpy.Genome | None = None,
+    make_mutations_csv: bool = False,
 ) -> Tuple[pd.DataFrame, Dict, pd.DataFrame]:
     """Populate and save the effects DataFrame as a CSV
 
@@ -1193,6 +1202,7 @@ def populateEffects(
         make_prediction_csv (bool): Whether to write the CSV of the antibiogram
         fasta (str | None, optional): Path to a FASTA if given. Defaults to None.
         reference (gumpy.Genome | None, optional): Reference genome. Defaults to None.
+        make_mutations_csv (bool, optional): Whether to write the mutations CSV to disk with new mutations. Defaults to False.
 
     Raises:
         InvalidMutationException: Raised if an invalid mutation is detected
@@ -1278,6 +1288,8 @@ def populateEffects(
             )
             mutations = pd.concat([mutations, new_mutations])
             mutations.reset_index(inplace=True)
+            if make_mutations_csv:
+                write_mutations_csv(mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv"))
 
         # Build the DataFrame
         effects_df = pd.DataFrame.from_dict(

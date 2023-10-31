@@ -849,18 +849,29 @@ def test_3_fasta_adjudicated():
         True,
         fasta="tests/test-cases/NC_045512.2.all_n.fasta",
         reference=reference,
+        make_mutations_csv=True,
     )
 
     # Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
-    # mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    mutations_csv = pd.read_csv(path +f"{vcfStem}.mutations.csv")
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
     predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
     assert variants["variant"][0] == "21568t>c"
 
-    assert mutations["gene"][0] == "S"
-    assert mutations["mutation"][0] == "F2F"
+    # Sort the mutations for comparing
+    mutations_ = sorted(
+        list(zip(mutations_csv["gene"], mutations_csv["mutation"])),
+        key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
+    )
+    assert mutations_ == sorted(
+        [
+            ("S", "F2F"),
+            ("S", "F2X"),
+            ("S", "E484X"),
+        ]
+    )
 
     assert "AAA" in effects["drug"].to_list()
 
