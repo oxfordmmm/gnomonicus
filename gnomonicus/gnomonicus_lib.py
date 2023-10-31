@@ -486,12 +486,13 @@ def populateMutations(
     return mutations, referenceGenes, errors
 
 
-def write_mutations_csv(mutations: pd.DataFrame, path: str) -> None:
+def write_mutations_csv(mutations: pd.DataFrame, path: str, filter: bool = True) -> None:
     """Prep and write the mutations CSV to the given filepath.
 
     Args:
         mutations (pd.DataFrame): Muations CSV
         path (str): Path to write to
+        filter (bool, optional): Whether to filter nucleotide changes
     """
     # Reorder the columns
     mutations = mutations[
@@ -516,16 +517,17 @@ def write_mutations_csv(mutations: pd.DataFrame, path: str) -> None:
     # As we have concated several dataframes, the index is 0,1,2,0,1...
     # Reset it so that we can use it to delete
     mutations.reset_index(drop=True, inplace=True)
-    # Filter out nucleotide variants from synonymous mutations to avoid duplication of data
     mutations_ = copy.deepcopy(mutations)
-    to_drop = []
-    for idx2, row in mutations_.iterrows():
-        if row["codes_protein"] and row["ref"] is not None and row["alt"] is not None:
-            # Protein coding so check if nucleotide within coding region
-            if len(row["ref"]) == 1:
-                # Nucleotide SNP
-                to_drop.append(idx2)
-    mutations_.drop(index=to_drop, inplace=True)
+    if filter:
+        # Filter out nucleotide variants from synonymous mutations to avoid duplication of data
+        to_drop = []
+        for idx2, row in mutations_.iterrows():
+            if row["codes_protein"] and row["ref"] is not None and row["alt"] is not None:
+                # Protein coding so check if nucleotide within coding region
+                if len(row["ref"]) == 1:
+                    # Nucleotide SNP
+                    to_drop.append(idx2)
+        mutations_.drop(index=to_drop, inplace=True)
     # Save it as CSV
     mutations_.to_csv(path, index=False)
 
@@ -1072,6 +1074,22 @@ def fasta_adjudication(
                 ]
                 if fasta[pos - 1] == "N":
                     # FASTA matches this rule
+                    mutations[effectsCounter] = [
+                        vcfStem,
+                        rule["GENE"],
+                        rule["MUTATION"],
+                        rule['MUTATION'][0],
+                        "x",
+                        None,
+                        None,
+                        pos,
+                        False,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ]
                     this_e = [
                         vcfStem,
                         rule["GENE"],
@@ -1288,7 +1306,7 @@ def populateEffects(
             mutations.reset_index(inplace=True)
             if make_mutations_csv:
                 write_mutations_csv(
-                    mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
+                    mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv"), filter=False
                 )
 
         # Build the DataFrame

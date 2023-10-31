@@ -870,6 +870,7 @@ def test_3_fasta_adjudicated():
             ("S", "F2F"),
             ("S", "F2X"),
             ("S", "E484X"),
+            ("S", "t6c"),
         ]
     )
 
