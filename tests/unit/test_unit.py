@@ -854,7 +854,7 @@ def test_3_fasta_adjudicated():
 
     # Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
-    mutations_csv = pd.read_csv(path +f"{vcfStem}.mutations.csv")
+    mutations_csv = pd.read_csv(path + f"{vcfStem}.mutations.csv")
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
     predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 

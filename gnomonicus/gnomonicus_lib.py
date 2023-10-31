@@ -479,9 +479,12 @@ def populateMutations(
         mutations["uniqueid"] = vcfStem
 
         if make_csv:
-            write_mutations_csv(mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv"))
+            write_mutations_csv(
+                mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
+            )
 
     return mutations, referenceGenes, errors
+
 
 def write_mutations_csv(mutations: pd.DataFrame, path: str) -> None:
     """Prep and write the mutations CSV to the given filepath.
@@ -517,20 +520,15 @@ def write_mutations_csv(mutations: pd.DataFrame, path: str) -> None:
     mutations_ = copy.deepcopy(mutations)
     to_drop = []
     for idx2, row in mutations_.iterrows():
-        if (
-            row["codes_protein"]
-            and row["ref"] is not None
-            and row["alt"] is not None
-        ):
+        if row["codes_protein"] and row["ref"] is not None and row["alt"] is not None:
             # Protein coding so check if nucleotide within coding region
             if len(row["ref"]) == 1:
                 # Nucleotide SNP
                 to_drop.append(idx2)
     mutations_.drop(index=to_drop, inplace=True)
     # Save it as CSV
-    mutations_.to_csv(
-        path, index=False
-    )
+    mutations_.to_csv(path, index=False)
+
 
 def minority_population_variants(
     diff: gumpy.GenomeDifference,
@@ -1289,7 +1287,9 @@ def populateEffects(
             mutations = pd.concat([mutations, new_mutations])
             mutations.reset_index(inplace=True)
             if make_mutations_csv:
-                write_mutations_csv(mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv"))
+                write_mutations_csv(
+                    mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
+                )
 
         # Build the DataFrame
         effects_df = pd.DataFrame.from_dict(
