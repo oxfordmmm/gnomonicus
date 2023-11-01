@@ -1104,7 +1104,7 @@ def fasta_adjudication(
                         resistanceCatalogue.catalogue.name,
                         rule["DRUG"],
                         rule["PREDICTION"],
-                        {**rule['EVIDENCE'], "FASTA called": "N"},
+                        {**rule["EVIDENCE"], "FASTA called": "N"},
                     ]
                     if str(this_e) in seen:
                         # Avoid duplicate entries
@@ -1165,7 +1165,7 @@ def fasta_adjudication(
                             resistanceCatalogue.catalogue.name,
                             rule["DRUG"],
                             rule["PREDICTION"],
-                            {**rule['EVIDENCE'], "FASTA called": "N"},
+                            {**rule["EVIDENCE"], "FASTA called": "N"},
                         ]
                         if str(this_e) in seen:
                             # Avoid duplicate entries
