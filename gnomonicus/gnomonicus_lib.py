@@ -24,6 +24,8 @@ import pandas as pd
 import piezo
 from tqdm import tqdm
 
+# Suppress warnings about concatenating empty DataFrames
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 class InvalidMutationException(Exception):
     """Custom exception raised when an invalid mutation is detected"""
@@ -1057,6 +1059,7 @@ def fasta_adjudication(
 
     seen = set()
     mutations = {}
+    seen_mutations = set()
 
     # Parse the catalogue to find null rules
     for _, rule in resistanceCatalogue.catalogue.rules.iterrows():
@@ -1081,6 +1084,9 @@ def fasta_adjudication(
                 if fasta[pos - 1] == "N":
                     # FASTA matches this rule
                     p = int(rule["MUTATION"][1:-1])
+                    if (rule["GENE"], rule["MUTATION"]) in seen_mutations:
+                        # Avoid duplicate mutations
+                        continue
                     mutations[effectsCounter] = [
                         vcfStem,
                         rule["GENE"],
@@ -1111,6 +1117,7 @@ def fasta_adjudication(
                         continue
                     effects[effectsCounter] = this_e
                     seen.add(str(this_e))
+                    seen_mutations.add((rule['GENE'], rule['MUTATION']))
                     effectsCounter += 1
 
                     # Prioritise values based on order within the values list
@@ -1138,6 +1145,9 @@ def fasta_adjudication(
                         .lower()
                         .replace("n", "x")
                     )
+                    if (rule["GENE"], rule["MUTATION"]) in seen_mutations:
+                        # Avoid duplicate mutations
+                        continue
                     mutations[effectsCounter] = [
                         vcfStem,
                         rule["GENE"],
@@ -1154,6 +1164,7 @@ def fasta_adjudication(
                         None,
                         None,
                     ]
+                    seen_mutations.add((rule['GENE'], rule['MUTATION']))
 
                 for pos in positions:
                     if fasta[pos - 1] == "N":
