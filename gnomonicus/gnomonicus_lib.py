@@ -25,7 +25,8 @@ import piezo
 from tqdm import tqdm
 
 # Suppress warnings about concatenating empty DataFrames
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
+
 
 class InvalidMutationException(Exception):
     """Custom exception raised when an invalid mutation is detected"""
@@ -1117,7 +1118,7 @@ def fasta_adjudication(
                         continue
                     effects[effectsCounter] = this_e
                     seen.add(str(this_e))
-                    seen_mutations.add((rule['GENE'], rule['MUTATION']))
+                    seen_mutations.add((rule["GENE"], rule["MUTATION"]))
                     effectsCounter += 1
 
                     # Prioritise values based on order within the values list
@@ -1164,7 +1165,7 @@ def fasta_adjudication(
                         None,
                         None,
                     ]
-                    seen_mutations.add((rule['GENE'], rule['MUTATION']))
+                    seen_mutations.add((rule["GENE"], rule["MUTATION"]))
 
                 for pos in positions:
                     if fasta[pos - 1] == "N":
