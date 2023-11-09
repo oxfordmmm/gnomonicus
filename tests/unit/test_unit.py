@@ -168,9 +168,9 @@ def test_misc():
 
     # Last edge case of loadGenome is gbk.pkl but its a gzipped file:
     r = pickle.load(open("tests/test-cases/NC_045512.2.gbk.pkl", "rb"))
-    pickle.dump(r, gzip.open("tests/test-cases/reference.gbk.pkl", "wb"))
+    pickle.dump(r, gzip.open("tests/test-cases/reference.gbk.pkl.gz", "wb"))
 
-    reference_ = gnomonicus.loadGenome("tests/test-cases/reference.gbk/", False)
+    reference_ = gnomonicus.loadGenome("tests/test-cases/reference.gbk", False)
 
     assert reference == reference_
 
