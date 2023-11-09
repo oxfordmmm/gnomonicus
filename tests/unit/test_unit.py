@@ -169,6 +169,10 @@ def test_misc():
 
     # Last edge case of loadGenome is gbk.pkl but its a gzipped file:
     r = pickle.load(open("tests/test-cases/NC_045512.2.gbk.pkl", "rb"))
+
+    # There's some odd behaviour here where gzip won't read the file properly unless we 
+    #   use `.gz`for python 3.12. Note that this causes issues with python3.11, hence the 
+    #   version check.
     gzip_path = "tests/test-cases/reference.gbk.pkl"
     if sys.version_info >= (3, 12):
         gzip_path += ".gz"
