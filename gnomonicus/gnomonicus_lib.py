@@ -1085,25 +1085,6 @@ def fasta_adjudication(
                 if fasta[pos - 1] == "N":
                     # FASTA matches this rule
                     p = int(rule["MUTATION"][1:-1])
-                    if (rule["GENE"], rule["MUTATION"]) in seen_mutations:
-                        # Avoid duplicate mutations
-                        continue
-                    mutations[effectsCounter] = [
-                        vcfStem,
-                        rule["GENE"],
-                        rule["MUTATION"],
-                        rule["MUTATION"][0],
-                        "x",
-                        None,
-                        None,
-                        p,
-                        False,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                    ]
                     this_e = [
                         vcfStem,
                         rule["GENE"],
@@ -1118,7 +1099,25 @@ def fasta_adjudication(
                         continue
                     effects[effectsCounter] = this_e
                     seen.add(str(this_e))
-                    seen_mutations.add((rule["GENE"], rule["MUTATION"]))
+                    if (rule["GENE"], rule["MUTATION"]) not in seen_mutations:
+                        # Avoid duplicate mutations
+                        seen_mutations.add((rule["GENE"], rule["MUTATION"]))
+                        mutations[effectsCounter] = [
+                            vcfStem,
+                            rule["GENE"],
+                            rule["MUTATION"],
+                            rule["MUTATION"][0],
+                            "x",
+                            None,
+                            None,
+                            p,
+                            False,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                        ]
                     effectsCounter += 1
 
                     # Prioritise values based on order within the values list
@@ -1146,26 +1145,25 @@ def fasta_adjudication(
                         .lower()
                         .replace("n", "x")
                     )
-                    if (rule["GENE"], rule["MUTATION"]) in seen_mutations:
+                    if (rule["GENE"], rule["MUTATION"]) not in seen_mutations:
                         # Avoid duplicate mutations
-                        continue
-                    mutations[effectsCounter] = [
-                        vcfStem,
-                        rule["GENE"],
-                        rule["MUTATION"],
-                        r,
-                        a,
-                        None,
-                        None,
-                        pos,
-                        True,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                    ]
-                    seen_mutations.add((rule["GENE"], rule["MUTATION"]))
+                        mutations[effectsCounter] = [
+                            vcfStem,
+                            rule["GENE"],
+                            rule["MUTATION"],
+                            r,
+                            a,
+                            None,
+                            None,
+                            pos,
+                            True,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                        ]
+                        seen_mutations.add((rule["GENE"], rule["MUTATION"]))
 
                 for pos in positions:
                     if fasta[pos - 1] == "N":
