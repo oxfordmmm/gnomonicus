@@ -22,7 +22,6 @@ if __name__ == "__main__":
         required=False,
         help="Path to the resistance catalogue",
     )
-    parser.add_argument("--prefix", default="", help="Optional prefix for output files.")
     parser.add_argument("--output", default=".", help="Output path. WILL OVERWRITE FILES!!")
     parser.add_argument("--progress", action="store_true", default=False, help="Show progress bar")
     options = parser.parse_args()
@@ -31,14 +30,18 @@ if __name__ == "__main__":
     reference, reference_genes = loadGenomeAndGenes(options.genome_object, options.progress)
     resistanceCatalogue = piezo.ResistanceCatalogue(options.catalogue_file)
 
+    # Pull out original VCF stem from mutations filename
+    vcf_stem = options.mutations.split("/")[-1].replace(".mutations.csv", "")
+
 
     populateEffects(
         options.output,
         resistanceCatalogue,
         mutations,
         reference_genes,
-        options.prefix,
+        vcf_stem,
         True,
         True,
         reference=reference,
+        append=True
     )

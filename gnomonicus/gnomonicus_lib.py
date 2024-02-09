@@ -1263,6 +1263,7 @@ def populateEffects(
     fasta: str | None = None,
     reference: gumpy.Genome | None = None,
     make_mutations_csv: bool = False,
+    append: bool = False
 ) -> Tuple[pd.DataFrame, Dict, pd.DataFrame]:
     """Populate and save the effects DataFrame as a CSV
 
@@ -1277,6 +1278,7 @@ def populateEffects(
         fasta (str | None, optional): Path to a FASTA if given. Defaults to None.
         reference (gumpy.Genome | None, optional): Reference genome. Defaults to None.
         make_mutations_csv (bool, optional): Whether to write the mutations CSV to disk with new mutations. Defaults to False.
+        append (bool, optional): Whether to append data to an existing df at the location (if existing).
 
     Raises:
         InvalidMutationException: Raised if an invalid mutation is detected
@@ -1399,6 +1401,14 @@ def populateEffects(
 
         # Save as CSV
         if len(effects) > 0 and make_csv:
+            if append:
+                # Check to see if there's anything there already
+                try:
+                    old_effects = pd.read_csv(f"{vcfStem}.effects.csv")
+                    effects_df = pd.concat([old_effects, effects_df])
+                except FileNotFoundError:
+                    pass
+
             effects_df.to_csv(
                 os.path.join(outputDir, f"{vcfStem}.effects.csv"), index=False
             )
@@ -1417,6 +1427,13 @@ def populateEffects(
             "catalogue_values": "".join(resistanceCatalogue.catalogue.values),
         }
         predictions_df = pd.DataFrame(vals)
+        if append:
+            # Check to see if there's anything there already
+            try:
+                old_predictions = pd.read_csv(f"{vcfStem}.predictions.csv")
+                predictions_df = pd.concat([old_predictions, predictions_df])
+            except FileNotFoundError:
+                pass
         predictions_df.to_csv(
             os.path.join(outputDir, f"{vcfStem}.predictions.csv"), index=False
         )
