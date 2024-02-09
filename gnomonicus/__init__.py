@@ -19,6 +19,7 @@ Functions:
     * countNucleotideChanges
     * saveJSON
 """
+
 import importlib.metadata
 
 __version__ = importlib.metadata.version("gnomonicus")

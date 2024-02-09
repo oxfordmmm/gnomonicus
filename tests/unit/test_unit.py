@@ -2,6 +2,7 @@
 
 Run from root of git dir with `pytest -vv`
 """
+
 import gzip
 import json
 import os

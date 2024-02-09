@@ -4,6 +4,7 @@
 
 Based on sp3predict
 """
+
 import copy
 import datetime
 import gzip
@@ -435,9 +436,11 @@ def populateMutations(
                 "alt": diff.alt_nucleotides,
                 "ref": diff.ref_nucleotides,
                 "codes_protein": [
-                    diff.codes_protein and pos > 0
-                    if pos is not None
-                    else diff.codes_protein
+                    (
+                        diff.codes_protein and pos > 0
+                        if pos is not None
+                        else diff.codes_protein
+                    )
                     for pos in diff.gene_position
                 ],
                 "indel_length": diff.indel_length,
@@ -462,9 +465,11 @@ def populateMutations(
                 vals["amino_acid_sequence"] = None
 
             vals["number_nucleotide_changes"] = [
-                sum(i != j for (i, j) in zip(r, a))
-                if r is not None and a is not None
-                else None
+                (
+                    sum(i != j for (i, j) in zip(r, a))
+                    if r is not None and a is not None
+                    else None
+                )
                 for r, a in zip(vals["ref"], vals["alt"])
             ]
 
@@ -866,11 +871,15 @@ def minority_population_mutations(
         muts = [mut.split(":")[0] for mut in mutations]
         # Gene numbers
         numbers = [
-            int(mut.split("_")[0])
-            if "_" in mut  # Indel index: <idx>_<type>_<bases>
-            else int(mut[:-1])
-            if "=" in mut  # Synon SNP: <idx>=
-            else int(mut[1:][:-1])  # SNP: <ref><idx><alt>
+            (
+                int(mut.split("_")[0])
+                if "_" in mut  # Indel index: <idx>_<type>_<bases>
+                else (
+                    int(mut[:-1])
+                    if "=" in mut  # Synon SNP: <idx>=
+                    else int(mut[1:][:-1])
+                )
+            )  # SNP: <ref><idx><alt>
             for mut in muts
         ]
 
@@ -1544,16 +1553,20 @@ def saveJSON(
     for _, variant in variants.iterrows():
         row = {
             "variant": variant["variant"] if pd.notnull(variant["variant"]) else None,
-            "nucleotide_index": variant["nucleotide_index"]
-            if pd.notnull(variant["nucleotide_index"])
-            else None,
+            "nucleotide_index": (
+                variant["nucleotide_index"]
+                if pd.notnull(variant["nucleotide_index"])
+                else None
+            ),
             "gene_name": variant["gene"] if pd.notnull(variant["gene"]) else None,
-            "gene_position": variant["gene_position"]
-            if pd.notnull(variant["gene_position"])
-            else None,
-            "codon_idx": variant["codon_idx"]
-            if pd.notnull(variant["codon_idx"])
-            else None,
+            "gene_position": (
+                variant["gene_position"]
+                if pd.notnull(variant["gene_position"])
+                else None
+            ),
+            "codon_idx": (
+                variant["codon_idx"] if pd.notnull(variant["codon_idx"]) else None
+            ),
             "vcf_evidence": json.loads(variant["vcf_evidence"]),
             "vcf_idx": variant["vcf_idx"] if pd.notnull(variant["vcf_idx"]) else None,
         }
@@ -1565,13 +1578,15 @@ def saveJSON(
     if mutations is not None:
         for _, mutation in mutations.iterrows():
             row = {
-                "mutation": mutation["mutation"]
-                if pd.notnull(mutation["mutation"])
-                else None,
+                "mutation": (
+                    mutation["mutation"] if pd.notnull(mutation["mutation"]) else None
+                ),
                 "gene": mutation["gene"] if pd.notnull(mutation["gene"]) else None,
-                "gene_position": mutation["gene_position"]
-                if pd.notnull(mutation["gene_position"])
-                else None,
+                "gene_position": (
+                    mutation["gene_position"]
+                    if pd.notnull(mutation["gene_position"])
+                    else None
+                ),
             }
             if mutation["mutation"][0].isupper() or mutation["mutation"][0] == "!":
                 # Only add codon ref/alt for AA changes
@@ -1587,12 +1602,12 @@ def saveJSON(
         for _, effect in effects.iterrows():
             prediction = {
                 "gene": effect["gene"] if pd.notnull(effect["gene"]) else None,
-                "mutation": effect["mutation"]
-                if pd.notnull(effect["mutation"])
-                else None,
-                "prediction": effect["prediction"]
-                if pd.notnull(effect["prediction"])
-                else None,
+                "mutation": (
+                    effect["mutation"] if pd.notnull(effect["mutation"]) else None
+                ),
+                "prediction": (
+                    effect["prediction"] if pd.notnull(effect["prediction"]) else None
+                ),
                 "evidence": effect["evidence"],
             }
             _effects[effect["drug"]].append(prediction)
