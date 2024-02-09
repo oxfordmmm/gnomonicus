@@ -1263,7 +1263,7 @@ def populateEffects(
     fasta: str | None = None,
     reference: gumpy.Genome | None = None,
     make_mutations_csv: bool = False,
-    append: bool = False
+    append: bool = False,
 ) -> Tuple[pd.DataFrame, Dict, pd.DataFrame]:
     """Populate and save the effects DataFrame as a CSV
 
