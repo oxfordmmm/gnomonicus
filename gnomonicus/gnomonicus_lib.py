@@ -169,6 +169,34 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     pickle.dump(reference, open(path + ".pkl", "wb"))
     return reference
 
+def loadGenomeAndGenes(path: str, progress: bool) -> tuple[gumpy.Genome, dict[str, gumpy.Gene]]:
+    """Look for pickled genome and genes, instanciating one or both if required.
+
+    Used by the table-update script
+
+    Args:
+        path (str): Path to the genbank file or pickle dump. If previously run, a genbank file's Genome object is pickled and dumped for speed
+        progress (bool): Boolean as whether to show progress bar for gumpy
+
+    Returns:
+        tuple[gumpy.Genome, dict[str, gumpy.Gene]]: Tuple of (reference genome object, Dictionary mapping gene name -> gumpy.Gene)
+    """
+    reference = loadGenome(path, progress)
+    gene_path = path + ".genes.pkl.gz"
+
+    if checkGzip(gene_path):
+        # Genes already exist so load
+        with gzip.open(gene_path, "rb") as f:
+            genes = pickle.load(f)
+    else:
+        # Genes didn't exist, so build then dump
+        genes = {}
+        for gene_name in tqdm(reference.genes, disable=not progress):
+            genes[gene_name] = reference.build_gene(gene_name)
+        with gzip.open(gene_path, "wb") as f:
+            pickle.dump(genes, f)
+
+    return reference, genes
 
 def populateVariants(
     vcfStem: str,
