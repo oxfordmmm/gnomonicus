@@ -169,7 +169,10 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     pickle.dump(reference, open(path + ".pkl", "wb"))
     return reference
 
-def loadGenomeAndGenes(path: str, progress: bool) -> tuple[gumpy.Genome, dict[str, gumpy.Gene]]:
+
+def loadGenomeAndGenes(
+    path: str, progress: bool
+) -> tuple[gumpy.Genome, dict[str, gumpy.Gene]]:
     """Look for pickled genome and genes, instanciating one or both if required.
 
     Used by the table-update script
@@ -197,6 +200,7 @@ def loadGenomeAndGenes(path: str, progress: bool) -> tuple[gumpy.Genome, dict[st
             pickle.dump(genes, f)
 
     return reference, genes
+
 
 def populateVariants(
     vcfStem: str,
