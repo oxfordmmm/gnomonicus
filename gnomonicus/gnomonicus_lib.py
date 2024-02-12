@@ -4,6 +4,7 @@
 
 Based on sp3predict
 """
+
 import copy
 import datetime
 import gzip
@@ -168,6 +169,38 @@ def loadGenome(path: str, progress: bool) -> gumpy.Genome:
     reference.gumpy_version = gumpy.__version__
     pickle.dump(reference, open(path + ".pkl", "wb"))
     return reference
+
+
+def loadGenomeAndGenes(
+    path: str, progress: bool
+) -> tuple[gumpy.Genome, dict[str, gumpy.Gene]]:
+    """Look for pickled genome and genes, instanciating one or both if required.
+
+    Used by the table-update script
+
+    Args:
+        path (str): Path to the genbank file or pickle dump. If previously run, a genbank file's Genome object is pickled and dumped for speed
+        progress (bool): Boolean as whether to show progress bar for gumpy
+
+    Returns:
+        tuple[gumpy.Genome, dict[str, gumpy.Gene]]: Tuple of (reference genome object, Dictionary mapping gene name -> gumpy.Gene)
+    """
+    reference = loadGenome(path, progress)
+    gene_path = path + ".genes.pkl.gz"
+
+    if checkGzip(gene_path):
+        # Genes already exist so load
+        with gzip.open(gene_path, "rb") as f:
+            genes = pickle.load(f)
+    else:
+        # Genes didn't exist, so build then dump
+        genes = {}
+        for gene_name in tqdm(reference.genes, disable=not progress):
+            genes[gene_name] = reference.build_gene(gene_name)
+        with gzip.open(gene_path, "wb") as f:
+            pickle.dump(genes, f)
+
+    return reference, genes
 
 
 def populateVariants(
@@ -403,9 +436,11 @@ def populateMutations(
                 "alt": diff.alt_nucleotides,
                 "ref": diff.ref_nucleotides,
                 "codes_protein": [
-                    diff.codes_protein and pos > 0
-                    if pos is not None
-                    else diff.codes_protein
+                    (
+                        diff.codes_protein and pos > 0
+                        if pos is not None
+                        else diff.codes_protein
+                    )
                     for pos in diff.gene_position
                 ],
                 "indel_length": diff.indel_length,
@@ -430,9 +465,11 @@ def populateMutations(
                 vals["amino_acid_sequence"] = None
 
             vals["number_nucleotide_changes"] = [
-                sum(i != j for (i, j) in zip(r, a))
-                if r is not None and a is not None
-                else None
+                (
+                    sum(i != j for (i, j) in zip(r, a))
+                    if r is not None and a is not None
+                    else None
+                )
                 for r, a in zip(vals["ref"], vals["alt"])
             ]
 
@@ -834,11 +871,15 @@ def minority_population_mutations(
         muts = [mut.split(":")[0] for mut in mutations]
         # Gene numbers
         numbers = [
-            int(mut.split("_")[0])
-            if "_" in mut  # Indel index: <idx>_<type>_<bases>
-            else int(mut[:-1])
-            if "=" in mut  # Synon SNP: <idx>=
-            else int(mut[1:][:-1])  # SNP: <ref><idx><alt>
+            (
+                int(mut.split("_")[0])
+                if "_" in mut  # Indel index: <idx>_<type>_<bases>
+                else (
+                    int(mut[:-1])
+                    if "=" in mut  # Synon SNP: <idx>=
+                    else int(mut[1:][:-1])
+                )
+            )  # SNP: <ref><idx><alt>
             for mut in muts
         ]
 
@@ -1222,6 +1263,7 @@ def populateEffects(
     fasta: str | None = None,
     reference: gumpy.Genome | None = None,
     make_mutations_csv: bool = False,
+    append: bool = False,
 ) -> Tuple[pd.DataFrame, Dict, pd.DataFrame]:
     """Populate and save the effects DataFrame as a CSV
 
@@ -1236,6 +1278,7 @@ def populateEffects(
         fasta (str | None, optional): Path to a FASTA if given. Defaults to None.
         reference (gumpy.Genome | None, optional): Reference genome. Defaults to None.
         make_mutations_csv (bool, optional): Whether to write the mutations CSV to disk with new mutations. Defaults to False.
+        append (bool, optional): Whether to append data to an existing df at the location (if existing).
 
     Raises:
         InvalidMutationException: Raised if an invalid mutation is detected
@@ -1358,6 +1401,14 @@ def populateEffects(
 
         # Save as CSV
         if len(effects) > 0 and make_csv:
+            if append:
+                # Check to see if there's anything there already
+                try:
+                    old_effects = pd.read_csv(f"{vcfStem}.effects.csv")
+                    effects_df = pd.concat([old_effects, effects_df])
+                except FileNotFoundError:
+                    pass
+
             effects_df.to_csv(
                 os.path.join(outputDir, f"{vcfStem}.effects.csv"), index=False
             )
@@ -1376,6 +1427,13 @@ def populateEffects(
             "catalogue_values": "".join(resistanceCatalogue.catalogue.values),
         }
         predictions_df = pd.DataFrame(vals)
+        if append:
+            # Check to see if there's anything there already
+            try:
+                old_predictions = pd.read_csv(f"{vcfStem}.predictions.csv")
+                predictions_df = pd.concat([old_predictions, predictions_df])
+            except FileNotFoundError:
+                pass
         predictions_df.to_csv(
             os.path.join(outputDir, f"{vcfStem}.predictions.csv"), index=False
         )
@@ -1512,16 +1570,20 @@ def saveJSON(
     for _, variant in variants.iterrows():
         row = {
             "variant": variant["variant"] if pd.notnull(variant["variant"]) else None,
-            "nucleotide_index": variant["nucleotide_index"]
-            if pd.notnull(variant["nucleotide_index"])
-            else None,
+            "nucleotide_index": (
+                variant["nucleotide_index"]
+                if pd.notnull(variant["nucleotide_index"])
+                else None
+            ),
             "gene_name": variant["gene"] if pd.notnull(variant["gene"]) else None,
-            "gene_position": variant["gene_position"]
-            if pd.notnull(variant["gene_position"])
-            else None,
-            "codon_idx": variant["codon_idx"]
-            if pd.notnull(variant["codon_idx"])
-            else None,
+            "gene_position": (
+                variant["gene_position"]
+                if pd.notnull(variant["gene_position"])
+                else None
+            ),
+            "codon_idx": (
+                variant["codon_idx"] if pd.notnull(variant["codon_idx"]) else None
+            ),
             "vcf_evidence": json.loads(variant["vcf_evidence"]),
             "vcf_idx": variant["vcf_idx"] if pd.notnull(variant["vcf_idx"]) else None,
         }
@@ -1533,13 +1595,15 @@ def saveJSON(
     if mutations is not None:
         for _, mutation in mutations.iterrows():
             row = {
-                "mutation": mutation["mutation"]
-                if pd.notnull(mutation["mutation"])
-                else None,
+                "mutation": (
+                    mutation["mutation"] if pd.notnull(mutation["mutation"]) else None
+                ),
                 "gene": mutation["gene"] if pd.notnull(mutation["gene"]) else None,
-                "gene_position": mutation["gene_position"]
-                if pd.notnull(mutation["gene_position"])
-                else None,
+                "gene_position": (
+                    mutation["gene_position"]
+                    if pd.notnull(mutation["gene_position"])
+                    else None
+                ),
             }
             if mutation["mutation"][0].isupper() or mutation["mutation"][0] == "!":
                 # Only add codon ref/alt for AA changes
@@ -1555,12 +1619,12 @@ def saveJSON(
         for _, effect in effects.iterrows():
             prediction = {
                 "gene": effect["gene"] if pd.notnull(effect["gene"]) else None,
-                "mutation": effect["mutation"]
-                if pd.notnull(effect["mutation"])
-                else None,
-                "prediction": effect["prediction"]
-                if pd.notnull(effect["prediction"])
-                else None,
+                "mutation": (
+                    effect["mutation"] if pd.notnull(effect["mutation"]) else None
+                ),
+                "prediction": (
+                    effect["prediction"] if pd.notnull(effect["prediction"]) else None
+                ),
                 "evidence": effect["evidence"],
             }
             _effects[effect["drug"]].append(prediction)

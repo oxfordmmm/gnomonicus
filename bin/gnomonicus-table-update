@@ -1,0 +1,47 @@
+#!/usr/bin/python3
+"""Update existing gnomonicus tables with a new catalogue.
+"""
+import argparse
+import piezo
+import pandas
+
+from gnomonicus import loadGenomeAndGenes, populateEffects
+
+if __name__ == "__main__":
+    # Argparser setup
+    parser = argparse.ArgumentParser(description="Parse an existing mutations.csv and a catalogue to produce effects.csv and predictions.csv")
+    parser.add_argument("--mutations", required=True, help="Path to the existing mutations table")
+    parser.add_argument(
+        "--genome_object",
+        required=True,
+        help="Path to a compressed gumpy Genome object or a genbank file",
+    )
+    parser.add_argument(
+        "--catalogue_file",
+        default=None,
+        required=False,
+        help="Path to the resistance catalogue",
+    )
+    parser.add_argument("--output", default=".", help="Output path. WILL OVERWRITE FILES!!")
+    parser.add_argument("--progress", action="store_true", default=False, help="Show progress bar")
+    options = parser.parse_args()
+
+    mutations = pandas.read_csv(options.mutations)
+    reference, reference_genes = loadGenomeAndGenes(options.genome_object, options.progress)
+    resistanceCatalogue = piezo.ResistanceCatalogue(options.catalogue_file)
+
+    # Pull out original VCF stem from mutations filename
+    vcf_stem = options.mutations.split("/")[-1].replace(".mutations.csv", "")
+
+
+    populateEffects(
+        options.output,
+        resistanceCatalogue,
+        mutations,
+        reference_genes,
+        vcf_stem,
+        True,
+        True,
+        reference=reference,
+        append=True
+    )
