@@ -22,7 +22,7 @@ if __name__ == "__main__":
         required=False,
         help="Path to the resistance catalogue",
     )
-    parser.add_argument("--output", default=".", help="Output path. WILL OVERWRITE FILES!!")
+    parser.add_argument("--output", default=".", help="Output path")
     parser.add_argument("--progress", action="store_true", default=False, help="Show progress bar")
     options = parser.parse_args()
 
