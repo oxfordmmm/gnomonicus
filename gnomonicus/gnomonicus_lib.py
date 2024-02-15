@@ -1404,7 +1404,9 @@ def populateEffects(
             if append:
                 # Check to see if there's anything there already
                 try:
-                    old_effects = pd.read_csv(os.path.join(outputDir, f"{vcfStem}.effects.csv"))
+                    old_effects = pd.read_csv(
+                        os.path.join(outputDir, f"{vcfStem}.effects.csv")
+                    )
                     effects_df = pd.concat([old_effects, effects_df])
                 except FileNotFoundError:
                     pass
@@ -1430,7 +1432,9 @@ def populateEffects(
         if append:
             # Check to see if there's anything there already
             try:
-                old_predictions = pd.read_csv(os.path.join(outputDir, f"{vcfStem}.predictions.csv"))
+                old_predictions = pd.read_csv(
+                    os.path.join(outputDir, f"{vcfStem}.predictions.csv")
+                )
                 predictions_df = pd.concat([old_predictions, predictions_df])
             except FileNotFoundError:
                 pass
