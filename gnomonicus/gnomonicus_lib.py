@@ -1717,10 +1717,7 @@ def populateEffects(
     # Return  the metadata dict to log later
     return (
         effects_df,
-        {
-            drug: phenotype[drug]
-            for drug in resistanceCatalogue.catalogue.drugs
-        },
+        {drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs},
         mutations,
     )
 
@@ -1899,7 +1896,7 @@ def saveJSON(
                 "evidence": effect["evidence"],
             }
             _effects[effect["drug"]].append(prediction)
-    
+
     for drug in _effects.keys():
         _effects[drug].append({"phenotype": phenotypes[drug]})
 

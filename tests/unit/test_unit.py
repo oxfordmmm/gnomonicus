@@ -2595,6 +2595,7 @@ def test_11():
     # Recursive_eq reports neat places they differ
     recursive_eq(ordered(expectedJSON), ordered(actualJSON))
 
+
 def test_12():
     """Sample with a few mutations + a catalogue supporting both general mutlits, and an epistasis rule
     Input:
@@ -2608,7 +2609,8 @@ def test_12():
     setupOutput("12")
     reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
     catalogue = piezo.ResistanceCatalogue(
-        "tests/test-cases/NC_045512.2-test-catalogue-epistasis.csv", prediction_subset_only=True
+        "tests/test-cases/NC_045512.2-test-catalogue-epistasis.csv",
+        prediction_subset_only=True,
     )
 
     vcf = gumpy.VCFFile(
