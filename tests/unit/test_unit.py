@@ -306,7 +306,7 @@ def test_1():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -343,6 +343,7 @@ def test_1():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -447,6 +448,7 @@ def test_1():
         variants,
         mutations,
         None,
+        {},
         path,
         vcfStem,
         None,
@@ -550,7 +552,7 @@ def test_2():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -587,6 +589,7 @@ def test_2():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -696,7 +699,7 @@ def test_3():
     mutations_, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations_, referenceGenes, vcfStem, True, True
     )
 
@@ -733,6 +736,7 @@ def test_3():
         variants,
         mutations_,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -848,7 +852,7 @@ def test_3_fasta_adjudicated():
     mutations_, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, mutations = gnomonicus.populateEffects(
+    e, phenotypes, mutations = gnomonicus.populateEffects(
         path,
         catalogue,
         mutations_,
@@ -904,6 +908,7 @@ def test_3_fasta_adjudicated():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -1045,7 +1050,7 @@ def test_4():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1082,6 +1087,7 @@ def test_4():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -1196,7 +1202,7 @@ def test_5():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1238,6 +1244,7 @@ def test_5():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -1346,7 +1353,7 @@ def test_6():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1389,6 +1396,7 @@ def test_6():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -1539,7 +1547,7 @@ def test_7():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1594,6 +1602,7 @@ def test_7():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -1748,7 +1757,7 @@ def test_8():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1785,6 +1794,7 @@ def test_8():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -1893,7 +1903,7 @@ def test_9():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -1951,6 +1961,7 @@ def test_9():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -2148,7 +2159,7 @@ def test_10():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -2206,6 +2217,7 @@ def test_10():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -2401,7 +2413,7 @@ def test_11():
     mutations, referenceGenes, errors = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
-    e, _, _ = gnomonicus.populateEffects(
+    e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, referenceGenes, vcfStem, True, True
     )
 
@@ -2449,6 +2461,7 @@ def test_11():
         variants,
         mutations,
         e,
+        phenotypes,
         path,
         vcfStem,
         catalogue,
@@ -2569,6 +2582,258 @@ def test_11():
             "antibiogram": {
                 "AAA": "R",
             },
+        },
+    }
+
+    expectedJSON = json.loads(json.dumps(expectedJSON, sort_keys=True))
+
+    actualJSON = prep_json(
+        json.load(open(os.path.join(path, f"{vcfStem}.gnomonicus-out.json"), "r"))
+    )
+
+    # assert == does work here, but gives ugly errors if mismatch
+    # Recursive_eq reports neat places they differ
+    recursive_eq(ordered(expectedJSON), ordered(actualJSON))
+
+def test_12():
+    """Sample with a few mutations + a catalogue supporting both general mutlits, and an epistasis rule
+    Input:
+        NC_045512.2-epistasis.vcf
+    Expect output:
+        variants:    23012g>a, 23012_ins_a, 21762_del_t
+        mutations:   S@E484K, S@1450_ins_a, S@201_del_t, S@1450_ins_a&S@E484K, S@201_del_t&S@E484K
+        predictions: {'AAA': 'S', 'BBB': 'R'}
+    """
+    # Setup
+    setupOutput("12")
+    reference = gnomonicus.loadGenome("tests/test-cases/NC_045512.2.gbk", False)
+    catalogue = piezo.ResistanceCatalogue(
+        "tests/test-cases/NC_045512.2-test-catalogue-epistasis.csv", prediction_subset_only=True
+    )
+
+    vcf = gumpy.VCFFile(
+        "tests/test-cases/NC_045512.2-epistasis.vcf",
+        ignore_filter=True,
+        bypass_reference_calls=True,
+    )
+    vcfStem = "NC_045512.2-epistasis"
+
+    sample = reference + vcf
+
+    diff = reference - sample
+
+    # Populate the tables
+    path = "tests/outputs/12/"
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False)
+    mutations, referenceGenes, errors = gnomonicus.populateMutations(
+        vcfStem, path, diff, reference, sample, catalogue, True, False
+    )
+    e, phenotypes, _ = gnomonicus.populateEffects(
+        path, catalogue, mutations, referenceGenes, vcfStem, True, True
+    )
+
+    # Check for expected values within csvs
+    variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
+    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
+    predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
+
+    # Sort the variants for comparing
+    variants_ = sorted(variants["variant"])
+    assert variants_[0] == "21763_del_t"
+    assert variants_[1] == "23012_ins_a"
+    assert variants_[2] == "23012g>a"
+
+    # Sort the mutations for comparing
+    mutations_ = sorted(
+        list(zip(mutations["gene"], mutations["mutation"])),
+        key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
+    )
+
+    assert mutations_[0][0] == "S"
+    assert mutations_[0][1] == "1450_ins_a"
+
+    assert mutations_[1][0] == "S"
+    assert mutations_[1][1] == "201_del_t"
+
+    assert mutations_[2][0] == "S"
+    assert mutations_[2][1] == "E484K"
+
+    # Expected effects. For each row, x[0] = DRUG, x[1] = GENE, x[2] = MUTATION, x[3] = PREDICTION
+    expected = [
+        ["AAA", "S", "E484K", "R"],
+        ["AAA", "S", "201_del_t", "R"],
+        ["AAA", "S", "1450_ins_a", "R"],
+        ["AAA", None, "S@201_del_t&S@E484K", "S"],
+        ["AAA", None, "S@1450_ins_a&S@E484K", "R"],
+        ["BBB", None, "S@1450_ins_a&S@E484K", "R"],
+    ]
+
+    compare_effects(effects, expected)
+
+    hits = []
+    for _, row in predictions.iterrows():
+        assert row["catalogue_name"] == "gnomonicus_test"
+        assert row["catalogue_version"] == "v1.0"
+        assert row["catalogue_values"] == "RFUS"
+        if row["drug"] == "AAA":
+            hits.append("AAA")
+            assert row["prediction"] == "S"
+        elif row["drug"] == "BBB":
+            hits.append("BBB")
+            assert row["prediction"] == "R"
+        else:
+            hits.append(None)
+    assert sorted(hits) == ["AAA", "BBB"]
+
+    gnomonicus.saveJSON(
+        variants,
+        mutations,
+        e,
+        phenotypes,
+        path,
+        vcfStem,
+        catalogue,
+        gnomonicus.__version__,
+        -1,
+        reference,
+        "",
+        "",
+        "",
+        {},
+    )
+
+    expectedJSON = {
+        "meta": {
+            "workflow_version": gnomonicus.__version__,
+            "guid": vcfStem,
+            "status": "success",
+            "workflow_name": "gnomonicus",
+            "workflow_task": "resistance_prediction",
+            "reference": "NC_045512",
+            "catalogue_type": "RFUS",
+            "catalogue_name": "gnomonicus_test",
+            "catalogue_version": "v1.0",
+        },
+        "data": {
+            "variants": [
+                {
+                    "variant": "21763_del_t",
+                    "nucleotide_index": 21763,
+                    "gene_name": "S",
+                    "gene_position": 201,
+                    "codon_idx": 2,
+                    "vcf_evidence": {
+                        "GT": [1, 1],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [0, 44],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 21762,
+                        "REF": "ct",
+                        "ALTS": ["c"],
+                    },
+                    "vcf_idx": 1,
+                },
+                {
+                    "variant": "23012_ins_a",
+                    "nucleotide_index": 23012,
+                    "gene_name": "S",
+                    "gene_position": 1450,
+                    "codon_idx": 0,
+                    "vcf_evidence": {
+                        "GT": [1, 1],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [0, 44],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 23012,
+                        "REF": "g",
+                        "ALTS": ["aa"],
+                    },
+                    "vcf_idx": 1,
+                },
+                {
+                    "variant": "23012g>a",
+                    "nucleotide_index": 23012,
+                    "gene_name": "S",
+                    "gene_position": 484,
+                    "codon_idx": 0,
+                    "vcf_evidence": {
+                        "GT": [1, 1],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [0, 44],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 23012,
+                        "REF": "g",
+                        "ALTS": ["aa"],
+                    },
+                    "vcf_idx": 1,
+                },
+            ],
+            "mutations": [
+                {"mutation": "201_del_t", "gene": "S", "gene_position": 201},
+                {"mutation": "1450_ins_a", "gene": "S", "gene_position": 1450},
+                {
+                    "mutation": "E484K",
+                    "gene": "S",
+                    "gene_position": 484,
+                    "ref": "gaa",
+                    "alt": "aaa",
+                },
+            ],
+            "effects": {
+                "AAA": [
+                    {
+                        "gene": "S",
+                        "mutation": "E484K",
+                        "prediction": "R",
+                        "evidence": {"row": 0},
+                    },
+                    {
+                        "gene": "S",
+                        "mutation": "1450_ins_a",
+                        "prediction": "R",
+                        "evidence": {"row": 11},
+                    },
+                    {
+                        "gene": "S",
+                        "mutation": "201_del_t",
+                        "prediction": "R",
+                        "evidence": {"row": 11},
+                    },
+                    {
+                        "gene": None,
+                        "mutation": "S@1450_ins_a&S@E484K",
+                        "prediction": "R",
+                        "evidence": {"row": 22},
+                    },
+                    {
+                        "gene": None,
+                        "mutation": "S@201_del_t&S@E484K",
+                        "prediction": "S",
+                        "evidence": {"row": 23},
+                    },
+                    {"phenotype": "S"},
+                ],
+                "BBB": [
+                    {
+                        "gene": None,
+                        "mutation": "S@1450_ins_a&S@E484K",
+                        "prediction": "R",
+                        "evidence": {"row": 1},
+                    },
+                    {"phenotype": "R"},
+                ],
+            },
+            "antibiogram": {"AAA": "S", "BBB": "R"},
         },
     }
 

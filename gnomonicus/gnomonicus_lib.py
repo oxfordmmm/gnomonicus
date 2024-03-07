@@ -1718,7 +1718,7 @@ def populateEffects(
     return (
         effects_df,
         {
-            "WGS_PREDICTION_" + drug: phenotype[drug]
+            drug: phenotype[drug]
             for drug in resistanceCatalogue.catalogue.drugs
         },
         mutations,
@@ -1729,6 +1729,7 @@ def saveJSON(
     variants,
     mutations,
     effects,
+    phenotypes,
     path: str,
     guid: str,
     catalogue: piezo.ResistanceCatalogue,
@@ -1814,7 +1815,6 @@ def saveJSON(
         catalogue_path (str): Path to the catalogue used for this run
         minor_errors (dict): Mapping of gene name --> stack trace of any errors occurring when parsing minor mutations
     """
-    values = catalogue.catalogue.values if catalogue is not None else list("RFUS")
     # Define some metadata for the json
     meta = {
         "status": "success",
@@ -1886,8 +1886,6 @@ def saveJSON(
     data["mutations"] = _mutations
 
     _effects = defaultdict(list)
-    antibiogram = {}
-    drugs = set()
     if effects is not None and len(effects) > 0:
         for _, effect in effects.iterrows():
             prediction = {
@@ -1901,24 +1899,12 @@ def saveJSON(
                 "evidence": effect["evidence"],
             }
             _effects[effect["drug"]].append(prediction)
+    
+    for drug in _effects.keys():
+        _effects[drug].append({"phenotype": phenotypes[drug]})
 
-        # Get the overall predictions for each drug
-        for drug, predictions in _effects.items():
-            phenotype = "S"
-            for prediction in predictions:
-                # Use the prediction heierarchy to use most signifiant prediction
-                if values.index(prediction["prediction"]) < values.index(phenotype):
-                    # The prediction is closer to the start of the values list, so should take priority
-                    phenotype = prediction["prediction"]
-            _effects[drug].append({"phenotype": phenotype})
-            antibiogram[drug] = phenotype
-            drugs.add(drug)
     data["effects"] = _effects
-    if catalogue is not None:
-        for d in catalogue.catalogue.drugs:
-            if d not in drugs:
-                antibiogram[d] = "S"
-    data["antibiogram"] = antibiogram
+    data["antibiogram"] = phenotypes
 
     # Convert fields to a list so it can be json serialised
     with open(os.path.join(path, f"{guid}.gnomonicus-out.json"), "w") as f:

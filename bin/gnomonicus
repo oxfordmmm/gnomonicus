@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
     # Get the effects and predictions of the mutations
     if resistanceCatalogue is not None:
-        effects, metadata, mutations = populateEffects(
+        effects, phenotypes, mutations = populateEffects(
             options.output_dir,
             resistanceCatalogue,
             mutations,
@@ -246,7 +246,7 @@ if __name__ == "__main__":
         )
         logging.debug("Populated and saved effects.csv and predictions.csv")
     else:
-        metadata = {}
+        phenotypes = {}
         effects = None
         logging.info(
             "Skipped effects.csv due to lack of resistance catalogue or mutations"
@@ -267,8 +267,8 @@ if __name__ == "__main__":
         logging.info(f"Catalogue grammar: {resistanceCatalogue.catalogue.grammar}")
         logging.info(f"Catalogue values: {resistanceCatalogue.catalogue.values}")
         logging.info(f"Catalogue path: {options.catalogue_file}")
-    for drug in sorted(metadata.keys()):
-        logging.info(f"{drug} {metadata[drug]}")
+    for drug in sorted(phenotypes.keys()):
+        logging.info(f"{drug} {phenotypes[drug]}")
     logging.info(f"Completed in {time.time()-start}s")
 
     if options.json:
@@ -285,6 +285,7 @@ if __name__ == "__main__":
             variants,
             mutations,
             effects,
+            phenotypes,
             options.output_dir,
             vcfStem,
             resistanceCatalogue,
