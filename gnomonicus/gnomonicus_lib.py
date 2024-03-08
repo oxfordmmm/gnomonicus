@@ -1014,11 +1014,13 @@ def subset_multis(
     Returns:
         list[tuple[str|None, str]]: Multi-mutations which should hit catalogue rules
     """
-    # Filter out minor populations for now. They make things a lot uglier
     mutations = [
-        (gene, mut) for (gene, mut) in mutations_ if gene if not None and ":" not in mut
+        (gene, mut, mut.split(":")[-1] if ":" in mut else None)
+        for (gene, mut) in mutations_
+        if gene
+        if not None
     ]
-    joined = set([gene + "@" + mut for (gene, mut) in mutations])
+    joined = set([gene + "@" + mut for (gene, mut, _) in mutations])
     large_del_re = re.compile(
         r"""
         .*del_[01]\.[0-9]+.*
@@ -1045,15 +1047,25 @@ def subset_multis(
     )
 
     # Find these once so they aren't fetched on every iteration
-    existing_genes = set([gene for (gene, _) in mutations])
+    existing_genes = set([gene for (gene, _, _) in mutations])
     large_dels = [
-        (gene, mut) for (gene, mut) in mutations if large_del_re.fullmatch(mut)
+        (gene, mut, minor)
+        for (gene, mut, minor) in mutations
+        if large_del_re.fullmatch(mut)
     ]
-    snps = [(gene, mut) for (gene, mut) in mutations if snp_re.fullmatch(mut)]
+    snps = [
+        (gene, mut, minor) for (gene, mut, minor) in mutations if snp_re.fullmatch(mut)
+    ]
     early_stop = [
-        (gene, mut) for (gene, mut) in mutations if early_stop_re.fullmatch(mut)
+        (gene, mut, minor)
+        for (gene, mut, minor) in mutations
+        if early_stop_re.fullmatch(mut)
     ]
-    indels = [(gene, mut) for (gene, mut) in mutations if indel_re.fullmatch(mut)]
+    indels = [
+        (gene, mut, minor)
+        for (gene, mut, minor) in mutations
+        if indel_re.fullmatch(mut)
+    ]
 
     new_mutations: list[tuple[str | None, str]] = []
     for multi in multis:
@@ -1063,6 +1075,7 @@ def subset_multis(
             # We need to be a bit more cleaver here to avoid combinatorics ruining things
             for mutation in multi.split("&"):
                 gene, mut = mutation.split("@")
+                rule_is_minor = ":" in mut
                 this_match = []
                 if gene not in existing_genes:
                     # Gene doesn't exist in this sample, so skip
@@ -1076,28 +1089,53 @@ def subset_multis(
                         else:
                             promoter = False
                         matched = False
-                        for g, m in snps:
-                            if g == gene:
+                        for g, m, minor in snps:
+                            if g == gene and (
+                                (minor is None and not rule_is_minor)
+                                or (minor is not None and rule_is_minor)
+                            ):
                                 if promoter and "-" in m:
                                     matched = True
-                                    this_match.append(g + "@" + m)
+                                    if minor is not None:
+                                        this_match.append(g + "@" + m + ":" + minor)
+                                    else:
+                                        this_match.append(g + "@" + m)
                                 elif not promoter and "-" not in m:
                                     matched = True
-                                    this_match.append(g + "@" + m)
+                                    if minor is not None:
+                                        this_match.append(g + "@" + m + ":" + minor)
+                                    else:
+                                        this_match.append(g + "@" + m)
                         check = check and matched
                     elif "!" in mutation:
                         matched = False
-                        for g, m in early_stop:
-                            if g == gene:
+                        for g, m, minor in early_stop:
+                            if g == gene and (
+                                (minor is None and not rule_is_minor)
+                                or (minor is not None and rule_is_minor)
+                            ):
                                 matched = True
-                                this_match.append(g + "@" + m)
+                                if minor is not None:
+                                    this_match.append(g + "@" + m + ":" + minor)
+                                else:
+                                    this_match.append(g + "@" + m)
                         check = check and matched
                     elif "=" in mutation:
                         matched = False
-                        for g, m in snps:
-                            if g == gene and m[0] == m[-1]:
+                        for g, m, minor in snps:
+                            if (
+                                g == gene
+                                and m[0] == m[-1]
+                                and (
+                                    (minor is None and not rule_is_minor)
+                                    or (minor is not None and rule_is_minor)
+                                )
+                            ):
                                 matched = True
-                                this_match.append(g + "@" + m)
+                                if minor is not None:
+                                    this_match.append(g + "@" + m + ":" + minor)
+                                else:
+                                    this_match.append(g + "@" + m)
                         check = check and matched
                     else:
                         # Wildcard indels never have associated numbers or bases (as that wouldn't make sense)
@@ -1113,19 +1151,28 @@ def subset_multis(
                                 searching = "ins"
                             else:
                                 searching = "del"
-                            for g, m in indels:
-                                if g == gene:
+                            for g, m, minor in indels:
+                                if g == gene and (
+                                    (minor is None and not rule_is_minor)
+                                    or (minor is not None and rule_is_minor)
+                                ):
                                     if promoter and "-" not in m:
                                         continue
                                     elif not promoter and "-" in m:
                                         continue
                                     if searching in m:
                                         matched = True
-                                        this_match.append(g + "@" + m)
+                                        if minor is not None:
+                                            this_match.append(g + "@" + m + ":" + minor)
+                                        else:
+                                            this_match.append(g + "@" + m)
                         elif "fs" in mutation:
                             # Bit more annoying here as we have to check if specific indels are framshifting
-                            for g, m in indels:
-                                if g == gene:
+                            for g, m, minor in indels:
+                                if g == gene and (
+                                    (minor is None and not rule_is_minor)
+                                    or (minor is not None and rule_is_minor)
+                                ):
                                     # Don't need to check for promoters here as promoter framshift doesn't make sense
                                     bases_in = m.split("_")[-1]
                                     if bases_in.isnumeric():
@@ -1135,29 +1182,54 @@ def subset_multis(
                                         bases = len(bases_in)
                                     if bases % 3 != 0:
                                         matched = True
-                                        this_match.append(g + "@" + m)
+                                        if minor is not None:
+                                            this_match.append(g + "@" + m + ":" + minor)
+                                        else:
+                                            this_match.append(g + "@" + m)
                         else:
                             # Only mixed left
-                            for g, m in indels:
-                                if g == gene:
+                            for g, m, minor in indels:
+                                if g == gene and (
+                                    (minor is None and not rule_is_minor)
+                                    or (minor is not None and rule_is_minor)
+                                ):
                                     if "mixed" in m:
                                         matched = True
-                                        this_match.append(g + "@" + m)
+                                        if minor is not None:
+                                            this_match.append(g + "@" + m + ":" + minor)
+                                        else:
+                                            this_match.append(g + "@" + m)
                         check = check and matched
 
                 elif "?" in mut:
                     # Specific wildcard SNP, so match on everything except the alt
                     mut = mut[:-1]
-                    for g, m in snps:
-                        if g == gene and m[:-1] == mut:
+                    for g, m, minor in snps:
+                        if (
+                            g == gene
+                            and m[:-1] == mut
+                            and (
+                                (minor is None and not rule_is_minor)
+                                or (minor is not None and rule_is_minor)
+                            )
+                        ):
                             check = check and True
-                            this_match.append(g + "@" + m)
+                            if minor is not None:
+                                this_match.append(g + "@" + m + ":" + minor)
+                            else:
+                                this_match.append(g + "@" + m)
 
                 elif large_del_re.fullmatch(mutation):
-                    for g, m in large_dels:
-                        if g == gene:
+                    for g, m, minor in large_dels:
+                        if g == gene and (
+                            (minor is None and not rule_is_minor)
+                            or (minor is not None and rule_is_minor)
+                        ):
                             check = check and True
-                            this_match.append(g + "@" + m)
+                            if minor is not None:
+                                this_match.append(g + "@" + m + ":" + minor)
+                            else:
+                                this_match.append(g + "@" + m)
                 else:
                     # Exact part, so check for it's existance
                     check = check and mutation in joined
