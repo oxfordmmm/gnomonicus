@@ -351,6 +351,14 @@ def getGenes(
     if resistanceCatalogue:
         if resistanceGenesOnly:
             resistanceGenes = set(resistanceCatalogue.catalogue.genes)
+            # Catch multi/epistasis rules which might not have specific instances
+            multis = set()
+            for _, rule in resistanceCatalogue.catalogue.rules.iterrows():
+                if rule["MUTATION_TYPE"] in ["MULTI", "EPISTASIS"]:
+                    mutations = rule["MUTATION"]
+                    for mut in mutations.split("&"):
+                        multis.add(mut.split("@")[0])
+            resistanceGenes = resistanceGenes.union(multis)
         else:
             resistanceGenes = set(sample.genes)
         # Find the genes which have mutations regardless of being in the catalogue
@@ -991,6 +999,276 @@ def minority_population_mutations(
     )
 
 
+def subset_multis(
+    multis: set[str],
+    mutations_: list[tuple[str | None, str]],
+    just_joined: bool = False,
+) -> list[tuple[str | None, str]]:
+    """Given a list of multis, combine existing mutations to match them
+
+    Args:
+        multis (set[str]): Set of multi mutations
+        mutations_ (list[tuple[str | None, str]]): mutations in
+        just_joined (bool, optional): Whether to return all mutations or just joined multis. Defaults to False
+
+    Returns:
+        list[tuple[str|None, str]]: Multi-mutations which should hit catalogue rules
+    """
+    mutations = [
+        (gene, mut, mut.split(":")[-1] if ":" in mut else None)
+        for (gene, mut) in mutations_
+        if gene
+        if not None
+    ]
+    joined = set([gene + "@" + mut for (gene, mut, _) in mutations])
+    large_del_re = re.compile(
+        r"""
+        .*del_[01]\.[0-9]+.*
+        """,
+        re.VERBOSE,
+    )
+    snp_re = re.compile(
+        r"""
+        [acgtxzA-Z!]-?[0-9]+[acgtxzA-Z!]
+    """,
+        re.VERBOSE,
+    )
+    early_stop_re = re.compile(
+        r"""
+        [A-Z!]-?[0-9]+!
+    """,
+        re.VERBOSE,
+    )
+    indel_re = re.compile(
+        r"""
+        -?[0-9]+_(ins|del|indel|mixed|fs)(_(([0-9]+)|([a-z]+)))?
+    """,
+        re.VERBOSE,
+    )
+
+    # Find these once so they aren't fetched on every iteration
+    existing_genes = set([gene for (gene, _, _) in mutations])
+    large_dels = [
+        (gene, mut, minor)
+        for (gene, mut, minor) in mutations
+        if large_del_re.fullmatch(mut)
+    ]
+    snps = [
+        (gene, mut, minor) for (gene, mut, minor) in mutations if snp_re.fullmatch(mut)
+    ]
+    early_stop = [
+        (gene, mut, minor)
+        for (gene, mut, minor) in mutations
+        if early_stop_re.fullmatch(mut)
+    ]
+    indels = [
+        (gene, mut, minor)
+        for (gene, mut, minor) in mutations
+        if indel_re.fullmatch(mut)
+    ]
+
+    new_mutations: list[tuple[str | None, str]] = []
+    for multi in multis:
+        multi_match = []
+        check = True
+        if "*" in multi or "?" in multi or large_del_re.fullmatch(multi):
+            # We need to be a bit more cleaver here to avoid combinatorics ruining things
+            for mutation in multi.split("&"):
+                gene, mut = mutation.split("@")
+                rule_is_minor = ":" in mut
+                this_match = []
+                if gene not in existing_genes:
+                    # Gene doesn't exist in this sample, so skip
+                    check = False
+                if "*" in mutation:
+                    # A few cases here, wildcard or early-stop SNP, ins, del, indel, fs
+                    if "?" in mutation:
+                        # Wildcard-non-synon SNP so match any SNP in this gene
+                        if "-" in mutation:
+                            promoter = True
+                        else:
+                            promoter = False
+                        matched = False
+                        for g, m, minor in snps:
+                            if g == gene and (
+                                (minor is None and not rule_is_minor)
+                                or (minor is not None and rule_is_minor)
+                            ):
+                                if promoter and "-" in m:
+                                    matched = True
+                                    if minor is not None:
+                                        this_match.append(g + "@" + m + ":" + minor)
+                                    else:
+                                        this_match.append(g + "@" + m)
+                                elif not promoter and "-" not in m:
+                                    matched = True
+                                    if minor is not None:
+                                        this_match.append(g + "@" + m + ":" + minor)
+                                    else:
+                                        this_match.append(g + "@" + m)
+                        check = check and matched
+                    elif "!" in mutation:
+                        matched = False
+                        for g, m, minor in early_stop:
+                            if g == gene and (
+                                (minor is None and not rule_is_minor)
+                                or (minor is not None and rule_is_minor)
+                            ):
+                                matched = True
+                                if minor is not None:
+                                    this_match.append(g + "@" + m + ":" + minor)
+                                else:
+                                    this_match.append(g + "@" + m)
+                        check = check and matched
+                    elif "=" in mutation:
+                        matched = False
+                        for g, m, minor in snps:
+                            if (
+                                g == gene
+                                and m[0] == m[-1]
+                                and (
+                                    (minor is None and not rule_is_minor)
+                                    or (minor is not None and rule_is_minor)
+                                )
+                            ):
+                                matched = True
+                                if minor is not None:
+                                    this_match.append(g + "@" + m + ":" + minor)
+                                else:
+                                    this_match.append(g + "@" + m)
+                        check = check and matched
+                    else:
+                        # Wildcard indels never have associated numbers or bases (as that wouldn't make sense)
+                        # So check for matches
+                        matched = False
+                        if "-" in mutation:
+                            promoter = True
+                        else:
+                            promoter = False
+
+                        if "ins" in mutation or "del" in mutation:
+                            if "ins" in mutation:
+                                searching = "ins"
+                            else:
+                                searching = "del"
+                            for g, m, minor in indels:
+                                if g == gene and (
+                                    (minor is None and not rule_is_minor)
+                                    or (minor is not None and rule_is_minor)
+                                ):
+                                    if promoter and "-" not in m:
+                                        continue
+                                    elif not promoter and "-" in m:
+                                        continue
+                                    if searching in m:
+                                        matched = True
+                                        if minor is not None:
+                                            this_match.append(g + "@" + m + ":" + minor)
+                                        else:
+                                            this_match.append(g + "@" + m)
+                        elif "fs" in mutation:
+                            # Bit more annoying here as we have to check if specific indels are framshifting
+                            for g, m, minor in indels:
+                                if g == gene and (
+                                    (minor is None and not rule_is_minor)
+                                    or (minor is not None and rule_is_minor)
+                                ):
+                                    # Don't need to check for promoters here as promoter framshift doesn't make sense
+                                    bases_in = m.split("_")[-1]
+                                    if bases_in.isnumeric():
+                                        # Number of bases rather than actual bases
+                                        bases = int(bases_in)
+                                    else:
+                                        bases = len(bases_in)
+                                    if bases % 3 != 0:
+                                        matched = True
+                                        if minor is not None:
+                                            this_match.append(g + "@" + m + ":" + minor)
+                                        else:
+                                            this_match.append(g + "@" + m)
+                        else:
+                            # Only mixed left
+                            for g, m, minor in indels:
+                                if g == gene and (
+                                    (minor is None and not rule_is_minor)
+                                    or (minor is not None and rule_is_minor)
+                                ):
+                                    if "mixed" in m:
+                                        matched = True
+                                        if minor is not None:
+                                            this_match.append(g + "@" + m + ":" + minor)
+                                        else:
+                                            this_match.append(g + "@" + m)
+                        check = check and matched
+
+                elif "?" in mut:
+                    # Specific wildcard SNP, so match on everything except the alt
+                    mut = mut[:-1]
+                    for g, m, minor in snps:
+                        if (
+                            g == gene
+                            and m[:-1] == mut
+                            and (
+                                (minor is None and not rule_is_minor)
+                                or (minor is not None and rule_is_minor)
+                            )
+                        ):
+                            check = check and True
+                            if minor is not None:
+                                this_match.append(g + "@" + m + ":" + minor)
+                            else:
+                                this_match.append(g + "@" + m)
+
+                elif large_del_re.fullmatch(mutation):
+                    for g, m, minor in large_dels:
+                        if g == gene and (
+                            (minor is None and not rule_is_minor)
+                            or (minor is not None and rule_is_minor)
+                        ):
+                            check = check and True
+                            if minor is not None:
+                                this_match.append(g + "@" + m + ":" + minor)
+                            else:
+                                this_match.append(g + "@" + m)
+                else:
+                    # Exact part, so check for it's existance
+                    check = check and mutation in joined
+                    if check:
+                        # Exists, so add it to this multi
+                        this_match.append(mutation)
+
+                if check:
+                    multi_match.append(this_match)
+                else:
+                    # Give up at first hurdle
+                    break
+            if check:
+                # Add all if valid
+                partials = multi_match[0]
+                for item in multi_match[1:]:
+                    these_partials = []
+                    for mutation in item:
+                        this_partial = []
+                        for p in partials:
+                            this_partial.append(p + "&" + mutation)
+                        these_partials += this_partial
+                    partials = these_partials
+
+                for p in partials:
+                    new_mutations.append((None, p))
+
+        else:
+            # Exact multi, so just check for existance
+            for mutation in multi.split("&"):
+                check = check and mutation in joined
+            if check:
+                # This exact multi mutation exists, so add it to the mutations list
+                new_mutations.append((None, multi))
+    if just_joined:
+        return new_mutations
+    return mutations_ + new_mutations
+
+
 def getMutations(
     mutations_df: pd.DataFrame,
     catalogue: piezo.ResistanceCatalogue,
@@ -1021,14 +1299,7 @@ def getMutations(
     )
     if len(multis) > 0:
         # We have a catalogue including multi rules, so check if any of these are present in the mutations
-        joined = [gene + "@" + mut for (gene, mut) in mutations if gene is not None]
-        for multi in multis:
-            check = True
-            for mutation in multi.split("&"):
-                check = check and mutation in joined
-            if check:
-                # This exact multi mutation exists, so add it to the mutations list
-                mutations.append((None, multi))
+        mutations = subset_multis(multis, mutations)
 
     # Check if the catalogue supports large deletions
     if "GENE" in set(catalogue.catalogue.rules["MUTATION_AFFECTS"]):
@@ -1044,8 +1315,8 @@ def getMutations(
             # Codes protein so check for nucleotide changes
             nucleotide = re.compile(
                 r"""
-                                [acgtzx][0-9]+[acgtzx]
-                                """,
+                [acgtzx][0-9]+[acgtzx]
+                """,
                 re.VERBOSE,
             )
             if nucleotide.fullmatch(mutation):
@@ -1057,8 +1328,8 @@ def getMutations(
             # Check if this is a large del
             large = re.compile(
                 r"""
-                                del_(1\.0)|(0\.[0-9][0-9]?[0-9]?)
-                                """,
+                del_(1\.0)|(0\.[0-9][0-9]?[0-9]?)
+                """,
                 re.VERBOSE,
             )
             if large.fullmatch(mutation):
@@ -1252,6 +1523,74 @@ def fasta_adjudication(
     )
 
 
+def epistasis(
+    mutations: list[tuple[str | None, str]],
+    resistanceCatalogue: piezo.ResistanceCatalogue,
+    phenotype: dict,
+    effects: dict,
+    effectsCounter: int,
+    vcfStem: str,
+) -> int:
+    """Add epistasis rules, overriding existing predictions as required
+
+    Args:
+        mutations (list[tuple[str | None, str]]): Sample's mutations. Items are tuples of (gene, mutation)
+        resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue to use
+        phenotype (dict): Dictionary of phenotypes
+        effects (dict): Dictionary of effects
+        effectsCounter (int): Position to add to effects dict
+        vcfStem (str): Stem of the VCF file. Used as the `uniqueid`
+
+    Returns:
+        int: Incremented effects counter
+
+    Implicit returns:
+        phenotypes: dict is updated in place
+        effects: dict is updated in place
+    """
+    epi_rules = set(
+        resistanceCatalogue.catalogue.rules[
+            resistanceCatalogue.catalogue.rules["MUTATION_TYPE"] == "EPISTASIS"
+        ]["MUTATION"]
+    )
+    if len(epi_rules) > 0:
+        # We have some epistasis rules so deal with them
+        mutations = subset_multis(epi_rules, mutations, just_joined=True)
+        seen_multis = set([effects[key][2] for key in effects.keys()])
+        for _, mutation in mutations:
+            prediction = resistanceCatalogue.predict(mutation, show_evidence=True)
+            if isinstance(prediction, str):
+                # prediction == "S" but mypy doesn't like that
+                # Default prediction so ignore (not that this should happen here)
+                continue
+            for drug in prediction.keys():
+                pred = prediction[drug]
+                if isinstance(pred, str):
+                    # Shouldn't be hit but mypy complains
+                    pred = pred
+                    evidence = None
+                else:
+                    pred, evidence = pred
+                if phenotype[drug] != "F":
+                    # F is the only value which overrides epistasis rules
+                    phenotype[drug] = pred
+                # Add to the dict if not already seen
+                # It's possible that this exact multi already hit an epistasis rule
+                if mutation not in seen_multis:
+                    effects[effectsCounter] = [
+                        vcfStem,
+                        None,
+                        mutation,
+                        resistanceCatalogue.catalogue.name,
+                        drug,
+                        pred,
+                        evidence,
+                    ]
+                    # Increment counter
+                    effectsCounter += 1
+    return effectsCounter
+
+
 def populateEffects(
     outputDir: str,
     resistanceCatalogue: piezo.ResistanceCatalogue,
@@ -1264,7 +1603,7 @@ def populateEffects(
     reference: gumpy.Genome | None = None,
     make_mutations_csv: bool = False,
     append: bool = False,
-) -> Tuple[pd.DataFrame, Dict, pd.DataFrame]:
+) -> Tuple[pd.DataFrame, Dict, pd.DataFrame] | None:
     """Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -1292,7 +1631,7 @@ def populateEffects(
     """
     if resistanceCatalogue is None:
         logging.debug("Catalogue was None, skipping effects and predictions generation")
-        return
+        return None
     # Assume wildtype behaviour unless otherwise specified
     phenotype = {drug: "S" for drug in resistanceCatalogue.catalogue.drugs}
 
@@ -1304,9 +1643,8 @@ def populateEffects(
 
     # only try and build an effects table if there are mutations
     if mutations is not None:
-        for gene, mutation in tqdm(
-            getMutations(mutations, resistanceCatalogue, referenceGenes)
-        ):
+        sample_mutations = getMutations(mutations, resistanceCatalogue, referenceGenes)
+        for gene, mutation in tqdm(sample_mutations):
             # Ensure its a valid mutation
             if gene is not None and not referenceGenes[gene].valid_variant(mutation):
                 logging.error(f"Not a valid mutation {gene}@{mutation}")
@@ -1349,6 +1687,16 @@ def populateEffects(
                     ]
                     # Increment counter
                     effectsCounter += 1
+
+        # Check for epistasis rules (which ignore prediction heirarchy)
+        effectsCounter = epistasis(
+            sample_mutations,
+            resistanceCatalogue,
+            phenotype,
+            effects,
+            effectsCounter,
+            vcfStem,
+        )
 
         if fasta is not None and reference is not None:
             # Implicitly uses `effects` and `pheotype` for returns
@@ -1448,10 +1796,7 @@ def populateEffects(
     # Return  the metadata dict to log later
     return (
         effects_df,
-        {
-            "WGS_PREDICTION_" + drug: phenotype[drug]
-            for drug in resistanceCatalogue.catalogue.drugs
-        },
+        {drug: phenotype[drug] for drug in resistanceCatalogue.catalogue.drugs},
         mutations,
     )
 
@@ -1460,6 +1805,7 @@ def saveJSON(
     variants,
     mutations,
     effects,
+    phenotypes,
     path: str,
     guid: str,
     catalogue: piezo.ResistanceCatalogue,
@@ -1545,7 +1891,6 @@ def saveJSON(
         catalogue_path (str): Path to the catalogue used for this run
         minor_errors (dict): Mapping of gene name --> stack trace of any errors occurring when parsing minor mutations
     """
-    values = catalogue.catalogue.values if catalogue is not None else list("RFUS")
     # Define some metadata for the json
     meta = {
         "status": "success",
@@ -1617,8 +1962,6 @@ def saveJSON(
     data["mutations"] = _mutations
 
     _effects = defaultdict(list)
-    antibiogram = {}
-    drugs = set()
     if effects is not None and len(effects) > 0:
         for _, effect in effects.iterrows():
             prediction = {
@@ -1633,23 +1976,11 @@ def saveJSON(
             }
             _effects[effect["drug"]].append(prediction)
 
-        # Get the overall predictions for each drug
-        for drug, predictions in _effects.items():
-            phenotype = "S"
-            for prediction in predictions:
-                # Use the prediction heierarchy to use most signifiant prediction
-                if values.index(prediction["prediction"]) < values.index(phenotype):
-                    # The prediction is closer to the start of the values list, so should take priority
-                    phenotype = prediction["prediction"]
-            _effects[drug].append({"phenotype": phenotype})
-            antibiogram[drug] = phenotype
-            drugs.add(drug)
+    for drug in _effects.keys():
+        _effects[drug].append({"phenotype": phenotypes[drug]})
+
     data["effects"] = _effects
-    if catalogue is not None:
-        for d in catalogue.catalogue.drugs:
-            if d not in drugs:
-                antibiogram[d] = "S"
-    data["antibiogram"] = antibiogram
+    data["antibiogram"] = phenotypes
 
     # Convert fields to a list so it can be json serialised
     with open(os.path.join(path, f"{guid}.gnomonicus-out.json"), "w") as f:
