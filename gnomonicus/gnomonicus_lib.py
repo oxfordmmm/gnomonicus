@@ -1559,11 +1559,18 @@ def epistasis(
         seen_multis = set([effects[key][2] for key in effects.keys()])
         for _, mutation in mutations:
             prediction = resistanceCatalogue.predict(mutation, show_evidence=True)
-            if isinstance(prediction, str) and prediction == "S":
+            if isinstance(prediction, str):
+                # prediction == "S" but mypy doesn't like that
                 # Default prediction so ignore (not that this should happen here)
                 continue
             for drug in prediction.keys():
-                pred, evidence = prediction[drug]
+                pred = prediction[drug]
+                if isinstance(pred, str):
+                    # Shouldn't be hit but mypy complains
+                    pred = pred
+                    evidence = None
+                else:
+                    pred, evidence = pred
                 if phenotype[drug] != "F":
                     # F is the only value which overrides epistasis rules
                     phenotype[drug] = pred
