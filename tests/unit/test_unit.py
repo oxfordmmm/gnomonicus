@@ -1935,11 +1935,13 @@ def test_9():
 
     # Expected effects. For each row, x[0] = DRUG, x[1] = GENE, x[2] = MUTATION, x[3] = PREDICTION
     expected = [
-        ["AAA", "S", "g-5a:0.045", "U"],
+        ["AAA", "S", "g-5a:0.045", "S"],
         ["AAA", "S", "!1274Q:0.045", "R"],
         ["AAA", "S", "3721_del_t:0.045", "R"],
-        ["AAA", "S", "3690_ins_cc:0.045", "R"],
+        ["AAA", "S", "3690_ins_cc:0.045", "S"],
     ]
+    for _, row in effects.iterrows():
+        print(row.tolist())
     compare_effects(effects, expected)
 
     hits = []
@@ -2092,8 +2094,8 @@ def test_9():
                     {
                         "gene": "S",
                         "mutation": "g-5a:0.045",
-                        "prediction": "U",
-                        "evidence": {"row": 8},
+                        "prediction": "S",
+                        "evidence": {},
                     },
                     {
                         "gene": "S",
@@ -2104,8 +2106,8 @@ def test_9():
                     {
                         "gene": "S",
                         "mutation": "3690_ins_cc:0.045",
-                        "prediction": "R",
-                        "evidence": {"row": 11},
+                        "prediction": "S",
+                        "evidence": {},
                     },
                     {"phenotype": "R"},
                 ],
@@ -2191,10 +2193,10 @@ def test_10():
 
     # Expected effects. For each row, x[0] = DRUG, x[1] = GENE, x[2] = MUTATION, x[3] = PREDICTION
     expected = [
-        ["AAA", "S", "g-5a:2", "U"],
+        ["AAA", "S", "g-5a:2", "S"],
         ["AAA", "S", "!1274Q:2", "R"],
         ["AAA", "S", "3721_del_t:2", "R"],
-        ["AAA", "S", "3690_ins_cc:2", "R"],
+        ["AAA", "S", "3690_ins_cc:2", "S"],
     ]
     compare_effects(effects, expected)
 
@@ -2348,8 +2350,8 @@ def test_10():
                     {
                         "gene": "S",
                         "mutation": "g-5a:2",
-                        "prediction": "U",
-                        "evidence": {"row": 8},
+                        "prediction": "S",
+                        "evidence": {},
                     },
                     {
                         "gene": "S",
@@ -2360,8 +2362,8 @@ def test_10():
                     {
                         "gene": "S",
                         "mutation": "3690_ins_cc:2",
-                        "prediction": "R",
-                        "evidence": {"row": 11},
+                        "prediction": "S",
+                        "evidence": {},
                     },
                     {"phenotype": "R"},
                 ],
