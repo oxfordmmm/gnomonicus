@@ -1920,16 +1920,18 @@ def saveJSON(
     data: Dict = OrderedDict()
 
     # Antibigram field
-    data["antibiogram"] = OrderedDict([(key, phenotypes[key]) for key in sorted(phenotypes.keys())])
+    data["antibiogram"] = OrderedDict(
+        [(key, phenotypes[key]) for key in sorted(phenotypes.keys())]
+    )
 
     # Variants field
     _variants = []
     for _, variant in variants.iterrows():
         row = OrderedDict(
             {
-                "variant": variant["variant"]
-                if pd.notnull(variant["variant"])
-                else None,
+                "variant": (
+                    variant["variant"] if pd.notnull(variant["variant"]) else None
+                ),
                 "nucleotide_index": (
                     variant["nucleotide_index"]
                     if pd.notnull(variant["nucleotide_index"])
@@ -1945,9 +1947,9 @@ def saveJSON(
                     variant["codon_idx"] if pd.notnull(variant["codon_idx"]) else None
                 ),
                 "vcf_evidence": json.loads(variant["vcf_evidence"]),
-                "vcf_idx": variant["vcf_idx"]
-                if pd.notnull(variant["vcf_idx"])
-                else None,
+                "vcf_idx": (
+                    variant["vcf_idx"] if pd.notnull(variant["vcf_idx"]) else None
+                ),
             }
         )
         _variants.append(row)
@@ -2014,10 +2016,14 @@ def saveJSON(
         )
         _effects[drug].append(OrderedDict({"phenotype": phenotypes[drug]}))
 
-    data["effects"] = OrderedDict([(key, _effects[key]) for key in sorted(_effects.keys())])
+    data["effects"] = OrderedDict(
+        [(key, _effects[key]) for key in sorted(_effects.keys())]
+    )
 
     # Convert fields to a list so it can be json serialised
-    with open(os.path.join(path, f"{guid}.gnomonicus-out.json"), "w", encoding="utf-8") as f:
+    with open(
+        os.path.join(path, f"{guid}.gnomonicus-out.json"), "w", encoding="utf-8"
+    ) as f:
         # Add errors (if any)
         if len(minor_errors) > 0:
             f.write(
