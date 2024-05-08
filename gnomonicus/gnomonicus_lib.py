@@ -1270,7 +1270,7 @@ def subset_multis(
 
 
 def getMutations(
-    mutations_df: pd.DataFrame,
+    mutations_df: pd.DataFrame | None,
     catalogue: piezo.ResistanceCatalogue,
     referenceGenes: Dict,
 ) -> List[Tuple[str | None, str]]:
@@ -1286,6 +1286,8 @@ def getMutations(
     Returns:
         List[Tuple[str | None, str]]: List of [gene, mutation] or in the case of multi-mutations, [None, multi-mutation]
     """
+    if mutations_df is None:
+        return []
     mutations: List[Tuple[str | None, str]] = list(
         zip(mutations_df["gene"], mutations_df["mutation"])
     )
@@ -1642,128 +1644,130 @@ def populateEffects(
     values = resistanceCatalogue.catalogue.values
 
     # only try and build an effects table if there are mutations
-    if mutations is not None:
-        sample_mutations = getMutations(mutations, resistanceCatalogue, referenceGenes)
-        for gene, mutation in tqdm(sample_mutations):
-            # Ensure its a valid mutation
-            if gene is not None and not referenceGenes[gene].valid_variant(mutation):
-                logging.error(f"Not a valid mutation {gene}@{mutation}")
-                raise InvalidMutationException(gene, mutation)
+    sample_mutations = getMutations(mutations, resistanceCatalogue, referenceGenes)
+    for gene, mutation in tqdm(sample_mutations):
+        # Ensure its a valid mutation
+        if gene is not None and not referenceGenes[gene].valid_variant(mutation):
+            logging.error(f"Not a valid mutation {gene}@{mutation}")
+            raise InvalidMutationException(gene, mutation)
 
-            # Get the prediction
-            if gene is not None:
-                prediction = resistanceCatalogue.predict(
-                    gene + "@" + mutation, show_evidence=True
-                )
-            else:
-                # This is a multi-mutation so is already of required format
-                prediction = resistanceCatalogue.predict(mutation, show_evidence=True)
+        # Get the prediction
+        if gene is not None:
+            prediction = resistanceCatalogue.predict(
+                gene + "@" + mutation, show_evidence=True
+            )
+        else:
+            # This is a multi-mutation so is already of required format
+            prediction = resistanceCatalogue.predict(mutation, show_evidence=True)
 
-            # If the prediction is interesting, iter through drugs to find predictions
-            if prediction != "S" and not isinstance(prediction, str):
-                for drug in prediction.keys():
-                    drug_pred = prediction[drug]
-                    if isinstance(drug_pred, str):
-                        # This shouldn't happen because we're showing evidence
-                        # Adding to appease mypy...
-                        pred: str = drug_pred
-                        evidence: Dict = {}
-                    else:
-                        pred, evidence = drug_pred
-                    # Prioritise values based on order within the values list
-                    if values.index(pred) < values.index(phenotype[drug]):
-                        # The prediction is closer to the start of the values list, so should take priority
-                        phenotype[drug] = pred
+        # If the prediction is interesting, iter through drugs to find predictions
+        if prediction != "S" and not isinstance(prediction, str):
+            for drug in prediction.keys():
+                drug_pred = prediction[drug]
+                if isinstance(drug_pred, str):
+                    # This shouldn't happen because we're showing evidence
+                    # Adding to appease mypy...
+                    pred: str = drug_pred
+                    evidence: Dict = {}
+                else:
+                    pred, evidence = drug_pred
+                # Prioritise values based on order within the values list
+                if values.index(pred) < values.index(phenotype[drug]):
+                    # The prediction is closer to the start of the values list, so should take priority
+                    phenotype[drug] = pred
 
-                    # Add to the dict
-                    effects[effectsCounter] = [
-                        vcfStem,
-                        gene,
-                        mutation,
-                        resistanceCatalogue.catalogue.name,
-                        drug,
-                        pred,
-                        evidence,
-                    ]
-                    # Increment counter
-                    effectsCounter += 1
+                # Add to the dict
+                effects[effectsCounter] = [
+                    vcfStem,
+                    gene,
+                    mutation,
+                    resistanceCatalogue.catalogue.name,
+                    drug,
+                    pred,
+                    evidence,
+                ]
+                # Increment counter
+                effectsCounter += 1
 
-        # Check for epistasis rules (which ignore prediction heirarchy)
-        effectsCounter = epistasis(
-            sample_mutations,
-            resistanceCatalogue,
-            phenotype,
+    # Check for epistasis rules (which ignore prediction heirarchy)
+    effectsCounter = epistasis(
+        sample_mutations,
+        resistanceCatalogue,
+        phenotype,
+        effects,
+        effectsCounter,
+        vcfStem,
+    )
+
+    if fasta is not None and reference is not None:
+        # Implicitly uses `effects` and `pheotype` for returns
+        new_mutations = fasta_adjudication(
+            vcfStem,
+            fasta,
             effects,
             effectsCounter,
-            vcfStem,
+            resistanceCatalogue,
+            referenceGenes,
+            reference,
+            phenotype,
         )
-
-        if fasta is not None and reference is not None:
-            # Implicitly uses `effects` and `pheotype` for returns
-            new_mutations = fasta_adjudication(
-                vcfStem,
-                fasta,
-                effects,
-                effectsCounter,
-                resistanceCatalogue,
-                referenceGenes,
-                reference,
-                phenotype,
-            )
+        if mutations is not None:
             mutations = pd.concat([mutations, new_mutations])
-            mutations.reset_index(inplace=True)
-            if make_mutations_csv:
-                write_mutations_csv(
-                    mutations,
-                    os.path.join(outputDir, f"{vcfStem}.mutations.csv"),
-                    filter=False,
-                )
-
-        # Build the DataFrame
-        effects_df = pd.DataFrame.from_dict(
-            effects,
-            orient="index",
-            columns=[
-                "uniqueid",
-                "gene",
-                "mutation",
-                "catalogue_name",
-                "drug",
-                "prediction",
-                "evidence",
-            ],
-        )
-        effects_df = effects_df[
-            [
-                "uniqueid",
-                "gene",
-                "mutation",
-                "drug",
-                "prediction",
-                "catalogue_name",
-                "evidence",
-            ]
-        ]
-        effects_df["catalogue_version"] = resistanceCatalogue.catalogue.version
-        effects_df["prediction_values"] = "".join(resistanceCatalogue.catalogue.values)
-
-        # Save as CSV
-        if len(effects) > 0 and make_csv:
-            if append:
-                # Check to see if there's anything there already
-                try:
-                    old_effects = pd.read_csv(
-                        os.path.join(outputDir, f"{vcfStem}.effects.csv")
-                    )
-                    effects_df = pd.concat([old_effects, effects_df])
-                except FileNotFoundError:
-                    pass
-
-            effects_df.to_csv(
-                os.path.join(outputDir, f"{vcfStem}.effects.csv"), index=False
+        else:
+            mutations = new_mutations
+        mutations.reset_index(inplace=True)
+        if make_mutations_csv:
+            write_mutations_csv(
+                mutations,
+                os.path.join(outputDir, f"{vcfStem}.mutations.csv"),
+                filter=False,
             )
 
-        effects_df.reset_index(inplace=True)
+    # Build the DataFrame
+    effects_df = pd.DataFrame.from_dict(
+        effects,
+        orient="index",
+        columns=[
+            "uniqueid",
+            "gene",
+            "mutation",
+            "catalogue_name",
+            "drug",
+            "prediction",
+            "evidence",
+        ],
+    )
+    effects_df = effects_df[
+        [
+            "uniqueid",
+            "gene",
+            "mutation",
+            "drug",
+            "prediction",
+            "catalogue_name",
+            "evidence",
+        ]
+    ]
+    effects_df["catalogue_version"] = resistanceCatalogue.catalogue.version
+    effects_df["prediction_values"] = "".join(resistanceCatalogue.catalogue.values)
+
+    # Save as CSV
+    if len(effects) > 0 and make_csv:
+        if append:
+            # Check to see if there's anything there already
+            try:
+                old_effects = pd.read_csv(
+                    os.path.join(outputDir, f"{vcfStem}.effects.csv")
+                )
+                effects_df = pd.concat([old_effects, effects_df])
+            except FileNotFoundError:
+                pass
+
+        effects_df.to_csv(
+            os.path.join(outputDir, f"{vcfStem}.effects.csv"), index=False
+        )
+
+    effects_df.reset_index(inplace=True)
 
     if make_prediction_csv:
         # We need to construct a simple table here
