@@ -16,7 +16,7 @@ import re
 import traceback
 import warnings
 import io
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from typing import Dict, List, Tuple
 
 import gumpy
@@ -1805,7 +1805,7 @@ def saveJSON(
     variants,
     mutations,
     effects,
-    phenotypes,
+    phenotypes: dict[str, str],
     path: str,
     guid: str,
     catalogue: piezo.ResistanceCatalogue,
@@ -1892,19 +1892,21 @@ def saveJSON(
         minor_errors (dict): Mapping of gene name --> stack trace of any errors occurring when parsing minor mutations
     """
     # Define some metadata for the json
-    meta = {
-        "status": "success",
-        "workflow_name": "gnomonicus",
-        "workflow_version": gnomonicusVersion,  # gnomonicus version used
-        "workflow_task": "resistance_prediction",  # TODO: Update this when we know how to detect a virulence catalogue
-        "guid": guid,  # Sample GUID
-        "UTC-datetime-completed": datetime.datetime.utcnow().isoformat(),  # ISO datetime run
-        "time_taken_s": time_taken,
-        "reference": reference.name,
-        "catalogue_file": catalogue_path,
-        "reference_file": reference_path,
-        "vcf_file": vcf_path,
-    }
+    meta = OrderedDict(
+        {
+            "status": "success",
+            "workflow_name": "gnomonicus",
+            "workflow_version": gnomonicusVersion,  # gnomonicus version used
+            "workflow_task": "resistance_prediction",  # TODO: Update this when we know how to detect a virulence catalogue
+            "guid": guid,  # Sample GUID
+            "UTC-datetime-completed": datetime.datetime.utcnow().isoformat(),  # ISO datetime run
+            "time_taken_s": time_taken,
+            "reference": reference.name,
+            "catalogue_file": catalogue_path,
+            "reference_file": reference_path,
+            "vcf_file": vcf_path,
+        }
+    )
     if catalogue is not None:
         meta["catalogue_type"] = "".join(catalogue.catalogue.values)
         meta["catalogue_name"] = catalogue.catalogue.name
@@ -1913,82 +1915,121 @@ def saveJSON(
         meta["catalogue_type"] = None
         meta["catalogue_name"] = None
         meta["catalogue_version"] = None
-    data: Dict = {}
+
+    # Main data collection
+    data: Dict = OrderedDict()
+
+    # Antibigram field
+    data["antibiogram"] = OrderedDict(
+        [(key, phenotypes[key]) for key in sorted(phenotypes.keys())]
+    )
+
     # Variants field
     _variants = []
     for _, variant in variants.iterrows():
-        row = {
-            "variant": variant["variant"] if pd.notnull(variant["variant"]) else None,
-            "nucleotide_index": (
-                variant["nucleotide_index"]
-                if pd.notnull(variant["nucleotide_index"])
-                else None
-            ),
-            "gene_name": variant["gene"] if pd.notnull(variant["gene"]) else None,
-            "gene_position": (
-                variant["gene_position"]
-                if pd.notnull(variant["gene_position"])
-                else None
-            ),
-            "codon_idx": (
-                variant["codon_idx"] if pd.notnull(variant["codon_idx"]) else None
-            ),
-            "vcf_evidence": json.loads(variant["vcf_evidence"]),
-            "vcf_idx": variant["vcf_idx"] if pd.notnull(variant["vcf_idx"]) else None,
-        }
+        row = OrderedDict(
+            {
+                "variant": (
+                    variant["variant"] if pd.notnull(variant["variant"]) else None
+                ),
+                "nucleotide_index": (
+                    variant["nucleotide_index"]
+                    if pd.notnull(variant["nucleotide_index"])
+                    else None
+                ),
+                "gene_name": variant["gene"] if pd.notnull(variant["gene"]) else None,
+                "gene_position": (
+                    variant["gene_position"]
+                    if pd.notnull(variant["gene_position"])
+                    else None
+                ),
+                "codon_idx": (
+                    variant["codon_idx"] if pd.notnull(variant["codon_idx"]) else None
+                ),
+                "vcf_evidence": json.loads(variant["vcf_evidence"]),
+                "vcf_idx": (
+                    variant["vcf_idx"] if pd.notnull(variant["vcf_idx"]) else None
+                ),
+            }
+        )
         _variants.append(row)
+    _variants = sorted(
+        _variants,
+        key=lambda x: x["variant"],
+    )
     data["variants"] = _variants
 
     # Depending on mutations/effects, populate
     _mutations = []
     if mutations is not None:
         for _, mutation in mutations.iterrows():
-            row = {
-                "mutation": (
-                    mutation["mutation"] if pd.notnull(mutation["mutation"]) else None
-                ),
-                "gene": mutation["gene"] if pd.notnull(mutation["gene"]) else None,
-                "gene_position": (
-                    mutation["gene_position"]
-                    if pd.notnull(mutation["gene_position"])
-                    else None
-                ),
-            }
+            row = OrderedDict(
+                {
+                    "gene": mutation["gene"] if pd.notnull(mutation["gene"]) else None,
+                    "gene_position": (
+                        mutation["gene_position"]
+                        if pd.notnull(mutation["gene_position"])
+                        else None
+                    ),
+                    "mutation": (
+                        mutation["mutation"]
+                        if pd.notnull(mutation["mutation"])
+                        else None
+                    ),
+                }
+            )
             if mutation["mutation"][0].isupper() or mutation["mutation"][0] == "!":
                 # Only add codon ref/alt for AA changes
                 row["ref"] = mutation["ref"] if pd.notnull(mutation["ref"]) else None
                 row["alt"] = mutation["alt"] if pd.notnull(mutation["alt"]) else None
             _mutations.append(row)
+
+    _mutations = sorted(
+        _mutations,
+        key=lambda x: (x["gene"] or "z", x["gene_position"] or 0),
+    )
     data["mutations"] = _mutations
 
     _effects = defaultdict(list)
     if effects is not None and len(effects) > 0:
         for _, effect in effects.iterrows():
-            prediction = {
-                "gene": effect["gene"] if pd.notnull(effect["gene"]) else None,
-                "mutation": (
-                    effect["mutation"] if pd.notnull(effect["mutation"]) else None
-                ),
-                "prediction": (
-                    effect["prediction"] if pd.notnull(effect["prediction"]) else None
-                ),
-                "evidence": effect["evidence"],
-            }
+            prediction = OrderedDict(
+                {
+                    "gene": effect["gene"] if pd.notnull(effect["gene"]) else None,
+                    "mutation": (
+                        effect["mutation"] if pd.notnull(effect["mutation"]) else None
+                    ),
+                    "prediction": (
+                        effect["prediction"]
+                        if pd.notnull(effect["prediction"])
+                        else None
+                    ),
+                    "evidence": effect["evidence"],
+                }
+            )
             _effects[effect["drug"]].append(prediction)
 
     for drug in _effects.keys():
-        _effects[drug].append({"phenotype": phenotypes[drug]})
+        _effects[drug] = sorted(
+            _effects[drug],
+            key=lambda x: (x["gene"] or "z", x["mutation"] or "z"),
+        )
+        _effects[drug].append(OrderedDict({"phenotype": phenotypes[drug]}))
 
-    data["effects"] = _effects
-    data["antibiogram"] = phenotypes
+    data["effects"] = OrderedDict(
+        [(key, _effects[key]) for key in sorted(_effects.keys())]
+    )
 
     # Convert fields to a list so it can be json serialised
-    with open(os.path.join(path, f"{guid}.gnomonicus-out.json"), "w") as f:
+    with open(
+        os.path.join(path, f"{guid}.gnomonicus-out.json"), "w", encoding="utf-8"
+    ) as f:
         # Add errors (if any)
         if len(minor_errors) > 0:
             f.write(
                 json.dumps(
-                    {"meta": meta, "data": data, "errors": minor_errors}, indent=2
+                    {"meta": meta, "data": data, "errors": minor_errors},
+                    indent=2,
                 )
             )
         else:
