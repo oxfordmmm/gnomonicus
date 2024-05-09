@@ -7,4 +7,4 @@ RUN apt update && apt install -y git python3 python3-pip s3fs
 # RUN git clone https://github.com/oxfordmmm/gnomonicus && cd gnomonicus && pip install .
 
 #Install gnomonicus from pypi
-RUN pip install --upgrade gnomonicus
+RUN pip install --upgrade gnomonicus --break-system-packages
