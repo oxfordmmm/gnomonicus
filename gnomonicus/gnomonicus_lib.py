@@ -1349,6 +1349,7 @@ def fasta_adjudication(
     referenceGenes: Dict[str, gumpy.Gene],
     reference: gumpy.Genome,
     phenotype: Dict[str, str],
+    sample_genome: gumpy.Genome,
 ) -> pd.DataFrame:
     """Use `null` rules from the catalogue to check against positions in the fasta file - applying the rules if the fasta file gives an `N` for these bases
 
@@ -1361,6 +1362,7 @@ def fasta_adjudication(
         referenceGenes (Dict[str, gumpy.Gene]): Dictionary mapping gene name --> reference Gene object
         reference (gumpy.Genome): Reference genome object. Used to build extra genes on the fly (if required)
         phenotype (Dict[str, str]): Phenotype
+        sample_genome: Genome object for the sample. Used to check if an N in the FASTA denotes a deletion
     Returns:
         pd.DataFrame: Dataframe of new mutations introduced by this. This should allow writing them to the JSON
     """
@@ -1396,7 +1398,12 @@ def fasta_adjudication(
                 pos = g.nucleotide_index[g.nucleotide_number == int(rule["POSITION"])][
                     0
                 ]
-                if fasta[pos - 1] == "N":
+                if (
+                    fasta[pos - 1] == "N"
+                    and not sample_genome.is_deleted[
+                        sample_genome.nucleotide_index == pos
+                    ]
+                ):
                     # FASTA matches this rule
                     p = int(rule["MUTATION"][1:-1])
                     this_e = [
@@ -1446,7 +1453,18 @@ def fasta_adjudication(
                     g.codon_number == int(rule["POSITION"])
                 ]
                 adjusted_positions = [x - 1 for x in positions]
-                if "N" in [fasta[p] for p in adjusted_positions]:
+                is_null_call = False
+                for idx, (base, deleted) in enumerate(zip(
+                    [fasta[p] for p in adjusted_positions],
+                    sample_genome.is_deleted[
+                        adjusted_positions
+                    ],
+                )):
+                    if base == "N" and not deleted:
+                        # Check on a base-by-base basis as we only want Fs in cases of not deleted
+                        # and a codon could include deleted bases and null calls
+                        is_null_call = True
+                if is_null_call:
                     # There is >= 1 N in this codon so add to mutations
                     pos = int(rule["MUTATION"][1:-1])
                     r = "".join(
@@ -1480,7 +1498,7 @@ def fasta_adjudication(
                         seen_mutations.add((rule["GENE"], rule["MUTATION"]))
 
                 for pos in positions:
-                    if fasta[pos - 1] == "N":
+                    if fasta[pos - 1] == "N" and not sample_genome.is_deleted[pos - 1]:
                         # FASTA matches this rule
                         this_e = [
                             vcfStem,
@@ -1603,6 +1621,7 @@ def populateEffects(
     make_prediction_csv: bool,
     fasta: str | None = None,
     reference: gumpy.Genome | None = None,
+    sample_genome: gumpy.Genome | None = None,
     make_mutations_csv: bool = False,
     append: bool = False,
 ) -> Tuple[pd.DataFrame, Dict, pd.DataFrame] | None:
@@ -1618,6 +1637,7 @@ def populateEffects(
         make_prediction_csv (bool): Whether to write the CSV of the antibiogram
         fasta (str | None, optional): Path to a FASTA if given. Defaults to None.
         reference (gumpy.Genome | None, optional): Reference genome. Defaults to None.
+        sample_genome (gumpy.Genome | None, optional): Sample's genome. Defaults to None.
         make_mutations_csv (bool, optional): Whether to write the mutations CSV to disk with new mutations. Defaults to False.
         append (bool, optional): Whether to append data to an existing df at the location (if existing).
 
@@ -1699,7 +1719,7 @@ def populateEffects(
         vcfStem,
     )
 
-    if fasta is not None and reference is not None:
+    if fasta is not None and reference is not None and sample_genome is not None:
         # Implicitly uses `effects` and `pheotype` for returns
         new_mutations = fasta_adjudication(
             vcfStem,
@@ -1710,6 +1730,7 @@ def populateEffects(
             referenceGenes,
             reference,
             phenotype,
+            sample_genome,
         )
         if mutations is not None:
             mutations = pd.concat([mutations, new_mutations])
@@ -1720,7 +1741,7 @@ def populateEffects(
             write_mutations_csv(
                 mutations,
                 os.path.join(outputDir, f"{vcfStem}.mutations.csv"),
-                filter=False,
+                filter=True,
             )
 
     # Build the DataFrame

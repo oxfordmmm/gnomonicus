@@ -671,9 +671,9 @@ def test_3():
     """Input:
         NC_045512.2-S_F2F-minos.vcf
     Expect output:
-        variants:    21568t>c
-        mutations:   S@F2F
-        predictions: {'AAA': 'S', 'BBB': 'S'}
+        variants:    21568t>c, 21763_del_t
+        mutations:   S@F2F, S@201_del_t
+        predictions: {'AAA': 'U', 'BBB': 'S'}
     """
     # Setup
     setupOutput("3")
@@ -705,17 +705,27 @@ def test_3():
 
     # Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
-    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    mutations_csv = pd.read_csv(path + f"{vcfStem}.mutations.csv")
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
     predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
     assert variants["variant"][0] == "21568t>c"
+    assert variants["variant"][1] == "21763_del_t"
 
-    assert mutations["gene"][0] == "S"
-    assert mutations["mutation"][0] == "F2F"
+
+        # Sort the mutations for comparing
+    mutations_ = sorted(
+        list(zip(mutations_csv["gene"], mutations_csv["mutation"])),
+        key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
+    )
+    assert mutations_ == sorted(
+        [
+            ("S", "201_del_t"),
+            ("S", "F2F"),
+        ]
+    )
 
     assert "AAA" in effects["drug"].to_list()
-    assert effects["prediction"][effects["drug"].to_list().index("AAA")] == "S"
 
     hits = []
     for _, row in predictions.iterrows():
@@ -724,7 +734,7 @@ def test_3():
         assert row["catalogue_values"] == "RFUS"
         if row["drug"] == "AAA":
             hits.append("AAA")
-            assert row["prediction"] == "S"
+            assert row["prediction"] == "U"
         elif row["drug"] == "BBB":
             hits.append("BBB")
             assert row["prediction"] == "S"
@@ -734,7 +744,7 @@ def test_3():
 
     gnomonicus.saveJSON(
         variants,
-        mutations_,
+        mutations_csv,
         e,
         phenotypes,
         path,
@@ -782,6 +792,26 @@ def test_3():
                         "ALTS": ["c"],
                     },
                     "vcf_idx": 1,
+                },
+                {
+                    "variant": "21763_del_t",
+                    "nucleotide_index": 21763,
+                    "gene_name": "S",
+                    "gene_position": 201,
+                    "codon_idx": 2,
+                    "vcf_evidence": {
+                        "GT": [1, 1],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [0, 44],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 21762,
+                        "REF": "ct",
+                        "ALTS": ["c"],
+                    },
+                    "vcf_idx": 1,
                 }
             ],
             "mutations": [
@@ -792,7 +822,7 @@ def test_3():
                     "ref": "ttt",
                     "alt": "ttc",
                 },
-                {"mutation": "t6c", "gene": "S", "gene_position": 6},
+                {"mutation": "201_del_t", "gene": "S", "gene_position": 201},
             ],
             "effects": {
                 "AAA": [
@@ -802,10 +832,16 @@ def test_3():
                         "prediction": "S",
                         "evidence": {"row": 6},
                     },
-                    {"phenotype": "S"},
+                    {
+                        "gene": "S",
+                        "mutation": "201_del_t",
+                        "prediction": "U",
+                        "evidence": {"row": 23},
+                    },
+                    {"phenotype": "U"},
                 ],
             },
-            "antibiogram": {"AAA": "S", "BBB": "S"},
+            "antibiogram": {"AAA": "U", "BBB": "S"},
         },
     }
 
@@ -824,8 +860,8 @@ def test_3_fasta_adjudicated():
     """Input:
         NC_045512.2-S_F2F-minos.vcf
     Expect output:
-        variants:    21568t>c (FASTA calling this N)
-        mutations:   S@F2F
+        variants:    21568t>c (FASTA calling this N), 21763_del_t
+        mutations:   S@F2F, S@201_del_t
         predictions: {'AAA': 'F', 'BBB': 'S'}
     """
     # Setup
@@ -860,8 +896,9 @@ def test_3_fasta_adjudicated():
         vcfStem,
         True,
         True,
-        fasta="tests/test-cases/NC_045512.2.all_n.fasta",
+        fasta="tests/test-cases/NC_045512.2.mostly_n.fasta",
         reference=reference,
+        sample_genome=sample,
         make_mutations_csv=True,
     )
 
@@ -872,6 +909,7 @@ def test_3_fasta_adjudicated():
     predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
     assert variants["variant"][0] == "21568t>c"
+    assert variants["variant"][1] == "21763_del_t"
 
     # Sort the mutations for comparing
     mutations_ = sorted(
@@ -880,10 +918,10 @@ def test_3_fasta_adjudicated():
     )
     assert mutations_ == sorted(
         [
+            ("S", "201_del_t"),
             ("S", "F2F"),
             ("S", "F2X"),
             ("S", "E484X"),
-            ("S", "t6c"),
         ]
     )
 
@@ -906,7 +944,7 @@ def test_3_fasta_adjudicated():
 
     gnomonicus.saveJSON(
         variants,
-        mutations,
+        mutations_csv,
         e,
         phenotypes,
         path,
@@ -954,9 +992,30 @@ def test_3_fasta_adjudicated():
                         "ALTS": ["c"],
                     },
                     "vcf_idx": 1,
+                },
+                {
+                    "variant": "21763_del_t",
+                    "nucleotide_index": 21763,
+                    "gene_name": "S",
+                    "gene_position": 201,
+                    "codon_idx": 2,
+                    "vcf_evidence": {
+                        "GT": [1, 1],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [0, 44],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 21762,
+                        "REF": "ct",
+                        "ALTS": ["c"],
+                    },
+                    "vcf_idx": 1,
                 }
             ],
             "mutations": [
+                {"mutation": "201_del_t", "gene": "S", "gene_position": 201},
                 {
                     "mutation": "F2F",
                     "gene": "S",
@@ -978,7 +1037,6 @@ def test_3_fasta_adjudicated():
                     "ref": "gaa",
                     "alt": "xxx",
                 },
-                {"mutation": "t6c", "gene": "S", "gene_position": 6},
             ],
             "effects": {
                 "AAA": [
@@ -999,6 +1057,12 @@ def test_3_fasta_adjudicated():
                         "mutation": "E484X",
                         "prediction": "F",
                         "evidence": {"row": 2, "FASTA called": "N"},
+                    },
+                    {
+                        "gene": "S",
+                        "mutation": "201_del_t",
+                        "prediction": "U",
+                        "evidence": {"row": 23},
                     },
                     {"phenotype": "F"},
                 ],
@@ -1940,8 +2004,6 @@ def test_9():
         ["AAA", "S", "3721_del_t:0.045", "R"],
         ["AAA", "S", "3690_ins_cc:0.045", "S"],
     ]
-    for _, row in effects.iterrows():
-        print(row.tolist())
     compare_effects(effects, expected)
 
     hits = []
@@ -2603,7 +2665,7 @@ def test_12():
     Input:
         NC_045512.2-epistasis.vcf
     Expect output:
-        variants:    23012g>a, 23012_ins_a, 21762_del_t
+        variants:    23012g>a, 23012_ins_a, 21763_del_t
         mutations:   S@E484K, S@1450_ins_a, S@201_del_t, S@1450_ins_a&S@E484K, S@201_del_t&S@E484K
         predictions: {'AAA': 'S', 'BBB': 'R'}
     """
