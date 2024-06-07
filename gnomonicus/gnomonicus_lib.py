@@ -1454,12 +1454,12 @@ def fasta_adjudication(
                 ]
                 adjusted_positions = [x - 1 for x in positions]
                 is_null_call = False
-                for idx, (base, deleted) in enumerate(zip(
-                    [fasta[p] for p in adjusted_positions],
-                    sample_genome.is_deleted[
-                        adjusted_positions
-                    ],
-                )):
+                for idx, (base, deleted) in enumerate(
+                    zip(
+                        [fasta[p] for p in adjusted_positions],
+                        sample_genome.is_deleted[adjusted_positions],
+                    )
+                ):
                     if base == "N" and not deleted:
                         # Check on a base-by-base basis as we only want Fs in cases of not deleted
                         # and a codon could include deleted bases and null calls

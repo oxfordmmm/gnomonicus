@@ -712,8 +712,7 @@ def test_3():
     assert variants["variant"][0] == "21568t>c"
     assert variants["variant"][1] == "21763_del_t"
 
-
-        # Sort the mutations for comparing
+    # Sort the mutations for comparing
     mutations_ = sorted(
         list(zip(mutations_csv["gene"], mutations_csv["mutation"])),
         key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
@@ -812,7 +811,7 @@ def test_3():
                         "ALTS": ["c"],
                     },
                     "vcf_idx": 1,
-                }
+                },
             ],
             "mutations": [
                 {
@@ -1012,7 +1011,7 @@ def test_3_fasta_adjudicated():
                         "ALTS": ["c"],
                     },
                     "vcf_idx": 1,
-                }
+                },
             ],
             "mutations": [
                 {"mutation": "201_del_t", "gene": "S", "gene_position": 201},
