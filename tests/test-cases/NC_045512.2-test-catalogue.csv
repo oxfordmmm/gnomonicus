@@ -21,3 +21,6 @@ NC_045512.2,gnomonicus_test,v1.0,GARC1,RFUS,BBB,ORF7b@-*_indel,U,{},{"row": 18},
 NC_045512.2,gnomonicus_test,v1.0,GARC1,RFUS,AAA,S@3721_del_t:0.02,R,{},{"row": 19},{}
 NC_045512.2,gnomonicus_test,v1.0,GARC1,RFUS,AAA,S@!1274Q:0.02,R,{},{"row": 20},{}
 NC_045512.2,gnomonicus_test,v1.0,GARC1,RFUS,AAA,S@F2X,F,{},{"row": 21},{}
+NC_045512.2,gnomonicus_test,v1.0,GARC1,RFUS,AAA,S@A67X,F,{},{"row": 22},{}
+NC_045512.2,gnomonicus_test,v1.0,GARC1,RFUS,AAA,S@201_del_t,U,{},{"row": 23},{}
+
