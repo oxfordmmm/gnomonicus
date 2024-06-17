@@ -1418,7 +1418,13 @@ def fasta_adjudication(
                     if str(this_e) in seen:
                         # Avoid duplicate entries
                         continue
-                    print(rule["GENE"], rule["MUTATION"], fasta[pos - 1], sample_genome.is_deleted[pos - 1], sample_genome.nucleotide_index[pos-1])
+                    print(
+                        rule["GENE"],
+                        rule["MUTATION"],
+                        fasta[pos - 1],
+                        sample_genome.is_deleted[pos - 1],
+                        sample_genome.nucleotide_index[pos - 1],
+                    )
                     effects[effectsCounter] = this_e
                     seen.add(str(this_e))
                     if (rule["GENE"], rule["MUTATION"]) not in seen_mutations:
@@ -1513,7 +1519,13 @@ def fasta_adjudication(
                         if str(this_e) in seen:
                             # Avoid duplicate entries
                             continue
-                        print(rule["GENE"], rule["MUTATION"], fasta[pos - 1], sample_genome.is_deleted[pos - 1], sample_genome.nucleotide_index[pos-1])
+                        print(
+                            rule["GENE"],
+                            rule["MUTATION"],
+                            fasta[pos - 1],
+                            sample_genome.is_deleted[pos - 1],
+                            sample_genome.nucleotide_index[pos - 1],
+                        )
                         effects[effectsCounter] = this_e
                         seen.add(str(this_e))
                         effectsCounter += 1
