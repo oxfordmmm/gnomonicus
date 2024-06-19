@@ -106,6 +106,13 @@ if __name__ == "__main__":
         default=None,
         help="Path to a FASTA file to use for null rule adjudication. This returns matches for null-call rules in cases of corresponding `N` values in a FASTA file.",
     )
+    parser.add_argument(
+        "--min_dp",
+        type=int,
+        required=False,
+        default=None,
+        help="Minimum depth for a variant to be considered in the VCF. Below this value, rows are interpreted as null calls. Should allow for skipping FASTA adjudication in cases of low depth while adding coverage data.",
+    )
     options = parser.parse_args()
 
     options.output_dir = os.path.realpath(options.output_dir)
@@ -177,6 +184,7 @@ if __name__ == "__main__":
         options.vcf_file,
         ignore_filter=options.ignore_vcf_filter,
         minor_population_indices=minor_indices,
+        min_dp=options.min_dp,
     )
     sample = reference + vcf
     logging.debug("Applied the VCF to the reference")
