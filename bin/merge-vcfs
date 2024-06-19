@@ -119,7 +119,7 @@ if __name__ == "__main__":
             if ":DP" in row:
                 row = row.replace(":DP", ":COV")
             elif "\tDP:" in row:
-                row = row.replace("\tDP:", "\tCOV")
+                row = row.replace("\tDP:", "\tCOV:")
 
             row = row.split("\t")
             # GVCF doesn't explicitly call filter passes, so ensure the calls are picked up
