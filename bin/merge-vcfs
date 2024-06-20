@@ -28,7 +28,6 @@ def fetch_minos_positions(minos_vcf: Path) -> set[int]:
                 positions.add(pos)
             else:
                 positions.update(range(pos, pos + len(bases)))
-    print(len(positions))
     return positions
             
 
