@@ -15,7 +15,7 @@ def fetch_minos_positions(minos_vcf: Path) -> set[int]:
     Returns:
         set[int]: The positions to exclude.
     """
-    vcf = gumpy.VCFFile(minos_vcf.as_posix())
+    vcf = gumpy.VCFFile(minos_vcf.as_posix(), ignore_filter=True)
     positions = set()
     for pos, m_type in vcf.calls:
         if m_type != "indel":
@@ -28,6 +28,7 @@ def fetch_minos_positions(minos_vcf: Path) -> set[int]:
                 positions.add(pos)
             else:
                 positions.update(range(pos, pos + len(bases)))
+    print(len(positions))
     return positions
             
 
@@ -65,7 +66,7 @@ if __name__ == "__main__":
     # Pull out these positions from the GVCF
     gvcf_headers, subset = subset_vcf(gvcf_path.as_posix(), to_fetch)
 
-    minos_headers, minos_values = subset_vcf(minos_path.as_posix(), sorted(list(minos_positions)))
+    minos_headers, minos_values = subset_vcf(minos_path.as_posix(), [])
     
     # Pull out header parts to catch parts which need adding
     minos_format = [header for header in minos_headers if "##FORMAT" in header]
