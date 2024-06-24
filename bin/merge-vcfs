@@ -110,7 +110,11 @@ if __name__ == "__main__":
         f.write(chrom_line + "\n")
 
         # Minos rows
+        minos_positions = []
         for row in minos_values:
+            r = row.split("\t")
+            pos = int(r[1])
+            minos_positions.append(pos)
             f.write(row + "\n")
             
         # GVCF rows
@@ -122,6 +126,12 @@ if __name__ == "__main__":
                 row = row.replace("\tDP:", "\tCOV:")
 
             row = row.split("\t")
+            pos = int(row[1])
+            if pos in minos_positions:
+                # We should already be filtering out positions, but in cases of dels, the start can slip through
+                # Catch duplicates in these cases
+                continue
+            
             # GVCF doesn't explicitly call filter passes, so ensure the calls are picked up
             row[6] = "PASS" if row[6] == "." else row[6]
             f.write("\t".join(row) + "\n")
