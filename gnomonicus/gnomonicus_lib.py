@@ -1980,7 +1980,11 @@ def saveJSON(
         _variants.append(row)
     _variants = sorted(
         _variants,
-        key=lambda x: x["variant"],
+        key=lambda x: (
+            x["gene_name"] or "z",
+            x["gene_position"] or 0,
+            x["variant"] or "z",
+        ),
     )
     data["variants"] = _variants
 
