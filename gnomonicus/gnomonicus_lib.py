@@ -753,7 +753,11 @@ def minority_population_variants(
                 gene_name.append(gene)
                 g_pos = diff.get_gene_pos(gene, idx, variant)
                 gene_pos.append(g_pos)
-                if diff.genome1.genes[gene]["codes_protein"] and g_pos > 0:
+                if (
+                    diff.genome1.genes[gene]["codes_protein"]
+                    and g_pos is not None
+                    and g_pos > 0
+                ):
                     # Get codon idx
                     nc_idx = diff.genome1.stacked_nucleotide_index[
                         diff.genome1.stacked_gene_name == gene
@@ -785,7 +789,11 @@ def minority_population_variants(
                 g_pos = diff.get_gene_pos(gene, idx, variant)
                 gene_pos.append(g_pos)
 
-                if diff.genome1.genes[gene]["codes_protein"] and g_pos > 0:
+                if (
+                    diff.genome1.genes[gene]["codes_protein"]
+                    and g_pos is not None
+                    and g_pos > 0
+                ):
                     # Get codon idx
                     nc_idx = diff.genome1.stacked_nucleotide_index[
                         diff.genome1.stacked_gene_name == gene
