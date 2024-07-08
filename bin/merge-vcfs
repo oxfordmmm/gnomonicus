@@ -23,11 +23,12 @@ def fetch_minos_positions(minos_vcf: Path) -> set[int]:
             positions.add(pos)
         else:
             # Check if the indel is a deletion or insertion (deleted bases need excluding too)
-            call, bases = vcf.calls[(pos, m_type)]["call"]
-            if call == "ins":
-                positions.add(pos)
-            else:
-                positions.update(range(pos, pos + len(bases)))
+            for item in vcf.calls[(pos, m_type)]:
+                call, bases = item["call"]
+                if call == "ins":
+                    positions.add(pos)
+                else:
+                    positions.update(range(pos, pos + len(bases)))
     return positions
             
 
