@@ -121,10 +121,11 @@ if __name__ == "__main__":
         # GVCF rows
         for row in subset:
             # Replace DP with COV as GVCF doesn't have a COV-like field
-            if ":DP" in row:
-                row = row.replace(":DP", ":COV")
-            elif "\tDP:" in row:
-                row = row.replace("\tDP:", "\tCOV:")
+            if ":COV" not in row and "\tCOV:" not in row:
+                if ":DP" in row:
+                    row = row.replace(":DP", ":COV")
+                elif "\tDP:" in row:
+                    row = row.replace("\tDP:", "\tCOV:")
 
             row = row.split("\t")
             pos = int(row[1])
