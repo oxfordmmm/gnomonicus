@@ -28,8 +28,8 @@ from .gnomonicus_lib import (
     InvalidMutationException,  # noqa: F401
     loadGenome,  # noqa: F401
     loadGenomeAndGenes,  # noqa: F401
-    minority_population_variants,  # noqa: F401
     populateEffects,  # noqa: F401
+    get_minority_population_type,  # noqa: F401
     populateMutations,  # noqa: F401
     populateVariants,  # noqa: F401
     saveJSON,  # noqa: F401

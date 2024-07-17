@@ -8,7 +8,7 @@ import logging
 import os
 import time
 
-import gumpy
+import grumpy
 import piezo
 
 import gnomonicus
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--genome_object",
         required=True,
-        help="the path to a compressed gumpy Genome object or a genbank file",
+        help="the path to a genbank file",
     )
     parser.add_argument(
         "--catalogue_file",
@@ -162,7 +162,7 @@ if __name__ == "__main__":
         logging.warning("No outputs selected. No files will be created")
 
     # Get reference genome
-    reference = loadGenome(options.genome_object, options.progress)
+    reference = grumpy.Genome(options.genome_object)
     logging.debug("Loaded reference genome")
 
     # Check if we have minor population indices
@@ -179,15 +179,12 @@ if __name__ == "__main__":
                     raise ValueError(f"Invalid index on line {idx}: {index}") from e
     else:
         minor_indices = []
-    # Build the mutated genome using gumpy
-    vcf = gumpy.VCFFile(
+    # Build the mutated genome
+    vcf = grumpy.VCFFile(
         options.vcf_file,
         ignore_filter=options.ignore_vcf_filter,
-        minor_population_indices=minor_indices,
         min_dp=options.min_dp,
     )
-    sample = reference + vcf
-    logging.debug("Applied the VCF to the reference")
 
     # Get resistance catalogue
     if options.catalogue_file:
@@ -195,14 +192,21 @@ if __name__ == "__main__":
             options.catalogue_file, prediction_subset_only=options.resistance_genes
         )
         logging.debug("Loaded resistance catalogue")
+        minor_type = gnomonicus.get_minority_population_type(resistanceCatalogue)
     else:
         resistanceCatalogue = None
         logging.info(
             "No resistance catalogue provided, producing variants and mutations only"
         )
+        # Default to COV if no resistance catalogue is provided
+        # not that it needs to be used, but minor populations are built into grumpy
+        minor_type = grumpy.MinorType.COV
+    
+    sample = grumpy.mutate(reference, vcf)
+    logging.debug("Applied the VCF to the reference")
 
     # Get the GenomeDifference for extracting genome level mutations
-    diff = reference - sample
+    diff = grumpy.GenomeDifference(reference, sample, minor_type)
     logging.debug("Got the genome difference")
 
     # Complain if there are no variants
@@ -217,11 +221,12 @@ if __name__ == "__main__":
         diff,
         make_variants_csv,
         options.resistance_genes,
+        sample,
         catalogue=resistanceCatalogue,
     )
     logging.debug("Populated and saved variants.csv")
 
-    mutations, referenceGenes, minor_errors = populateMutations(
+    mutations = populateMutations(
         vcfStem,
         options.output_dir,
         diff,
@@ -244,12 +249,11 @@ if __name__ == "__main__":
             options.output_dir,
             resistanceCatalogue,
             mutations,
-            referenceGenes,
             vcfStem,
             make_effects_csv,
             make_prediction_csv,
+            reference,
             fasta=options.fasta_adjudication,
-            reference=reference,
             sample_genome=sample,
             make_mutations_csv=make_mutations_csv,
         )
@@ -304,7 +308,6 @@ if __name__ == "__main__":
             options.vcf_file,
             options.genome_object,
             options.catalogue_file,
-            minor_errors,
         )
 
     if options.fasta and options.fasta.lower() in ["fixed", "variable"]:
