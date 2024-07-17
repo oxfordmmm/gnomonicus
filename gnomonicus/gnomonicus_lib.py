@@ -416,6 +416,7 @@ def getGenes(
         # No catalogue, so just stick to genes in the sample
         return sample.genes
 
+
 def count_nucleotide_changes(ref: str | None, alt: str | None) -> int | None:
     """Count number of changes between ref and alt
 
@@ -498,7 +499,9 @@ def populateMutations(
             mutations["amino_acid_number"].append(mutation.amino_acid_number)
             mutations["amino_acid_sequence"].append(mutation.amino_acid_sequence)
             mutations["number_nucleotide_changes"].append(
-                count_nucleotide_changes(mutation.ref_nucleotides, mutation.alt_nucleotides)
+                count_nucleotide_changes(
+                    mutation.ref_nucleotides, mutation.alt_nucleotides
+                )
             )
         for mutation in gene_diff.minor_mutations:
             mutations["gene"].append(gene_name)
@@ -514,7 +517,9 @@ def populateMutations(
             mutations["amino_acid_number"].append(mutation.amino_acid_number)
             mutations["amino_acid_sequence"].append(mutation.amino_acid_sequence)
             mutations["number_nucleotide_changes"].append(
-                count_nucleotide_changes(mutation.ref_nucleotides, mutation.alt_nucleotides)
+                count_nucleotide_changes(
+                    mutation.ref_nucleotides, mutation.alt_nucleotides
+                )
             )
 
     if len(mutations["gene"]) != 0:
@@ -1424,4 +1429,4 @@ def saveJSON(
     with open(
         os.path.join(path, f"{guid}.gnomonicus-out.json"), "w", encoding="utf-8"
     ) as f:
-            f.write(json.dumps({"meta": meta, "data": data}, indent=2))
+        f.write(json.dumps({"meta": meta, "data": data}, indent=2))
