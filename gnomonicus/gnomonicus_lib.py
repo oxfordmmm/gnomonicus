@@ -60,7 +60,10 @@ def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
         elif key == "DP":
             # Single value expected here too (most of the time)
             if len(value) == 1:
-                item = int(value[0])
+                try:
+                    item = int(value[0])
+                except ValueError:
+                    item = float(value[0])
             else:
                 item = [int(v) for v in value]
         else:
