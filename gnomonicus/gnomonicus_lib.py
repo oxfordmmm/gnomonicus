@@ -61,7 +61,7 @@ def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
             # Single value expected here too (most of the time)
             if len(value) == 1:
                 # Odd edge cases around types though
-                if value == ".":
+                if value[0] == ".":
                     item = None
                 else:
                     try:
