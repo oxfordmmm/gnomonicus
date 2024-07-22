@@ -1,10 +1,10 @@
-FROM ubuntu:latest
+FROM python:3.10
 
 #Install requirements
-RUN apt update && apt install -y git python3 python3-pip s3fs
+RUN apt update && apt install -y git
 
-#Install gnomonicus from git
-# RUN git clone https://github.com/oxfordmmm/gnomonicus && cd gnomonicus && pip install .
+#Install gnomonicus from git (for now)
+RUN git clone https://github.com/oxfordmmm/gnomonicus && cd gnomonicus && git checkout feat/use-grumpy && pip install .
 
 #Install gnomonicus from pypi
-RUN pip install --upgrade gnomonicus --break-system-packages
+# RUN pip install --upgrade gnomonicus --break-system-packages

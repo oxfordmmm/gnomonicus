@@ -13,7 +13,6 @@ import piezo
 
 import gnomonicus
 from gnomonicus import (
-    loadGenome,
     populateEffects,
     populateMutations,
     populateVariants,

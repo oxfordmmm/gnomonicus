@@ -4,8 +4,9 @@
 import argparse
 import piezo
 import pandas
+import grumpy
 
-from gnomonicus import loadGenomeAndGenes, populateEffects
+from gnomonicus import populateEffects
 
 if __name__ == "__main__":
     # Argparser setup
@@ -27,7 +28,6 @@ if __name__ == "__main__":
     options = parser.parse_args()
 
     mutations = pandas.read_csv(options.mutations)
-    reference, reference_genes = loadGenomeAndGenes(options.genome_object, options.progress)
     resistanceCatalogue = piezo.ResistanceCatalogue(options.catalogue_file)
 
     # Pull out original VCF stem from mutations filename
@@ -38,10 +38,9 @@ if __name__ == "__main__":
         options.output,
         resistanceCatalogue,
         mutations,
-        reference_genes,
         vcf_stem,
         True,
         True,
-        reference=reference,
+        grumpy.Genome(options.genome_object),
         append=True
     )

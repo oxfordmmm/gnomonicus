@@ -1,5 +1,5 @@
 """gnomonicus.py is a library providing functions which pull together output VCF of the Lodestone TB pipeline
-    with a reference genome and a resistance catalogue, and utilise gumpy and
+    with a reference genome and a resistance catalogue, and utilise grumpy and
     piezo to produce variants, mutations and an antibiogram.
 
 Based on sp3predict
@@ -7,21 +7,15 @@ Based on sp3predict
 
 import copy
 import datetime
-import gzip
 import json
 import logging
 import os
-import pickle
 import re
-import traceback
 import warnings
-import io
 from collections import defaultdict, OrderedDict
 from typing import Dict, List, Tuple
 
 import grumpy
-import gumpy
-import numpy as np
 import pandas as pd
 import piezo
 from tqdm import tqdm
@@ -44,166 +38,6 @@ class InvalidMutationException(Exception):
         super().__init__(self.message)
 
 
-class OutdatedGumpyException(Exception):
-    """Custom exception raised if a pickled gumpy.Genome object doesn't match
-    the version currently being used here.
-    """
-
-    def __init__(self):
-        self.message = (
-            "This Genome object is outdated! Pass a genbank file to re-instanciate"
-        )
-        super().__init__(self.message)
-
-
-def checkGzip(path: str) -> bool:
-    """Check if a given path is a gzipped file
-
-    Args:
-        path (str): Path to the file
-
-    Returns:
-        bool: True if the file is gzipped
-    """
-    try:
-        with gzip.open(path) as f:
-            f.read()
-        return True
-    except gzip.BadGzipFile:
-        return False
-    except FileNotFoundError:
-        return False
-
-
-def loadGenome(path: str, progress: bool) -> gumpy.Genome:
-    """Load a genome from a given path. Checks if path is to a pickle dump, or if a pickle dump of the path's file exists
-    Instanciates a new gumpy Genome and dumps to pickle as a last resort
-
-    Args:
-        path (str): Path to the genbank file or pickle dump. If previously run, a genbank file's Genome object is pickled and dumped for speed
-        progress (bool): Boolean as whether to show progress bar for gumpy
-
-    Returns:
-        gumpy.Genome: Genome object of the reference genome
-    """
-    logging.debug(f"Using file {path}")
-    # Remove trailing '/' if required
-    if path[-1] == "/":
-        path = path[:-1]
-
-    # Check if the file is gzipped
-    gzipped = checkGzip(path)
-
-    # Get the gumpy version we are using
-    gumpy_major, gumpy_minor, gumpy_maintainance = gumpy.__version__[1:].split(".")
-    outdated = False
-    f: io.BufferedReader | gzip.GzipFile
-
-    # Try to load as a pickle
-    try:
-        if gzipped:
-            logging.info("Path was to a gzipped file. Decompressing...")
-            f = gzip.open(path, "rb")
-        else:
-            logging.info("Path was not to a gzipped file. Defaulting to normal reading")
-            f = open(path, "rb")
-        g = pickle.load(f)
-        if hasattr(g, "gumpy_version"):
-            # Has the version set, so check it
-            major, minor, maintainance = g.gumpy_version[1:].split(".")
-            if (
-                major == gumpy_major
-                and minor == gumpy_minor
-                and maintainance == gumpy_maintainance
-            ):
-                # Exact match to the gumpy version
-                return g
-            else:
-                outdated = True
-        else:
-            outdated = True
-        if outdated:
-            logging.error("Genome object is outdated!")
-            raise OutdatedGumpyException()
-    except OutdatedGumpyException as e:
-        logging.error("Genome object is outdated!")
-        raise e
-    except Exception as e:
-        logging.info(
-            f"Genome object not a pickle, checking if pickled version exists. Error: {e}"
-        )
-
-    # Try pickled version created by this (path+'.pkl')
-    # Check if this file is gzipped
-    gzipped = checkGzip(path + ".pkl")
-    try:
-        if gzipped:
-            logging.info("Path was to a gzipped file. Decompressing...")
-            f = gzip.open(path + ".pkl", "rb")
-        else:
-            logging.info("Path was not to a gzipped file. Defaulting to normal reading")
-            f = open(path + ".pkl", "rb")
-        g = pickle.load(f)
-        if hasattr(g, "gumpy_version"):
-            # Has the version set, so check it
-            major, minor, maintainance = g.gumpy_version[1:].split(".")
-            if (
-                major == gumpy_major
-                and minor == gumpy_minor
-                and maintainance == gumpy_maintainance
-            ):
-                # Exact match to the gumpy version
-                return g
-            else:
-                outdated = True
-        else:
-            outdated = True
-        if outdated:
-            logging.info("Genome object is outdated! Trying with the original filepath")
-    except Exception as e:
-        logging.info(
-            f"No pickled version of genome object, instanciating and dumping. Error: {e}"
-        )
-
-    # Create new gumpy.Genome and pickle dump for speed later
-    reference = gumpy.Genome(path, show_progress_bar=progress)
-    reference.gumpy_version = gumpy.__version__
-    pickle.dump(reference, open(path + ".pkl", "wb"))
-    return reference
-
-
-def loadGenomeAndGenes(
-    path: str, progress: bool
-) -> tuple[gumpy.Genome, dict[str, gumpy.Gene]]:
-    """Look for pickled genome and genes, instanciating one or both if required.
-
-    Used by the table-update script
-
-    Args:
-        path (str): Path to the genbank file or pickle dump. If previously run, a genbank file's Genome object is pickled and dumped for speed
-        progress (bool): Boolean as whether to show progress bar for gumpy
-
-    Returns:
-        tuple[gumpy.Genome, dict[str, gumpy.Gene]]: Tuple of (reference genome object, Dictionary mapping gene name -> gumpy.Gene)
-    """
-    reference = loadGenome(path, progress)
-    gene_path = path + ".genes.pkl.gz"
-
-    if checkGzip(gene_path):
-        # Genes already exist so load
-        with gzip.open(gene_path, "rb") as f:
-            genes = pickle.load(f)
-    else:
-        # Genes didn't exist, so build then dump
-        genes = {}
-        for gene_name in tqdm(reference.genes, disable=not progress):
-            genes[gene_name] = reference.build_gene(gene_name)
-        with gzip.open(gene_path, "wb") as f:
-            pickle.dump(genes, f)
-
-    return reference, genes
-
-
 def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
     """Parse the grumpy evidence into a dictionary for JSON.
 
@@ -219,15 +53,26 @@ def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
     ev = {}
     for key, value in evidence.fields.items():
         item = []
-        for v in value:
-            # Use duck typing to determine if it's a float or int
-            try:
-                item.append(int(v))
-            except ValueError:
+        if key == "GT":
+            # Special case here as we need to split the string and parse int/Nones
+            gt = value[0].split("/")
+            item = [int(g) if g[0] != "." else None for g in gt]
+        elif key == "DP":
+            # Single value expected here too (most of the time)
+            if len(value) == 1:
+                item = int(value[0])
+            else:
+                item = [int(v) for v in value]
+        else:
+            for v in value:
+                # Use duck typing to determine if it's a float or int
                 try:
-                    item.append(float(v))
+                    item.append(int(v))
                 except ValueError:
-                    item.append(v)
+                    try:
+                        item.append(float(v))
+                    except ValueError:
+                        item.append(v)
         ev[key] = item
     # We also want to add back in some of the VCF items which aren't in the fields dict
     ev["POS"] = evidence.position
@@ -1023,7 +868,6 @@ def populateEffects(
     make_prediction_csv: bool,
     reference: grumpy.Genome,
     fasta: str | None = None,
-    sample_genome: gumpy.Genome | None = None,
     make_mutations_csv: bool = False,
     append: bool = False,
 ) -> Tuple[pd.DataFrame, Dict, pd.DataFrame] | None:
@@ -1033,13 +877,11 @@ def populateEffects(
         outputDir (str): Path to the directory to save the CSV
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue for predictions
         mutations (pd.DataFrame): Mutations dataframe
-        referenceGenes (dict): Dictionary mapping gene name --> reference gumpy.Gene objects
         vcfStem (str): The basename of the given VCF - used as the sample name
         make_csv (bool): Whether to write the CSV of the dataframe
         make_prediction_csv (bool): Whether to write the CSV of the antibiogram
         fasta (str | None, optional): Path to a FASTA if given. Defaults to None.
-        reference (gumpy.Genome | None, optional): Reference genome. Defaults to None.
-        sample_genome (gumpy.Genome | None, optional): Sample's genome. Defaults to None.
+        reference (grumpy.Genome | None, optional): Reference genome. Defaults to None.
         make_mutations_csv (bool, optional): Whether to write the mutations CSV to disk with new mutations. Defaults to False.
         append (bool, optional): Whether to append data to an existing df at the location (if existing).
 
@@ -1213,7 +1055,7 @@ def saveJSON(
     catalogue: piezo.ResistanceCatalogue,
     gnomonicusVersion: str,
     time_taken: float,
-    reference: gumpy.Genome,
+    reference: grumpy.Genome,
     vcf_path: str,
     reference_path: str,
     catalogue_path: str,
@@ -1286,7 +1128,7 @@ def saveJSON(
         catalogue (piezo.ResistanceCatalogue): Catalogue used
         gnomonicusVersion (str): Semantic versioning string for the gnomonicus module. Can be accessed by `gnomonicus.__version__`
         time_taken (float): Number of seconds taken to run this.
-        reference (gumpy.Genome): Reference genome object
+        reference (grumpy.Genome): Reference genome object
         vcf_path (str): Path to the VCF file used for this run
         reference_path (str): Path to the reference genome used for this run
         catalogue_path (str): Path to the catalogue used for this run
