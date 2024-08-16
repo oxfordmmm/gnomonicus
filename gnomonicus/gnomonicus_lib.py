@@ -81,6 +81,10 @@ def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
                     except ValueError:
                         item.append(v)
         ev[key] = item
+    for key in ev.keys():
+        if isinstance(ev[key], list) and len(ev[key]) == 1:
+            # Unpack single values as they probably shouldn't be lists
+            ev[key] = ev[key][0]
     # We also want to add back in some of the VCF items which aren't in the fields dict
     ev["POS"] = evidence.position
     ev["REF"] = evidence.reference
@@ -210,7 +214,7 @@ def get_minority_population_type(
     """
     if catalogue is None:
         # Nothing given, so default to FRS
-        return "percentage"
+        return grumpy.MinorType.FRS
     frs = 0
     cov = 0
     for minor in catalogue.catalogue.rules["MINOR"]:
@@ -331,7 +335,7 @@ def populateMutations(
         "amino_acid_sequence": [],
         "number_nucleotide_changes": [],
     }
-    for gene_name in genesWithMutations:
+    for gene_name in sorted(genesWithMutations):
         gene_diff = grumpy.GeneDifference(
             reference.get_gene(gene_name),
             sample.get_gene(gene_name),
@@ -795,7 +799,7 @@ def getMutations(
             if large.fullmatch(mutation):
                 continue
         fixed.append((gene, mutation))
-    return fixed
+    return sorted(fixed, key=lambda x: ''.join([str(i) for i in x]))
 
 
 def epistasis(
