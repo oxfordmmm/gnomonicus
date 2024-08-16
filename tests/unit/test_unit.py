@@ -204,7 +204,7 @@ def test_1():
 
     # Populate the tables
     path = "tests/outputs/1/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
@@ -592,7 +592,7 @@ def test_3():
 
     # Populate the tables
     path = "tests/outputs/3/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
@@ -1004,7 +1004,7 @@ def test_4():
 
     # Populate the tables
     path = "tests/outputs/4/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
@@ -1155,7 +1155,7 @@ def test_5():
 
     # Populate the tables
     path = "tests/outputs/5/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
@@ -1305,7 +1305,7 @@ def test_6():
 
     # Populate the tables
     path = "tests/outputs/6/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
@@ -1498,7 +1498,7 @@ def test_7():
 
     # Populate the tables
     path = "tests/outputs/7/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
@@ -1716,7 +1716,7 @@ def test_8():
 
     # Populate the tables
     path = "tests/outputs/8/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, False
     )
@@ -1861,7 +1861,7 @@ def test_9():
 
     # Populate the tables
     path = "tests/outputs/9/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, True, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, True, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, True
     )
@@ -2116,7 +2116,7 @@ def test_10():
 
     # Populate the tables
     path = "tests/outputs/10/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, True, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, True, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, True
     )
@@ -2367,7 +2367,7 @@ def test_11():
 
     # Populate the tables
     path = "tests/outputs/11/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, True, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, True, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, True
     )
@@ -2598,7 +2598,7 @@ def test_12():
 
     # Populate the tables
     path = "tests/outputs/12/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, True, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, True, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, True
     )
@@ -2850,7 +2850,7 @@ def test_13():
 
     # Populate the tables
     path = "tests/outputs/13/"
-    gnomonicus.populateVariants(vcfStem, path, diff, True, True, sample)
+    gnomonicus.populateVariants(vcfStem, path, diff, True, True, sample, catalogue=catalogue)
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, True
     )
