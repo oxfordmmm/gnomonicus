@@ -799,7 +799,7 @@ def getMutations(
             if large.fullmatch(mutation):
                 continue
         fixed.append((gene, mutation))
-    return sorted(fixed, key=lambda x: ''.join([str(i) for i in x]))
+    return sorted(fixed, key=lambda x: "".join([str(i) for i in x]))
 
 
 def epistasis(

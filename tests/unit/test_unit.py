@@ -158,11 +158,7 @@ def test_misc():
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
 
-    vcf = grumpy.VCFFile(
-        "tests/test-cases/NC_045512.2-S_E484K-minos.vcf",
-        True,
-        3
-    )
+    vcf = grumpy.VCFFile("tests/test-cases/NC_045512.2-S_E484K-minos.vcf", True, 3)
     vcfStem = "NC_045512.2-S_E484K-minos"
 
     sample = grumpy.mutate(reference, vcf)
@@ -183,6 +179,7 @@ def test_misc():
 
     assert mutations.equals(mutations_)
 
+
 def test_1():
     """Input:
         NC_045512.2-S_E484K-minos.vcf
@@ -198,11 +195,7 @@ def test_1():
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
 
-    vcf = grumpy.VCFFile(
-        "tests/test-cases/NC_045512.2-S_E484K-minos.vcf",
-        True,
-        3
-    )
+    vcf = grumpy.VCFFile("tests/test-cases/NC_045512.2-S_E484K-minos.vcf", True, 3)
     vcfStem = "NC_045512.2-S_E484K-minos"
 
     sample = grumpy.mutate(reference, vcf)
@@ -339,9 +332,7 @@ def test_1():
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, None, True, False
     )
-    gnomonicus.populateEffects(
-        path, None, mutations, vcfStem, True, True, reference
-    )
+    gnomonicus.populateEffects(path, None, mutations, vcfStem, True, True, reference)
 
     # Check for expected values within csvs
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
@@ -1707,7 +1698,7 @@ def test_8():
     assert s is not None
     genes.append(s)
     reference.gene_definitions = genes
-    
+
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
@@ -2367,11 +2358,7 @@ def test_11():
         "tests/test-cases/TEST-DNA-catalogue.csv", prediction_subset_only=True
     )
 
-    vcf = grumpy.VCFFile(
-        "tests/test-cases/TEST-DNA-large-del.vcf",
-        True,
-        1
-    )
+    vcf = grumpy.VCFFile("tests/test-cases/TEST-DNA-large-del.vcf", True, 1)
     vcfStem = "TEST-DNA-large-del"
 
     sample = grumpy.mutate(reference, vcf)
@@ -2403,7 +2390,13 @@ def test_11():
 
     assert len(mutations) == 5
     assert sorted(mutations["mutation"].tolist()) == sorted(
-        ["-1_del_aaaaaaaaccccccccccgggggggggg", "del_0.93", "del_1.0", "1_del_gggttttttttttaaaaaaaaaacccccccccc", "4_del_ggg"]
+        [
+            "-1_del_aaaaaaaaccccccccccgggggggggg",
+            "del_0.93",
+            "del_1.0",
+            "1_del_gggttttttttttaaaaaaaaaacccccccccc",
+            "4_del_ggg",
+        ]
     )
 
     assert len(effects) == 5
@@ -2545,9 +2538,7 @@ def test_11():
                         "gene": "B",
                         "mutation": "1_del_gggttttttttttaaaaaaaaaacccccccccc",
                         "prediction": "U",
-                        "evidence": {
-                            "row": 9
-                        }
+                        "evidence": {"row": 9},
                     },
                     {
                         "gene": "B",
@@ -2598,11 +2589,7 @@ def test_12():
         prediction_subset_only=True,
     )
 
-    vcf = grumpy.VCFFile(
-        "tests/test-cases/NC_045512.2-epistasis.vcf",
-        True,
-        2
-    )
+    vcf = grumpy.VCFFile("tests/test-cases/NC_045512.2-epistasis.vcf", True, 2)
     vcfStem = "NC_045512.2-epistasis"
 
     sample = grumpy.mutate(reference, vcf)
