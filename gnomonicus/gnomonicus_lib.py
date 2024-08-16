@@ -15,7 +15,7 @@ import warnings
 from collections import defaultdict, OrderedDict
 from typing import Dict, List, Tuple
 
-import grumpy
+import grumpy  # type: ignore
 import pandas as pd
 import piezo
 from tqdm import tqdm
@@ -52,7 +52,7 @@ def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
     """
     ev = {}
     for key, value in evidence.fields.items():
-        item = []
+        item: list[int | float | None] | int | float | None = []
         if key == "GT":
             # Special case here as we need to split the string and parse int/Nones
             gt = value[0].split("/")
@@ -71,6 +71,9 @@ def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
             else:
                 item = [int(v) for v in value]
         else:
+            if item is None or isinstance(item, int) or isinstance(item, float):
+                # Should never happen but appease mypy
+                continue
             for v in value:
                 # Use duck typing to determine if it's a float or int
                 try:
@@ -81,10 +84,10 @@ def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
                     except ValueError:
                         item.append(v)
         ev[key] = item
-    for key in ev.keys():
-        if isinstance(ev[key], list) and len(ev[key]) == 1:
+    for key, val in ev.items():
+        if isinstance(val, list) and len(val) == 1:
             # Unpack single values as they probably shouldn't be lists
-            ev[key] = ev[key][0]
+            ev[key] = val[0]
     # We also want to add back in some of the VCF items which aren't in the fields dict
     ev["POS"] = evidence.position
     ev["REF"] = evidence.reference
@@ -114,7 +117,7 @@ def populateVariants(
         pd.DataFrame: DataFrame of the variants
     """
     # Populate variants table directly from GenomeDifference
-    vals = {
+    vals: dict[str, list] = {
         "variant": [],
         "nucleotide_index": [],
         "indel_length": [],
@@ -320,7 +323,7 @@ def populateMutations(
     genesWithMutations = getGenes(sample, resistanceCatalogue, resistanceGenesOnly)
 
     # Iter resistance genes with variation to produce gene level mutations - concating into a single dataframe
-    mutations = {
+    mutations: dict[str, list] = {
         "gene": [],
         "mutation": [],
         "ref": [],
@@ -380,7 +383,7 @@ def populateMutations(
 
     if len(mutations["gene"]) != 0:
         # Ensure correct datatypes
-        mutations = pd.DataFrame(mutations).astype(
+        mutations_df = pd.DataFrame(mutations).astype(
             {
                 "mutation": "str",
                 "gene": "str",
@@ -399,14 +402,16 @@ def populateMutations(
         # If there were mutations, write them to a CSV
 
         # Add VCF stem as the uniqueID
-        mutations["uniqueid"] = vcfStem
+        mutations_df["uniqueid"] = vcfStem
 
         if make_csv:
             write_mutations_csv(
-                mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
+                mutations_df, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
             )
 
-    return mutations
+        return mutations_df
+
+    return None
 
 
 def write_mutations_csv(
