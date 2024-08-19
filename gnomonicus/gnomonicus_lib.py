@@ -306,9 +306,9 @@ def populateMutations(
     Args:
         vcfStem (str): The stem of the filename of the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
-        genome_diff (gumpy.GenomeDifference): GenomeDifference object between reference and this sample
-        reference (gumpy.Genome): Reference genome
-        sample (gumpy.Genome): Sample genome
+        genome_diff (grumpy.GenomeDifference): GenomeDifference object between reference and this sample
+        reference (grumpy.Genome): Reference genome
+        sample (grumpy.Genome): Sample genome
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue (used to find which genes to check)
         make_csv (bool): Whether to write the CSV of the dataframe
         resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
@@ -318,7 +318,6 @@ def populateMutations(
 
     Returns:
         pd.DataFrame: The mutations DataFrame
-        dict: Dictionary mapping gene name --> reference gumpy.Gene object
     """
     genesWithMutations = getGenes(sample, resistanceCatalogue, resistanceGenesOnly)
 
@@ -748,7 +747,7 @@ def getMutations(
     Args:
         mutations_df (pd.DataFrame): Mutations dataframe
         catalogue (piezo.ResistanceCatalogue): The resistance catalogue. Used to find which multi-mutations we care about
-        referenceGenes (dict): Dictionary of geneName->gumpy.Gene
+        reference (grumpy.Genome): Reference genome object. Used for checking if mutations are in coding regions
 
     Returns:
         List[Tuple[str | None, str]]: List of [gene, mutation] or in the case of multi-mutations, [None, multi-mutation]
@@ -883,7 +882,6 @@ def populateEffects(
     make_csv: bool,
     make_prediction_csv: bool,
     reference: grumpy.Genome,
-    fasta: str | None = None,
     make_mutations_csv: bool = False,
     append: bool = False,
 ) -> Tuple[pd.DataFrame, Dict, pd.DataFrame] | None:
@@ -896,7 +894,6 @@ def populateEffects(
         vcfStem (str): The basename of the given VCF - used as the sample name
         make_csv (bool): Whether to write the CSV of the dataframe
         make_prediction_csv (bool): Whether to write the CSV of the antibiogram
-        fasta (str | None, optional): Path to a FASTA if given. Defaults to None.
         reference (grumpy.Genome | None, optional): Reference genome. Defaults to None.
         make_mutations_csv (bool, optional): Whether to write the mutations CSV to disk with new mutations. Defaults to False.
         append (bool, optional): Whether to append data to an existing df at the location (if existing).
@@ -908,7 +905,7 @@ def populateEffects(
         (pd.DataFrame, dict): (
             DataFrame containing the effects data,
             A metadata dictionary mapping drugs to their predictions,
-            DataFrame containing the mutations data (with fasta null calls as appropriate)
+            DataFrame containing the mutations data
         )
     """
     if resistanceCatalogue is None:

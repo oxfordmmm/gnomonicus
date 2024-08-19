@@ -15,7 +15,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--genome_object",
         required=True,
-        help="Path to a compressed gumpy Genome object or a genbank file",
+        help="Path to a genbank file",
     )
     parser.add_argument(
         "--catalogue_file",

@@ -50,12 +50,6 @@ if __name__ == "__main__":
         help="whether to ignore the FILTER field in the vcf (e.g. necessary for some versions of Clockwork VCFs)",
     )
     parser.add_argument(
-        "--progress",
-        action="store_true",
-        default=False,
-        help="whether to show progress using tqdm",
-    )
-    parser.add_argument(
         "--output_dir",
         required=False,
         default=".",
@@ -67,18 +61,6 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="Flag to create a single JSON output as well as the CSVs",
-    )
-    parser.add_argument(
-        "--fasta",
-        required=False,
-        default=None,
-        help="Use to output a FASTA file of the resultant genome. Specify either 'fixed' or 'variable' for fixed length and variable length FASTA respectively. Alternatively, use 'both' to produce both",
-    )
-    parser.add_argument(
-        "--minor_populations",
-        required=False,
-        default=None,
-        help="Path to a line separated file containing genome indices of minor populations.",
     )
     parser.add_argument(
         "--csvs",
@@ -100,17 +82,11 @@ if __name__ == "__main__":
         help="Flag to filter mutations and variants to only include genes present in the resistance catalogue",
     )
     parser.add_argument(
-        "--fasta_adjudication",
-        required=False,
-        default=None,
-        help="Path to a FASTA file to use for null rule adjudication. This returns matches for null-call rules in cases of corresponding `N` values in a FASTA file.",
-    )
-    parser.add_argument(
         "--min_dp",
         type=int,
-        required=False,
+        required=True,
         default=None,
-        help="Minimum depth for a variant to be considered in the VCF. Below this value, rows are interpreted as null calls. Should allow for skipping FASTA adjudication in cases of low depth while adding coverage data.",
+        help="Minimum depth for a variant to be considered in the VCF. Below this value, rows are interpreted as null calls.",
     )
     options = parser.parse_args()
 
@@ -153,7 +129,7 @@ if __name__ == "__main__":
         make_effects_csv = "effects" in options.csvs
         make_prediction_csv = "predictions" in options.csvs
 
-    if options.csvs is None and options.json is False and options.fasta is None:
+    if options.csvs is None and options.json is False:
         # No files will be created so warn the user
         print(
             "[WARNING]: No outputs selected. No files will be created. For help, try `gnomonicus --help`"
@@ -164,25 +140,11 @@ if __name__ == "__main__":
     reference = grumpy.Genome(options.genome_object)
     logging.debug("Loaded reference genome")
 
-    # Check if we have minor population indices
-    if options.minor_populations is not None:
-        # Load from line separated file
-        with open(options.minor_populations) as f:
-            minor_indices_ = [line.strip() for line in f]
-            minor_indices = []
-            # Try converting line by line so we can produce a nice error if invalid
-            for idx, index in enumerate(minor_indices_):
-                try:
-                    minor_indices.append(int(index))
-                except Exception as e:
-                    raise ValueError(f"Invalid index on line {idx}: {index}") from e
-    else:
-        minor_indices = []
     # Build the mutated genome
     vcf = grumpy.VCFFile(
         options.vcf_file,
-        ignore_filter=options.ignore_vcf_filter,
-        min_dp=options.min_dp,
+        options.ignore_vcf_filter,
+        options.min_dp,
     )
 
     # Get resistance catalogue
@@ -252,7 +214,6 @@ if __name__ == "__main__":
             make_effects_csv,
             make_prediction_csv,
             reference,
-            fasta=options.fasta_adjudication,
             make_mutations_csv=make_mutations_csv,
         )
         logging.debug("Populated and saved effects.csv and predictions.csv")
@@ -306,21 +267,4 @@ if __name__ == "__main__":
             options.vcf_file,
             options.genome_object,
             options.catalogue_file,
-        )
-
-    if options.fasta and options.fasta.lower() in ["fixed", "variable"]:
-        fixed = options.fasta.lower() == "fixed"
-        # Write the resultant fasta file
-        sample.save_fasta(
-            os.path.join(options.output_dir, vcfStem + "-" + options.fasta + ".fasta"),
-            fixed_length=fixed,
-        )
-    elif options.fasta and options.fasta.lower() == "both":
-        sample.save_fasta(
-            os.path.join(options.output_dir, vcfStem + "-fixed.fasta"),
-            fixed_length=True,
-        )
-        sample.save_fasta(
-            os.path.join(options.output_dir, vcfStem + "-variable.fasta"),
-            fixed_length=False,
         )
