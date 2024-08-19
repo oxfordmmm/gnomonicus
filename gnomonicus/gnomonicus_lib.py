@@ -111,6 +111,8 @@ def populateVariants(
         outputDir (str): Path to the desired output directory
         diff (grumpy.GenomeDifference): GenomeDifference object between reference and the sample
         make_csv (bool): Whether to write the CSV of the dataframe
+        resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
+        sample (grumpy.Genome): Sample genome object
         catalogue (piezo.ResistanceCatalogue | None, optional): Catalogue for determining FRS or COV for minority populations. If None is given, FRS is assumed. Defaults to None
 
     Returns:
