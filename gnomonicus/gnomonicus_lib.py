@@ -1,5 +1,5 @@
 """gnomonicus.py is a library providing functions which pull together output VCF of the Lodestone TB pipeline
-    with a reference genome and a resistance catalogue, and utilise gumpy and
+    with a reference genome and a resistance catalogue, and utilise grumpy and
     piezo to produce variants, mutations and an antibiogram.
 
 Based on sp3predict
@@ -7,20 +7,15 @@ Based on sp3predict
 
 import copy
 import datetime
-import gzip
 import json
 import logging
 import os
-import pickle
 import re
-import traceback
 import warnings
-import io
 from collections import defaultdict, OrderedDict
 from typing import Dict, List, Tuple
 
-import gumpy
-import numpy as np
+import grumpy  # type: ignore
 import pandas as pd
 import piezo
 from tqdm import tqdm
@@ -43,172 +38,70 @@ class InvalidMutationException(Exception):
         super().__init__(self.message)
 
 
-class OutdatedGumpyException(Exception):
-    """Custom exception raised if a pickled gumpy.Genome object doesn't match
-    the version currently being used here.
-    """
+def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
+    """Parse the grumpy evidence into a dictionary for JSON.
 
-    def __init__(self):
-        self.message = (
-            "This Genome object is outdated! Pass a genbank file to re-instanciate"
-        )
-        super().__init__(self.message)
-
-
-def checkGzip(path: str) -> bool:
-    """Check if a given path is a gzipped file
+    As rust doesn't have multi-type hashmaps, we need to convert all values from strings
+    Should just be parsing ints and floats
 
     Args:
-        path (str): Path to the file
+        evidence (grumpy.VCFRow): Evidence from the VCF
 
     Returns:
-        bool: True if the file is gzipped
+        dict: Parsed evidence
     """
-    try:
-        with gzip.open(path) as f:
-            f.read()
-        return True
-    except gzip.BadGzipFile:
-        return False
-    except FileNotFoundError:
-        return False
-
-
-def loadGenome(path: str, progress: bool) -> gumpy.Genome:
-    """Load a genome from a given path. Checks if path is to a pickle dump, or if a pickle dump of the path's file exists
-    Instanciates a new gumpy Genome and dumps to pickle as a last resort
-
-    Args:
-        path (str): Path to the genbank file or pickle dump. If previously run, a genbank file's Genome object is pickled and dumped for speed
-        progress (bool): Boolean as whether to show progress bar for gumpy
-
-    Returns:
-        gumpy.Genome: Genome object of the reference genome
-    """
-    logging.debug(f"Using file {path}")
-    # Remove trailing '/' if required
-    if path[-1] == "/":
-        path = path[:-1]
-
-    # Check if the file is gzipped
-    gzipped = checkGzip(path)
-
-    # Get the gumpy version we are using
-    gumpy_major, gumpy_minor, gumpy_maintainance = gumpy.__version__[1:].split(".")
-    outdated = False
-    f: io.BufferedReader | gzip.GzipFile
-
-    # Try to load as a pickle
-    try:
-        if gzipped:
-            logging.info("Path was to a gzipped file. Decompressing...")
-            f = gzip.open(path, "rb")
-        else:
-            logging.info("Path was not to a gzipped file. Defaulting to normal reading")
-            f = open(path, "rb")
-        g = pickle.load(f)
-        if hasattr(g, "gumpy_version"):
-            # Has the version set, so check it
-            major, minor, maintainance = g.gumpy_version[1:].split(".")
-            if (
-                major == gumpy_major
-                and minor == gumpy_minor
-                and maintainance == gumpy_maintainance
-            ):
-                # Exact match to the gumpy version
-                return g
+    ev = {}
+    for key, value in evidence.fields.items():
+        item: list[int | float | None] | int | float | None = []
+        if key == "GT":
+            # Special case here as we need to split the string and parse int/Nones
+            gt = value[0].split("/")
+            item = [int(g) if g[0] != "." else None for g in gt]
+        elif key == "DP":
+            # Single value expected here too (most of the time)
+            if len(value) == 1:
+                # Odd edge cases around types though
+                if value[0] == ".":
+                    item = None
+                else:
+                    try:
+                        item = int(value[0])
+                    except ValueError:
+                        item = float(value[0])
             else:
-                outdated = True
+                item = [int(v) for v in value]
         else:
-            outdated = True
-        if outdated:
-            logging.error("Genome object is outdated!")
-            raise OutdatedGumpyException()
-    except OutdatedGumpyException as e:
-        logging.error("Genome object is outdated!")
-        raise e
-    except Exception as e:
-        logging.info(
-            f"Genome object not a pickle, checking if pickled version exists. Error: {e}"
-        )
-
-    # Try pickled version created by this (path+'.pkl')
-    # Check if this file is gzipped
-    gzipped = checkGzip(path + ".pkl")
-    try:
-        if gzipped:
-            logging.info("Path was to a gzipped file. Decompressing...")
-            f = gzip.open(path + ".pkl", "rb")
-        else:
-            logging.info("Path was not to a gzipped file. Defaulting to normal reading")
-            f = open(path + ".pkl", "rb")
-        g = pickle.load(f)
-        if hasattr(g, "gumpy_version"):
-            # Has the version set, so check it
-            major, minor, maintainance = g.gumpy_version[1:].split(".")
-            if (
-                major == gumpy_major
-                and minor == gumpy_minor
-                and maintainance == gumpy_maintainance
-            ):
-                # Exact match to the gumpy version
-                return g
-            else:
-                outdated = True
-        else:
-            outdated = True
-        if outdated:
-            logging.info("Genome object is outdated! Trying with the original filepath")
-    except Exception as e:
-        logging.info(
-            f"No pickled version of genome object, instanciating and dumping. Error: {e}"
-        )
-
-    # Create new gumpy.Genome and pickle dump for speed later
-    reference = gumpy.Genome(path, show_progress_bar=progress)
-    reference.gumpy_version = gumpy.__version__
-    pickle.dump(reference, open(path + ".pkl", "wb"))
-    return reference
-
-
-def loadGenomeAndGenes(
-    path: str, progress: bool
-) -> tuple[gumpy.Genome, dict[str, gumpy.Gene]]:
-    """Look for pickled genome and genes, instanciating one or both if required.
-
-    Used by the table-update script
-
-    Args:
-        path (str): Path to the genbank file or pickle dump. If previously run, a genbank file's Genome object is pickled and dumped for speed
-        progress (bool): Boolean as whether to show progress bar for gumpy
-
-    Returns:
-        tuple[gumpy.Genome, dict[str, gumpy.Gene]]: Tuple of (reference genome object, Dictionary mapping gene name -> gumpy.Gene)
-    """
-    reference = loadGenome(path, progress)
-    gene_path = path + ".genes.pkl.gz"
-
-    if checkGzip(gene_path):
-        # Genes already exist so load
-        with gzip.open(gene_path, "rb") as f:
-            genes = pickle.load(f)
-    else:
-        # Genes didn't exist, so build then dump
-        genes = {}
-        for gene_name in tqdm(reference.genes, disable=not progress):
-            genes[gene_name] = reference.build_gene(gene_name)
-        with gzip.open(gene_path, "wb") as f:
-            pickle.dump(genes, f)
-
-    return reference, genes
+            if item is None or isinstance(item, int) or isinstance(item, float):
+                # Should never happen but appease mypy
+                continue
+            for v in value:
+                # Use duck typing to determine if it's a float or int
+                try:
+                    item.append(int(v))
+                except ValueError:
+                    try:
+                        item.append(float(v))
+                    except ValueError:
+                        item.append(v)
+        ev[key] = item
+    for key, val in ev.items():
+        if isinstance(val, list) and len(val) == 1:
+            # Unpack single values as they probably shouldn't be lists
+            ev[key] = val[0]
+    # We also want to add back in some of the VCF items which aren't in the fields dict
+    ev["POS"] = evidence.position
+    ev["REF"] = evidence.reference
+    ev["ALTS"] = evidence.alternative
+    return ev
 
 
 def populateVariants(
     vcfStem: str,
     outputDir: str,
-    diff: gumpy.GenomeDifference,
+    diff: grumpy.GenomeDifference,
     make_csv: bool,
     resistanceGenesOnly: bool,
+    sample: grumpy.Genome,
     catalogue: piezo.ResistanceCatalogue | None = None,
 ) -> pd.DataFrame:
     """Populate and save the variants DataFrame as a CSV
@@ -216,25 +109,48 @@ def populateVariants(
     Args:
         vcfStem (str): The stem of the filename for the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
-        diff (gumpy.GenomeDifference): GenomeDifference object between reference and the sample
+        diff (grumpy.GenomeDifference): GenomeDifference object between reference and the sample
         make_csv (bool): Whether to write the CSV of the dataframe
+        resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
+        sample (grumpy.Genome): Sample genome object
         catalogue (piezo.ResistanceCatalogue | None, optional): Catalogue for determining FRS or COV for minority populations. If None is given, FRS is assumed. Defaults to None
 
     Returns:
         pd.DataFrame: DataFrame of the variants
     """
     # Populate variants table directly from GenomeDifference
-    vals = {
-        "variant": diff.variants,
-        "nucleotide_index": diff.nucleotide_index,
-        "indel_length": diff.indel_length,
-        "indel_nucleotides": diff.indel_nucleotides,
-        "vcf_evidence": [json.dumps(x) for x in diff.vcf_evidences],
-        "vcf_idx": diff.vcf_idx,
-        "gene": diff.gene_name,
-        "gene_position": diff.gene_pos,
-        "codon_idx": diff.codon_idx,
+    vals: dict[str, list] = {
+        "variant": [],
+        "nucleotide_index": [],
+        "indel_length": [],
+        "indel_nucleotides": [],
+        "vcf_evidence": [],
+        "vcf_idx": [],
+        "gene": [],
+        "gene_position": [],
+        "codon_idx": [],
     }
+    for variant in diff.variants:
+        vals["variant"].append(variant.variant)
+        vals["nucleotide_index"].append(variant.nucleotide_index)
+        vals["indel_length"].append(variant.indel_length)
+        vals["indel_nucleotides"].append(variant.indel_nucleotides)
+        vals["vcf_evidence"].append(json.dumps(parse_grumpy_evidence(variant.evidence)))
+        vals["vcf_idx"].append(variant.vcf_idx)
+        vals["gene"].append(variant.gene_name)
+        vals["gene_position"].append(variant.gene_position)
+        vals["codon_idx"].append(variant.codon_idx)
+
+    for variant in diff.minor_variants:
+        vals["variant"].append(variant.variant)
+        vals["nucleotide_index"].append(variant.nucleotide_index)
+        vals["indel_length"].append(variant.indel_length)
+        vals["indel_nucleotides"].append(variant.indel_nucleotides)
+        vals["vcf_evidence"].append(json.dumps(parse_grumpy_evidence(variant.evidence)))
+        vals["vcf_idx"].append(variant.vcf_idx)
+        vals["gene"].append(variant.gene_name)
+        vals["gene_position"].append(variant.gene_position)
+        vals["codon_idx"].append(variant.codon_idx)
 
     # Use of Int64 rather than int is required here as pandas doesn't allow mixed int/None
     variants = pd.DataFrame(vals).astype(
@@ -250,7 +166,7 @@ def populateVariants(
 
     if catalogue is not None:
         # Figure out if we want to keep all of the variants
-        genes = getGenes(diff, catalogue, resistanceGenesOnly)
+        genes = getGenes(sample, catalogue, resistanceGenesOnly)
         to_drop = []
         for idx, row in variants.iterrows():
             if row["gene"] not in genes:
@@ -258,13 +174,6 @@ def populateVariants(
                 to_drop.append(idx)
 
         variants.drop(index=to_drop, inplace=True)
-    else:
-        genes = set(diff.genome2.genes.keys())
-
-    if diff.genome1.minor_populations or diff.genome2.minor_populations:
-        variants = pd.concat(
-            [variants, minority_population_variants(diff, catalogue, genes)]
-        )
 
     # If there are variants, save them to a csv
     if not variants.empty:
@@ -297,18 +206,20 @@ def populateVariants(
     return variants
 
 
-def get_minority_population_type(catalogue: piezo.ResistanceCatalogue | None) -> str:
+def get_minority_population_type(
+    catalogue: piezo.ResistanceCatalogue | None,
+) -> grumpy.MinorType:
     """Figure out if a catalogue uses FRS or COV. If neither or both, default to FRS
 
     Args:
         catalogue (piezo.ResistanceCatalogue | None): Catalogue
 
     Returns:
-        str: Either 'percentage' or 'reads' for FRS or COV respectively
+        grumpy.MinorType: Enum for FRS or COV respectively
     """
     if catalogue is None:
         # Nothing given, so default to FRS
-        return "percentage"
+        return grumpy.MinorType.FRS
     frs = 0
     cov = 0
     for minor in catalogue.catalogue.rules["MINOR"]:
@@ -324,13 +235,13 @@ def get_minority_population_type(catalogue: piezo.ResistanceCatalogue | None) ->
                     cov += 1
     # We have just COV
     if cov > 0 and frs == 0:
-        return "reads"
+        return grumpy.MinorType.COV
     # We have anything else
-    return "percentage"
+    return grumpy.MinorType.FRS
 
 
 def getGenes(
-    diff: gumpy.GenomeDifference,
+    sample: grumpy.Genome,
     resistanceCatalogue: piezo.ResistanceCatalogue,
     resistanceGenesOnly: bool,
 ) -> set:
@@ -339,15 +250,13 @@ def getGenes(
     This is either just resistance genes which have variants, or all which have variants
 
     Args:
-        diff (gumpy.GenomeDifference): Genome Difference between reference and sample
+        sample (grumpy.Genome): Sample's genome object
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue
         resistanceGenesOnly (bool): Whether to just use genes within the catalogue
 
     Returns:
         set[str]: Set of gene names
     """
-    reference = diff.genome1
-    sample = diff.genome2
     if resistanceCatalogue:
         if resistanceGenesOnly:
             resistanceGenes = set(resistanceCatalogue.catalogue.genes)
@@ -360,53 +269,48 @@ def getGenes(
                         multis.add(mut.split("@")[0])
             resistanceGenes = resistanceGenes.union(multis)
         else:
-            resistanceGenes = set(sample.genes)
-        # Find the genes which have mutations regardless of being in the catalogue
-        # Still cuts back time considerably, and ensures all mutations are included in outputs
-        mask = np.isin(reference.stacked_nucleotide_index, diff.nucleotide_index)
-        genesWithMutations = np.unique(reference.stacked_gene_name[mask]).tolist()
+            resistanceGenes = set(sample.gene_names)
 
-        # Make sure minority population mutations are also picked up
-        minor_genes = set()
-        for population in sample.minor_populations:
-            for gene in reference.stacked_gene_name[
-                reference.stacked_nucleotide_index == population[0]
-            ]:
-                if gene:
-                    minor_genes.add(gene)
-        genesWithMutations += minor_genes
-
-        deletions = []
-        # Make sure large deletions are picked up too
-        for name in reference.stacked_gene_name:
-            deletions += np.unique(name[sample.is_deleted]).tolist()
-        genesWithMutations = set(genesWithMutations + deletions)
-
-        return genesWithMutations.intersection(resistanceGenes)
+        return sample.genes_with_mutations.intersection(resistanceGenes)
 
     else:
         # No catalogue, so just stick to genes in the sample
         return sample.genes
 
 
+def count_nucleotide_changes(ref: str | None, alt: str | None) -> int | None:
+    """Count number of changes between ref and alt
+
+    Args:
+        ref (str | None): Ref nucleotides
+        alt (str | None): Alt nucleotides
+
+    Returns:
+        int | None: SNP distance if SNP, None if ref/alt were None
+    """
+    if ref is None or alt is None:
+        return None
+    return sum(1 for r, a in zip(ref, alt) if r != a)
+
+
 def populateMutations(
     vcfStem: str,
     outputDir: str,
-    genome_diff: gumpy.GenomeDifference,
-    reference: gumpy.Genome,
-    sample: gumpy.Genome,
+    genome_diff: grumpy.GenomeDifference,
+    reference: grumpy.Genome,
+    sample: grumpy.Genome,
     resistanceCatalogue: piezo.ResistanceCatalogue,
     make_csv: bool,
     resistanceGenesOnly: bool,
-) -> Tuple[pd.DataFrame | None, Dict[str, gumpy.Gene], Dict]:
+) -> pd.DataFrame | None:
     """Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
 
     Args:
         vcfStem (str): The stem of the filename of the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
-        genome_diff (gumpy.GenomeDifference): GenomeDifference object between reference and this sample
-        reference (gumpy.Genome): Reference genome
-        sample (gumpy.Genome): Sample genome
+        genome_diff (grumpy.GenomeDifference): GenomeDifference object between reference and this sample
+        reference (grumpy.Genome): Reference genome
+        sample (grumpy.Genome): Sample genome
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue (used to find which genes to check)
         make_csv (bool): Whether to write the CSV of the dataframe
         resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
@@ -416,84 +320,71 @@ def populateMutations(
 
     Returns:
         pd.DataFrame: The mutations DataFrame
-        dict: Dictionary mapping gene name --> reference gumpy.Gene object
     """
-    genesWithMutations = getGenes(genome_diff, resistanceCatalogue, resistanceGenesOnly)
+    genesWithMutations = getGenes(sample, resistanceCatalogue, resistanceGenesOnly)
 
     # Iter resistance genes with variation to produce gene level mutations - concating into a single dataframe
-    mutations = None
-    referenceGenes = {}
-    diffs: List[gumpy.GeneDifference] = []
-
-    for gene in tqdm(genesWithMutations):
-        if gene:
-            logging.debug(f"Found a gene with mutation: {gene}")
-            # Save the reference genes for use later in effects.csv
-            refGene = reference.build_gene(gene)
-            referenceGenes[gene] = refGene
-            # Get gene difference
-            diff = refGene - sample.build_gene(gene)
-            diffs.append(diff)
-
-            # Pull the data out of the gumpy object
-            vals = {
-                "mutation": diff.mutations,
-                "nucleotide_number": diff.nucleotide_number,
-                "nucleotide_index": diff.nucleotide_index,
-                "gene_position": diff.gene_position,
-                "alt": diff.alt_nucleotides,
-                "ref": diff.ref_nucleotides,
-                "codes_protein": [
-                    (
-                        diff.codes_protein and pos > 0
-                        if pos is not None
-                        else diff.codes_protein
-                    )
-                    for pos in diff.gene_position
-                ],
-                "indel_length": diff.indel_length,
-                "indel_nucleotides": diff.indel_nucleotides,
-            }
-            # As diff does not populate amino acid items for non-coding genes,
-            # pull out the sequence or default to None
-            if refGene.codes_protein:
-                vals["amino_acid_number"] = diff.amino_acid_number
-                aa_seq = []
-                # Pull out the amino acid sequence from the alt codons
-                for idx, num in enumerate(diff.amino_acid_number):
-                    if num is not None:
-                        aa_seq.append(
-                            refGene.codon_to_amino_acid[diff.alt_nucleotides[idx]]
-                        )
-                    else:
-                        aa_seq.append(None)
-                vals["amino_acid_sequence"] = np.array(aa_seq)
-            else:
-                vals["amino_acid_number"] = None
-                vals["amino_acid_sequence"] = None
-
-            vals["number_nucleotide_changes"] = [
-                (
-                    sum(i != j for (i, j) in zip(r, a))
-                    if r is not None and a is not None
-                    else None
+    mutations: dict[str, list] = {
+        "gene": [],
+        "mutation": [],
+        "ref": [],
+        "alt": [],
+        "nucleotide_number": [],
+        "nucleotide_index": [],
+        "gene_position": [],
+        "codes_protein": [],
+        "indel_length": [],
+        "indel_nucleotides": [],
+        "amino_acid_number": [],
+        "amino_acid_sequence": [],
+        "number_nucleotide_changes": [],
+    }
+    for gene_name in sorted(genesWithMutations):
+        gene_diff = grumpy.GeneDifference(
+            reference.get_gene(gene_name),
+            sample.get_gene(gene_name),
+            get_minority_population_type(resistanceCatalogue),
+        )
+        for mutation in gene_diff.mutations:
+            mutations["gene"].append(gene_name)
+            mutations["mutation"].append(mutation.mutation)
+            mutations["ref"].append(mutation.ref_nucleotides)
+            mutations["alt"].append(mutation.alt_nucleotides)
+            mutations["nucleotide_number"].append(mutation.nucleotide_number)
+            mutations["nucleotide_index"].append(mutation.nucleotide_index)
+            mutations["gene_position"].append(mutation.gene_position)
+            mutations["codes_protein"].append(mutation.codes_protein)
+            mutations["indel_length"].append(mutation.indel_length)
+            mutations["indel_nucleotides"].append(mutation.indel_nucleotides)
+            mutations["amino_acid_number"].append(mutation.amino_acid_number)
+            mutations["amino_acid_sequence"].append(mutation.amino_acid_sequence)
+            mutations["number_nucleotide_changes"].append(
+                count_nucleotide_changes(
+                    mutation.ref_nucleotides, mutation.alt_nucleotides
                 )
-                for r, a in zip(vals["ref"], vals["alt"])
-            ]
+            )
+        for mutation in gene_diff.minor_mutations:
+            mutations["gene"].append(gene_name)
+            mutations["mutation"].append(mutation.mutation)
+            mutations["ref"].append(mutation.ref_nucleotides)
+            mutations["alt"].append(mutation.alt_nucleotides)
+            mutations["nucleotide_number"].append(mutation.nucleotide_number)
+            mutations["nucleotide_index"].append(mutation.nucleotide_index)
+            mutations["gene_position"].append(mutation.gene_position)
+            mutations["codes_protein"].append(mutation.codes_protein)
+            mutations["indel_length"].append(mutation.indel_length)
+            mutations["indel_nucleotides"].append(mutation.indel_nucleotides)
+            mutations["amino_acid_number"].append(mutation.amino_acid_number)
+            mutations["amino_acid_sequence"].append(mutation.amino_acid_sequence)
+            mutations["number_nucleotide_changes"].append(
+                count_nucleotide_changes(
+                    mutation.ref_nucleotides, mutation.alt_nucleotides
+                )
+            )
 
-            geneMutations = pd.DataFrame(vals)
-            # Add gene name
-            geneMutations["gene"] = gene
-
-            # Add this gene's mutations to the total dataframe
-            if not geneMutations.empty:
-                if mutations is not None:
-                    mutations = pd.concat([mutations, geneMutations])
-                else:
-                    mutations = geneMutations
-    if mutations is not None:
+    if len(mutations["gene"]) != 0:
         # Ensure correct datatypes
-        mutations = mutations.astype(
+        mutations_df = pd.DataFrame(mutations).astype(
             {
                 "mutation": "str",
                 "gene": "str",
@@ -509,29 +400,19 @@ def populateMutations(
                 "amino_acid_sequence": "str",
             }
         )
-    # Add minor mutations (these are stored separately)
-    if reference.minor_populations or sample.minor_populations:
-        # Only do this if they exist
-        x, errors = minority_population_mutations(diffs, resistanceCatalogue)
-        if mutations is None:
-            mutations = x
-        else:
-            mutations = pd.concat([mutations, x])
-    else:
-        errors = {}
-    # If there were mutations, write them to a CSV
-    if mutations is not None:
-        # Add the number of mutations which occured for this mutation
+        # If there were mutations, write them to a CSV
 
         # Add VCF stem as the uniqueID
-        mutations["uniqueid"] = vcfStem
+        mutations_df["uniqueid"] = vcfStem
 
         if make_csv:
             write_mutations_csv(
-                mutations, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
+                mutations_df, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
             )
 
-    return mutations, referenceGenes, errors
+        return mutations_df
+
+    return None
 
 
 def write_mutations_csv(
@@ -584,427 +465,6 @@ def write_mutations_csv(
         mutations_.drop(index=to_drop, inplace=True)
     # Save it as CSV
     mutations_.to_csv(path, index=False)
-
-
-def minority_population_variants(
-    diff: gumpy.GenomeDifference,
-    catalogue: piezo.ResistanceCatalogue | None,
-    genes_set: set,
-) -> pd.DataFrame:
-    """Handle the logic for pulling out minority population calls for genome level variants
-
-    Args:
-        diff: (gumpy.GenomeDifference): GenomeDifference object for this comparison
-        catalogue: (piezo.ResistanceCatalogue): Catalogue to use. Used for determining whether FRS or COV should be used
-        genes_set (set[str]): Set of gene names we care about
-
-    Returns:
-        pd.DataFrame: DataFrame containing the minority population data
-    """
-    # Determine if FRS or COV should be used
-    minor_type = get_minority_population_type(catalogue)
-
-    # Get the variants in GARC
-    variants_ = diff.minor_populations(interpretation=minor_type)
-
-    nucleotide_indices = []
-    indel_lengths: List[int | None] = []
-    indel_nucleotides: List[str | None] = []
-    vcf_evidences = []
-    vcf_idx: List[int | None] = []
-    gene_name = []
-    gene_pos: List[int | None] = []
-    codon_idx = []
-    variants = []
-
-    if genes_set is not None:
-        # Using the gene names, find out which genome indices we want to look out for
-        indices_we_care_about = []
-        for gene in genes_set:
-            mask = diff.genome1.stacked_gene_name == gene
-            gene_indices = diff.genome1.stacked_nucleotide_index[mask].tolist()
-            indices_we_care_about += gene_indices
-        indices_we_care_about = list(set(indices_we_care_about))
-    else:
-        # Genes was none, so fetch everything
-        indices_we_care_about = diff.genome1.nucleotide_index.tolist()
-
-    for variant_ in variants_:
-        variant, evidence = variant_.split(":")
-        variants.append(variant_)
-
-        if ">" in variant:
-            idx = int(variant.split(">")[0][:-1])
-            if idx not in indices_we_care_about:
-                variants.pop()
-                continue
-            nucleotide_indices.append(idx)
-            vcf = diff.genome2.vcf_evidence.get(int(variant.split(">")[0][:-1]))
-            vcf_evidences.append(json.dumps(vcf))
-
-            ref = variant.split(">")[0][-1]
-            alt = variant.split(">")[-1]
-
-            if ref == alt:
-                # Wildtype call so return 0 as it isn't an ALT
-                vcf_idx.append(0)
-            else:
-                # Simple SNP so check for presence in alts + right COV
-                ev = float(evidence)
-                if ev < 1:
-                    # We have FRS so (due to rounding) convert the VCF's COV to FRS
-                    total_depth = sum(vcf["COV"])
-                    cov = [round(x / total_depth, 3) for x in vcf["COV"]]
-                else:
-                    cov = vcf["COV"]
-                minor_call = variant.split(">")[-1]
-
-                added = False
-                for v_idx, alt in enumerate(vcf["ALTS"]):
-                    v_idx += 1
-                    if added:
-                        # Already added so break
-                        break
-                    for i, a in enumerate(alt):
-                        if a == minor_call and idx == vcf["POS"] + i:
-                            # Match on call and position
-                            # Double check that the COV matches too
-                            if ev == cov[v_idx]:
-                                # This is the right element
-                                vcf_idx.append(v_idx)
-                                added = True
-
-                # Shouldn't be possible, but check anyway
-                if added is False:
-                    warnings.warn(
-                        f"The index of the VCF evidence could not be determined! {variant_} --> {vcf}. "
-                        "Continuing with None values"
-                    )
-                    vcf_idx.append(None)
-
-        else:
-            idx = int(variant.split("_")[0])
-            if idx not in indices_we_care_about:
-                variants.pop()
-                continue
-            nucleotide_indices.append(idx)
-            vcf = diff.genome2.vcf_evidence.get(int(variant.split("_")[0]))
-            vcf_evidences.append(json.dumps(vcf))
-
-            # Match VCF idx on base changes + cov
-            ev = float(evidence)
-            if ev < 1:
-                # We have FRS so (due to rounding) convert the VCF's COV to FRS
-                total_depth = sum(vcf["COV"])
-                cov = [round(x / total_depth, 3) for x in vcf["COV"]]
-            else:
-                cov = vcf["COV"]
-
-            ref = vcf["REF"]
-            type_ = variant.split("_")[1]
-            bases = variant.split("_")[-1]
-            added = False
-            for v_idx, alt in enumerate(vcf["ALTS"]):
-                if added:
-                    break
-                v_idx += 1
-                # Use the same `simplify_call` method to decompose the ALTs into indels + snps
-                # Match on the indel + pos + cov
-                for call in diff.genome2.vcf_file._simplify_call(ref, alt):
-                    offset, t, b = call
-                    if vcf["POS"] + offset == idx and type_ == t and bases == b:
-                        # Match on pos, type and bases so check cov too
-                        if ev == cov[v_idx]:
-                            added = True
-                            vcf_idx.append(v_idx)
-
-            if added is False:
-                warnings.warn(
-                    f"The index of the VCF evidence could not be determined! {variant_} --> {vcf}. "
-                    "Continuing with None values"
-                )
-                vcf_idx.append(None)
-
-        if "_" in variant:
-            indel_lengths.append(len(variant.split("_")[-1]))
-            indel_nucleotides.append(variant.split("_")[-1])
-        else:
-            indel_lengths.append(0)
-            indel_nucleotides.append(None)
-
-        # Find the genes at this pos
-        genes = sorted(
-            list(
-                set(
-                    diff.genome1.stacked_gene_name[
-                        diff.genome1.stacked_nucleotide_index == idx
-                    ]
-                )
-            )
-        )
-        if len(genes) > 1:
-            # If we have genes, we need to duplicate some info
-            first = True
-            for gene in genes:
-                if gene == "":
-                    # If we have genes, we don't care about this one
-                    continue
-
-                gene_name.append(gene)
-                g_pos = diff.get_gene_pos(gene, idx, variant)
-                gene_pos.append(g_pos)
-                if (
-                    diff.genome1.genes[gene]["codes_protein"]
-                    and g_pos is not None
-                    and g_pos > 0
-                ):
-                    # Get codon idx
-                    nc_idx = diff.genome1.stacked_nucleotide_index[
-                        diff.genome1.stacked_gene_name == gene
-                    ]
-                    nc_num = diff.genome1.stacked_nucleotide_number[
-                        diff.genome1.stacked_gene_name == gene
-                    ]
-                    codon_idx.append(nc_num[nc_idx == idx][0] % 3)
-                else:
-                    codon_idx.append(None)
-
-                # If this isn't the first one, we need to duplicate the row
-                if first:
-                    first = False
-                else:
-                    variants.append(variants[-1])
-                    nucleotide_indices.append(nucleotide_indices[-1])
-                    indel_lengths.append(indel_lengths[-1])
-                    indel_nucleotides.append(indel_nucleotides[-1])
-                    vcf_evidences.append(vcf_evidences[-1])
-                    vcf_idx.append(vcf_idx[-1])
-
-        else:
-            # We have 1 gene or none, so set to None if no gene is present
-            gene = genes[0] if genes[0] != "" else None
-            if gene is not None:
-                # Single gene, so pull out data
-                gene_name.append(gene)
-                g_pos = diff.get_gene_pos(gene, idx, variant)
-                gene_pos.append(g_pos)
-
-                if (
-                    diff.genome1.genes[gene]["codes_protein"]
-                    and g_pos is not None
-                    and g_pos > 0
-                ):
-                    # Get codon idx
-                    nc_idx = diff.genome1.stacked_nucleotide_index[
-                        diff.genome1.stacked_gene_name == gene
-                    ]
-                    nc_num = diff.genome1.stacked_nucleotide_number[
-                        diff.genome1.stacked_gene_name == gene
-                    ]
-                    codon_idx.append(nc_num[nc_idx == idx][0] % 3)
-                else:
-                    codon_idx.append(None)
-            else:
-                gene_name.append(None)
-                gene_pos.append(None)
-                codon_idx.append(None)
-
-    vals = {
-        "variant": variants,
-        "nucleotide_index": nucleotide_indices,
-        "indel_length": indel_lengths,
-        "indel_nucleotides": indel_nucleotides,
-        "vcf_evidence": vcf_evidences,
-        "vcf_idx": vcf_idx,
-        "gene": gene_name,
-        "gene_position": gene_pos,
-        "codon_idx": codon_idx,
-    }
-    # Convert everything to numpy arrays
-    vals = {key: np.array(vals[key]) for key in vals.keys()}
-    return pd.DataFrame(vals).astype(
-        {
-            "vcf_evidence": "object",
-            "nucleotide_index": "Int64",
-            "indel_length": "Int64",
-            "vcf_idx": "Int64",
-            "gene_position": "Int64",
-            "codon_idx": "Int64",
-        }
-    )
-
-
-def minority_population_mutations(
-    diffs: List[gumpy.GeneDifference], catalogue: piezo.ResistanceCatalogue
-) -> Tuple[pd.DataFrame, Dict]:
-    """Handle the logic for pulling out minority population calls for gene level variants
-
-    Args:
-        diffs ([gumpy.GeneDifference]): List of GeneDifference objects for these comparisons
-        catalogue: (piezo.ResistanceCatalogue): Catalogue to use. Used for determining whether FRS or COV should be used
-
-    Returns:
-        pd.DataFrame: DataFrame containing the minority population data
-    """
-    # Get the mutations
-    mutations_ = []
-    genes = []
-    gene_pos = []
-    nucleotide_number: List[int | None] = []
-    nucleotide_index: List[int | None] = []
-    alt: List[str | None] = []
-    ref: List[str | None] = []
-    codes_protein: List[bool] = []
-    indel_length: List[int | None] = []
-    indel_nucleotides: List[str | None] = []
-    is_cds = []
-    is_het = []
-    is_null = []
-    is_promoter = []
-    is_snp = []
-    aa_num: List[int | None] = []
-    aa_seq: List[str | None] = []
-    number_nucleotide_changes = []
-
-    # Track errors (if any) for reporting but not throwing
-    errors = {}
-
-    # Determine if FRS or COV should be used
-    minor_type = get_minority_population_type(catalogue)
-
-    for diff in diffs:
-        # As mutations returns in GARC, split into constituents for symmetry with others
-        try:
-            mutations = diff.minor_populations(interpretation=minor_type)
-        except Exception:
-            warnings.warn(
-                f"An error occurred within {diff.gene2.name}! Check JSON for stack trace."
-            )
-            errors[diff.gene2.name] = traceback.format_exc()
-            continue
-
-        # Without gene names/evidence
-        muts = [mut.split(":")[0] for mut in mutations]
-        # Gene numbers
-        numbers = [
-            (
-                int(mut.split("_")[0])
-                if "_" in mut  # Indel index: <idx>_<type>_<bases>
-                else (
-                    int(mut[:-1])
-                    if "=" in mut  # Synon SNP: <idx>=
-                    else int(mut[1:][:-1])
-                )
-            )  # SNP: <ref><idx><alt>
-            for mut in muts
-        ]
-
-        # Iter these to pull out all other details from the GeneDifference objects
-        for mut, num, full_mut in zip(muts, numbers, mutations):
-            mutations_.append(full_mut)  # Keep evidence in these
-            genes.append(diff.gene1.name)
-            gene_pos.append(num)
-            codes_protein.append(diff.gene1.codes_protein and num > 0)
-            is_cds.append(num > 0 and diff.gene1.codes_protein)
-            is_het.append("Z" in mut.upper())
-            is_null.append("X" in mut.upper())
-            is_promoter.append(num < 0)
-            number_nucleotide_changes.append(diff.gene2.minor_nc_changes[num])
-
-            if "_" in mut:
-                # Indel
-                if len(mut.split("_")) == 3:
-                    _, t, bases = mut.split("_")
-                    indel_nucleotides.append(bases)
-                    if t == "del":
-                        indel_length.append(-1 * len(bases))
-                    else:
-                        indel_length.append(len(bases))
-                else:
-                    # We have a `<pos>_indel` or `<pos>_mixed`
-                    indel_nucleotides.append(None)
-                    indel_length.append(None)
-                ref.append(None)
-                alt.append(None)
-
-                is_snp.append(False)
-                nucleotide_number.append(num)
-                nucleotide_index.append(
-                    diff.gene1.nucleotide_index[diff.gene1.nucleotide_number == num][0]
-                )
-                aa_num.append(None)
-                aa_seq.append(None)
-                continue
-            else:
-                indel_length.append(None)
-                indel_nucleotides.append(None)
-
-            if mut[0].isupper() or mut[0] == "!":
-                # Protein coding SNP
-                nucleotide_number.append(None)
-                nucleotide_index.append(None)
-                # Pull out codons for ref/alt
-                ref.append(diff.gene1.codons[diff.gene1.amino_acid_number == num][0])
-                alt.append("zzz")
-                is_snp.append(True)
-                aa_num.append(num)
-                aa_seq.append(mut[-1])
-            else:
-                # Other SNPs
-                nucleotide_number.append(num)
-                nucleotide_index.append(
-                    diff.gene1.nucleotide_index[diff.gene1.nucleotide_number == num][0]
-                )
-                aa_num.append(None)
-                aa_seq.append(None)
-                ref.append(
-                    diff.gene1.nucleotide_sequence[diff.gene1.nucleotide_number == num][
-                        0
-                    ]
-                )
-                alt.append(
-                    diff.gene2.nucleotide_sequence[diff.gene2.nucleotide_number == num][
-                        0
-                    ]
-                )
-                is_snp.append(True)
-
-    vals = {
-        "mutation": mutations_,
-        "gene": genes,
-        "nucleotide_number": nucleotide_number,
-        "nucleotide_index": nucleotide_index,
-        "gene_position": gene_pos,
-        "alt": alt,
-        "ref": ref,
-        "codes_protein": codes_protein,
-        "indel_length": indel_length,
-        "indel_nucleotides": indel_nucleotides,
-        "amino_acid_number": aa_num,
-        "amino_acid_sequence": aa_seq,
-        "number_nucleotide_changes": number_nucleotide_changes,
-    }
-
-    return (
-        pd.DataFrame(vals).astype(
-            {
-                "mutation": "str",
-                "gene": "str",
-                "nucleotide_number": "float",
-                "nucleotide_index": "float",
-                "gene_position": "float",
-                "alt": "str",
-                "ref": "str",
-                "codes_protein": "bool",
-                "indel_length": "float",
-                "indel_nucleotides": "str",
-                "amino_acid_number": "float",
-                "amino_acid_sequence": "str",
-                "number_nucleotide_changes": "int",
-            }
-        ),
-        errors,
-    )
 
 
 def subset_multis(
@@ -1280,7 +740,7 @@ def subset_multis(
 def getMutations(
     mutations_df: pd.DataFrame | None,
     catalogue: piezo.ResistanceCatalogue,
-    referenceGenes: Dict,
+    reference: grumpy.Genome,
 ) -> List[Tuple[str | None, str]]:
     """Get all of the mutations (including multi-mutations) from the mutations df
     Multi-mutations currently only exist within the converted WHO catalogue, and are a highly specific combination
@@ -1289,7 +749,7 @@ def getMutations(
     Args:
         mutations_df (pd.DataFrame): Mutations dataframe
         catalogue (piezo.ResistanceCatalogue): The resistance catalogue. Used to find which multi-mutations we care about
-        referenceGenes (dict): Dictionary of geneName->gumpy.Gene
+        reference (grumpy.Genome): Reference genome object. Used for checking if mutations are in coding regions
 
     Returns:
         List[Tuple[str | None, str]]: List of [gene, mutation] or in the case of multi-mutations, [None, multi-mutation]
@@ -1321,7 +781,7 @@ def getMutations(
     # The important part of these should have already been found by multi-mutations
     fixed = []
     for gene, mutation in mutations:
-        if gene is not None and referenceGenes[gene].codes_protein:
+        if gene is not None and reference.get_gene(gene).coding:
             # Codes protein so check for nucleotide changes
             nucleotide = re.compile(
                 r"""
@@ -1345,210 +805,7 @@ def getMutations(
             if large.fullmatch(mutation):
                 continue
         fixed.append((gene, mutation))
-    return fixed
-
-
-def fasta_adjudication(
-    vcfStem: str,
-    fasta_path: str,
-    effects: Dict,
-    effectsCounter: int,
-    resistanceCatalogue: piezo.ResistanceCatalogue,
-    referenceGenes: Dict[str, gumpy.Gene],
-    reference: gumpy.Genome,
-    phenotype: Dict[str, str],
-    sample_genome: gumpy.Genome,
-) -> pd.DataFrame:
-    """Use `null` rules from the catalogue to check against positions in the fasta file - applying the rules if the fasta file gives an `N` for these bases
-
-    Args:
-        vcfStem (str): Stem of the VCF filename. Used as a proxy UUID
-        fasta_path (str): Path to a FASTA file
-        effects (Dict): Effects dictionary
-        effectsCounter (int): Index of the current position to add to the effects dict
-        resistanceCatalogue (piezo.ResistanceCatalogue): Catalogue
-        referenceGenes (Dict[str, gumpy.Gene]): Dictionary mapping gene name --> reference Gene object
-        reference (gumpy.Genome): Reference genome object. Used to build extra genes on the fly (if required)
-        phenotype (Dict[str, str]): Phenotype
-        sample_genome: Genome object for the sample. Used to check if an N in the FASTA denotes a deletion
-    Returns:
-        pd.DataFrame: Dataframe of new mutations introduced by this. This should allow writing them to the JSON
-    """
-    with open(fasta_path) as f:
-        # Parse the FASTA file
-        data = [line.strip().replace("\n", "") for line in f]
-        fasta = "".join(data[1:])
-
-    # Default prediction values are RFUS but use piezo catalogue's values if existing
-    values = resistanceCatalogue.catalogue.values
-
-    seen = set()
-    mutations = {}
-    seen_mutations = set()
-
-    # Parse the catalogue to find null rules
-    for _, rule in resistanceCatalogue.catalogue.rules.iterrows():
-        if rule["MUTATION_TYPE"] == "SNP" and rule["POSITION"] != "*":
-            # We only care about specific SNPs here
-            if referenceGenes.get(rule["GENE"]) is None:
-                # Gene not already built, so add it
-                referenceGenes[rule["GENE"]] = reference.build_gene(rule["GENE"])
-
-            if rule["MUTATION"][-1] == "x":
-                # Nucleotide SNP so pull out the FASTA index
-                g = referenceGenes[rule["GENE"]]
-
-                if int(rule["POSITION"]) not in g.nucleotide_number:
-                    # There are some rules detailing far beyond gumpy assigned promoter regions
-                    # Skip these for now. FIXME if required.
-                    continue
-
-                pos = g.nucleotide_index[g.nucleotide_number == int(rule["POSITION"])][
-                    0
-                ]
-                if (
-                    fasta[pos - 1] == "N"
-                    and not sample_genome.is_deleted[
-                        sample_genome.nucleotide_index == pos
-                    ]
-                ):
-                    # FASTA matches this rule
-                    p = int(rule["MUTATION"][1:-1])
-                    this_e = [
-                        vcfStem,
-                        rule["GENE"],
-                        rule["MUTATION"],
-                        resistanceCatalogue.catalogue.name,
-                        rule["DRUG"],
-                        rule["PREDICTION"],
-                        {**rule["EVIDENCE"], "FASTA called": "N"},
-                    ]
-                    if str(this_e) in seen:
-                        # Avoid duplicate entries
-                        continue
-                    effects[effectsCounter] = this_e
-                    seen.add(str(this_e))
-                    if (rule["GENE"], rule["MUTATION"]) not in seen_mutations:
-                        # Avoid duplicate mutations
-                        seen_mutations.add((rule["GENE"], rule["MUTATION"]))
-                        mutations[effectsCounter] = [
-                            vcfStem,
-                            rule["GENE"],
-                            rule["MUTATION"],
-                            rule["MUTATION"][0],
-                            "x",
-                            None,
-                            None,
-                            p,
-                            False,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                        ]
-                    effectsCounter += 1
-
-                    # Prioritise values based on order within the values list
-                    if values.index("F") < values.index(phenotype[rule["DRUG"]]):
-                        # The prediction is closer to the start of the values list, so should take priority
-                        phenotype[rule["DRUG"]] = "F"
-
-            elif rule["MUTATION"][-1] == "X":
-                # AA SNP so check each item of the codon
-                g = referenceGenes[rule["GENE"]]
-                positions = g.nucleotide_index[g.nucleotide_number > 0][
-                    g.codon_number == int(rule["POSITION"])
-                ]
-                adjusted_positions = [x - 1 for x in positions]
-                is_null_call = False
-                for idx, (base, deleted) in enumerate(
-                    zip(
-                        [fasta[p] for p in adjusted_positions],
-                        sample_genome.is_deleted[adjusted_positions],
-                    )
-                ):
-                    if base == "N" and not deleted:
-                        # Check on a base-by-base basis as we only want Fs in cases of not deleted
-                        # and a codon could include deleted bases and null calls
-                        is_null_call = True
-                if is_null_call:
-                    # There is >= 1 N in this codon so add to mutations
-                    pos = int(rule["MUTATION"][1:-1])
-                    r = "".join(
-                        g.nucleotide_sequence[g.nucleotide_number > 0][
-                            g.codon_number == int(rule["POSITION"])
-                        ]
-                    )
-                    a = (
-                        "".join([fasta[p] for p in adjusted_positions])
-                        .lower()
-                        .replace("n", "x")
-                    )
-                    if (rule["GENE"], rule["MUTATION"]) not in seen_mutations:
-                        # Avoid duplicate mutations
-                        mutations[effectsCounter] = [
-                            vcfStem,
-                            rule["GENE"],
-                            rule["MUTATION"],
-                            r,
-                            a,
-                            None,
-                            None,
-                            pos,
-                            True,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                        ]
-                        seen_mutations.add((rule["GENE"], rule["MUTATION"]))
-
-                for pos in positions:
-                    if fasta[pos - 1] == "N" and not sample_genome.is_deleted[pos - 1]:
-                        # FASTA matches this rule
-                        this_e = [
-                            vcfStem,
-                            rule["GENE"],
-                            rule["MUTATION"],
-                            resistanceCatalogue.catalogue.name,
-                            rule["DRUG"],
-                            rule["PREDICTION"],
-                            {**rule["EVIDENCE"], "FASTA called": "N"},
-                        ]
-                        if str(this_e) in seen:
-                            # Avoid duplicate entries
-                            continue
-                        effects[effectsCounter] = this_e
-                        seen.add(str(this_e))
-                        effectsCounter += 1
-
-                        # Prioritise values based on order within the values list
-                        if values.index("F") < values.index(phenotype[rule["DRUG"]]):
-                            # The prediction is closer to the start of the values list, so should take priority
-                            phenotype[rule["DRUG"]] = "F"
-
-    return pd.DataFrame.from_dict(
-        mutations,
-        orient="index",
-        columns=[
-            "uniqueid",
-            "gene",
-            "mutation",
-            "ref",
-            "alt",
-            "nucleotide_number",
-            "nucleotide_index",
-            "gene_position",
-            "codes_protein",
-            "indel_length",
-            "indel_nucleotides",
-            "amino_acid_number",
-            "amino_acid_sequence",
-            "number_nucleotide_changes",
-        ],
-    )
+    return sorted(fixed, key=lambda x: "".join([str(i) for i in x]))
 
 
 def epistasis(
@@ -1623,13 +880,10 @@ def populateEffects(
     outputDir: str,
     resistanceCatalogue: piezo.ResistanceCatalogue,
     mutations: pd.DataFrame,
-    referenceGenes: dict,
     vcfStem: str,
     make_csv: bool,
     make_prediction_csv: bool,
-    fasta: str | None = None,
-    reference: gumpy.Genome | None = None,
-    sample_genome: gumpy.Genome | None = None,
+    reference: grumpy.Genome,
     make_mutations_csv: bool = False,
     append: bool = False,
 ) -> Tuple[pd.DataFrame, Dict, pd.DataFrame] | None:
@@ -1639,13 +893,10 @@ def populateEffects(
         outputDir (str): Path to the directory to save the CSV
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue for predictions
         mutations (pd.DataFrame): Mutations dataframe
-        referenceGenes (dict): Dictionary mapping gene name --> reference gumpy.Gene objects
         vcfStem (str): The basename of the given VCF - used as the sample name
         make_csv (bool): Whether to write the CSV of the dataframe
         make_prediction_csv (bool): Whether to write the CSV of the antibiogram
-        fasta (str | None, optional): Path to a FASTA if given. Defaults to None.
-        reference (gumpy.Genome | None, optional): Reference genome. Defaults to None.
-        sample_genome (gumpy.Genome | None, optional): Sample's genome. Defaults to None.
+        reference (grumpy.Genome | None, optional): Reference genome. Defaults to None.
         make_mutations_csv (bool, optional): Whether to write the mutations CSV to disk with new mutations. Defaults to False.
         append (bool, optional): Whether to append data to an existing df at the location (if existing).
 
@@ -1656,7 +907,7 @@ def populateEffects(
         (pd.DataFrame, dict): (
             DataFrame containing the effects data,
             A metadata dictionary mapping drugs to their predictions,
-            DataFrame containing the mutations data (with fasta null calls as appropriate)
+            DataFrame containing the mutations data
         )
     """
     if resistanceCatalogue is None:
@@ -1672,12 +923,12 @@ def populateEffects(
     values = resistanceCatalogue.catalogue.values
 
     # only try and build an effects table if there are mutations
-    sample_mutations = getMutations(mutations, resistanceCatalogue, referenceGenes)
+    sample_mutations = getMutations(mutations, resistanceCatalogue, reference)
     for gene, mutation in tqdm(sample_mutations):
         # Ensure its a valid mutation
-        if gene is not None and not referenceGenes[gene].valid_variant(mutation):
-            logging.error(f"Not a valid mutation {gene}@{mutation}")
-            raise InvalidMutationException(gene, mutation)
+        # if gene is not None and not referenceGenes[gene].valid_variant(mutation):
+        #     logging.error(f"Not a valid mutation {gene}@{mutation}")
+        #     raise InvalidMutationException(gene, mutation)
 
         # Get the prediction
         if gene is not None:
@@ -1726,31 +977,6 @@ def populateEffects(
         effectsCounter,
         vcfStem,
     )
-
-    if fasta is not None and reference is not None and sample_genome is not None:
-        # Implicitly uses `effects` and `pheotype` for returns
-        new_mutations = fasta_adjudication(
-            vcfStem,
-            fasta,
-            effects,
-            effectsCounter,
-            resistanceCatalogue,
-            referenceGenes,
-            reference,
-            phenotype,
-            sample_genome,
-        )
-        if mutations is not None:
-            mutations = pd.concat([mutations, new_mutations])
-        else:
-            mutations = new_mutations
-        mutations.reset_index(inplace=True)
-        if make_mutations_csv:
-            write_mutations_csv(
-                mutations,
-                os.path.join(outputDir, f"{vcfStem}.mutations.csv"),
-                filter=True,
-            )
 
     # Build the DataFrame
     effects_df = pd.DataFrame.from_dict(
@@ -1844,11 +1070,10 @@ def saveJSON(
     catalogue: piezo.ResistanceCatalogue,
     gnomonicusVersion: str,
     time_taken: float,
-    reference: gumpy.Genome,
+    reference: grumpy.Genome,
     vcf_path: str,
     reference_path: str,
     catalogue_path: str,
-    minor_errors: Dict,
 ) -> None:
     """Create and save a single JSON output file for use within GPAS. JSON structure:
     {
@@ -1918,7 +1143,7 @@ def saveJSON(
         catalogue (piezo.ResistanceCatalogue): Catalogue used
         gnomonicusVersion (str): Semantic versioning string for the gnomonicus module. Can be accessed by `gnomonicus.__version__`
         time_taken (float): Number of seconds taken to run this.
-        reference (gumpy.Genome): Reference genome object
+        reference (grumpy.Genome): Reference genome object
         vcf_path (str): Path to the VCF file used for this run
         reference_path (str): Path to the reference genome used for this run
         catalogue_path (str): Path to the catalogue used for this run
@@ -2061,13 +1286,4 @@ def saveJSON(
     with open(
         os.path.join(path, f"{guid}.gnomonicus-out.json"), "w", encoding="utf-8"
     ) as f:
-        # Add errors (if any)
-        if len(minor_errors) > 0:
-            f.write(
-                json.dumps(
-                    {"meta": meta, "data": data, "errors": minor_errors},
-                    indent=2,
-                )
-            )
-        else:
-            f.write(json.dumps({"meta": meta, "data": data}, indent=2))
+        f.write(json.dumps({"meta": meta, "data": data}, indent=2))
