@@ -135,7 +135,9 @@ def populateVariants(
         vals["nucleotide_index"].append(variant.nucleotide_index)
         vals["indel_length"].append(variant.indel_length)
         vals["indel_nucleotides"].append(variant.indel_nucleotides)
-        vals["vcf_evidence"].append(json.dumps(parse_grumpy_evidence(variant.evidence)))
+        vals["vcf_evidence"].append(
+            json.dumps(parse_grumpy_evidence(sample.get_vcf_row(variant.evidence)))
+        )
         vals["vcf_idx"].append(variant.vcf_idx)
         vals["gene"].append(variant.gene_name)
         vals["gene_position"].append(variant.gene_position)
@@ -146,7 +148,9 @@ def populateVariants(
         vals["nucleotide_index"].append(variant.nucleotide_index)
         vals["indel_length"].append(variant.indel_length)
         vals["indel_nucleotides"].append(variant.indel_nucleotides)
-        vals["vcf_evidence"].append(json.dumps(parse_grumpy_evidence(variant.evidence)))
+        vals["vcf_evidence"].append(
+            json.dumps(parse_grumpy_evidence(sample.get_vcf_row(variant.evidence)))
+        )
         vals["vcf_idx"].append(variant.vcf_idx)
         vals["gene"].append(variant.gene_name)
         vals["gene_position"].append(variant.gene_position)
