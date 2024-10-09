@@ -50,8 +50,6 @@ def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
     Returns:
         dict: Parsed evidence
     """
-    print(evidence, type(evidence), dir(evidence))
-    print(evidence.position)
     ev = {}
     for key, value in evidence.fields.items():
         item: list[int | float | None] | int | float | None = []
