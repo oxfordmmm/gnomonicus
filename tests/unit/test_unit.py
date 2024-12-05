@@ -2174,7 +2174,7 @@ def test_11():
                         "gene": "A",
                         "mutation": "-1_del_aaaaaaaaccccccccccgggggggggg",
                         "prediction": "U",
-                        "evidence": {"row": 5},
+                        "evidence": {"row": 4},
                     },
                     {
                         "gene": "A",
