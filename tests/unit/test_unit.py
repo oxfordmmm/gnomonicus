@@ -126,7 +126,7 @@ def ordered(obj):
 
     # Nones cause issues with ordering as there is no < operator.
     # Convert to string to avoid this
-    if type(obj) == type(None):
+    if isinstance(obj, type(None)):
         return str(obj)
 
     # Because nan types are helpful, `float('nan') == float('nan') -> False`
