@@ -1011,7 +1011,7 @@ def populateEffects(
     effects_df["prediction_values"] = "".join(resistanceCatalogue.catalogue.values)
 
     # Save as CSV
-    if len(effects) > 0 and make_csv:
+    if make_csv:
         if append:
             # Check to see if there's anything there already
             try:
