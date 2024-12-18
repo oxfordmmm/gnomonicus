@@ -179,33 +179,31 @@ def populateVariants(
 
         variants.drop(index=to_drop, inplace=True)
 
-    # If there are variants, save them to a csv
-    if not variants.empty:
-        # Add unique ID to each record
-        variants["uniqueid"] = vcfStem
+    # Add unique ID to each record
+    variants["uniqueid"] = vcfStem
 
-        variants = variants[
-            [
-                "uniqueid",
-                "variant",
-                "gene",
-                "gene_position",
-                "codon_idx",
-                "nucleotide_index",
-                "indel_length",
-                "indel_nucleotides",
-                "vcf_evidence",
-                "vcf_idx",
-            ]
+    variants = variants[
+        [
+            "uniqueid",
+            "variant",
+            "gene",
+            "gene_position",
+            "codon_idx",
+            "nucleotide_index",
+            "indel_length",
+            "indel_nucleotides",
+            "vcf_evidence",
+            "vcf_idx",
         ]
-        variants = variants.drop_duplicates()
-        if make_csv:
-            # Save CSV
-            variants.to_csv(
-                os.path.join(outputDir, f"{vcfStem}.variants.csv"),
-                header=True,
-                index=False,
-            )
+    ]
+    variants = variants.drop_duplicates()
+    if make_csv:
+        # Save CSV
+        variants.to_csv(
+            os.path.join(outputDir, f"{vcfStem}.variants.csv"),
+            header=True,
+            index=False,
+        )
     variants.reset_index(inplace=True)
     return variants
 
@@ -386,37 +384,34 @@ def populateMutations(
                 )
             )
 
-    if len(mutations["gene"]) != 0:
-        # Ensure correct datatypes
-        mutations_df = pd.DataFrame(mutations).astype(
-            {
-                "mutation": "str",
-                "gene": "str",
-                "nucleotide_number": "Int64",
-                "nucleotide_index": "Int64",
-                "gene_position": "Int64",
-                "alt": "str",
-                "ref": "str",
-                "codes_protein": "bool",
-                "indel_length": "Int64",
-                "indel_nucleotides": "str",
-                "amino_acid_number": "Int64",
-                "amino_acid_sequence": "str",
-            }
+    # Ensure correct datatypes
+    mutations_df = pd.DataFrame(mutations).astype(
+        {
+            "mutation": "str",
+            "gene": "str",
+            "nucleotide_number": "Int64",
+            "nucleotide_index": "Int64",
+            "gene_position": "Int64",
+            "alt": "str",
+            "ref": "str",
+            "codes_protein": "bool",
+            "indel_length": "Int64",
+            "indel_nucleotides": "str",
+            "amino_acid_number": "Int64",
+            "amino_acid_sequence": "str",
+        }
+    )
+    # If there were mutations, write them to a CSV
+
+    # Add VCF stem as the uniqueID
+    mutations_df["uniqueid"] = vcfStem
+
+    if make_csv:
+        write_mutations_csv(
+            mutations_df, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
         )
-        # If there were mutations, write them to a CSV
 
-        # Add VCF stem as the uniqueID
-        mutations_df["uniqueid"] = vcfStem
-
-        if make_csv:
-            write_mutations_csv(
-                mutations_df, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
-            )
-
-        return mutations_df
-
-    return None
+    return mutations_df
 
 
 def write_mutations_csv(
@@ -1011,7 +1006,7 @@ def populateEffects(
     effects_df["prediction_values"] = "".join(resistanceCatalogue.catalogue.values)
 
     # Save as CSV
-    if len(effects) > 0 and make_csv:
+    if make_csv:
         if append:
             # Check to see if there's anything there already
             try:
