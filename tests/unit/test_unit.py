@@ -2624,6 +2624,55 @@ def test_13():
     recursive_eq(ordered(expectedJSON), ordered(actualJSON))
 
 
+def test_14():
+    """No variants/mutations/effects/predictions
+    Input:
+        NC_045512.2-no-variants.vcf
+    Expect output:
+        variants:
+        mutations:
+        predictions:
+    """
+    # Setup
+    setupOutput("14")
+    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    catalogue = piezo.ResistanceCatalogue(
+        "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
+    )
+
+    vcf = grumpy.VCFFile(
+        "tests/test-cases/NC_045512.2-no-variants.vcf",
+        True,
+        2,
+    )
+    vcfStem = "NC_045512.2-no-variants"
+
+    sample = grumpy.mutate(reference, vcf)
+
+    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+
+    # Populate the tables
+    path = "tests/outputs/14/"
+    gnomonicus.populateVariants(
+        vcfStem, path, diff, True, True, sample, catalogue=catalogue
+    )
+    mutations = gnomonicus.populateMutations(
+        vcfStem, path, diff, reference, sample, catalogue, True, True
+    )
+    e, phenotypes, _ = gnomonicus.populateEffects(
+        path, catalogue, mutations, vcfStem, True, True, reference
+    )
+
+    # Check for expected values within csvs
+    variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
+    mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
+    effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
+
+    assert len(variants) == 0
+    assert len(mutations) == 0
+    assert len(effects) == 0
+
+
 def compare_effects(effects: pd.DataFrame, expected: [str]) -> None:
     """Compare an effects DataFrame with the expected values
 
