@@ -8,6 +8,11 @@ on:
     types:
       - completed
 
+env:
+  REGISTRY: lhr.ocir.io
+  IMAGE_NAME: oxfordmmm/gnomonicus
+  IMAGE_NAME_GPAS_LTD: oxfordmmm/gnomonicus
+
 jobs:
   build-docker:
     runs-on: ubuntu-latest
@@ -22,29 +27,40 @@ jobs:
           repository: oxfordmmm/gnomonicus  # The repository to scan.
           releases-only: true  # We know that all relevant tags have a GitHub release for them.
         id: gnomonicus  # The step ID to refer to later.
-      -
-        name: Login to DockerHub
-        uses: docker/login-action@v1 
+      
+      - name: Login to OCR
+        uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Login to OCR
-        uses: docker/login-action@v1 
-        with:
-          registry: lhr.ocir.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ secrets.OCR_USERNAME }}
           password: ${{ secrets.OCR_TOKEN }}
-      -
-        name: Build and push
-        id: docker_build
-        uses: docker/build-push-action@v2
+
+      - name: Build and push
+        id: build_and_push
+        uses: docker/build-push-action@v4
         with:
+          push: true
           file: environments/Dockerfile
           tags: |
             oxfordmmm/gnomonicus:latest
             oxfordmmm/gnomonicus:${{steps.gnomonicus.outputs.tag}}
-            lhr.ocir.io/lrbvkel2wjot/oxfordmmm/gnomonicus:latest
-            lhr.ocir.io/lrbvkel2wjot/oxfordmmm/gnomonicus:${{steps.gnomonicus.outputs.tag}}
+            {{ env.REGISTRY }}/${{ secrets.MMM_NAMESPACE }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ secrets.MMM_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+
+      - name: Login to gpasltd OCIR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.OCR_CONTAINER_USERNAME_GPASLTD }}
+          password: ${{ secrets.OCR_CONTAINER_TOKEN_GPASLTD }}
+
+      - name: Build and push
+        id: build_and_push_gpas_ltd
+        uses: docker/build-push-action@v4
+        with:
           push: true
-          no-cache: true
+          file: environments/Dockerfile
+          tags: |
+            ${{ env.REGISTRY }}/${{ secrets.GPAS_LTD_NAMESPACE }}/${{ env.IMAGE_NAME_GPAS_LTD }}:${{ github.ref_name }}
+      - name: Docker digest
+        run: echo ${{ steps.build_and_push.outputs.digest }}
