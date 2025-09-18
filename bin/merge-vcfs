@@ -1,36 +1,56 @@
 #!/usr/bin/env python3
-"""Merge a minos VCF with a GVCF at certain positions (driven by the catalogue)."""
+"""Merge a minos VCF with a GVCF at certain positions (driven by the catalogue).
+Will only include null calls from the GVCF.
+"""
 import argparse
-import gumpy
+import grumpy
 
 from vcf_subset import subset_vcf
 
 from pathlib import Path
 
-def fetch_minos_positions(minos_vcf: Path) -> set[int]:
+def fetch_minos_positions(minos_path: Path, min_dp: int) -> set[int]:
     """Given a minos VCF, return the positions to exclude from the gvcf.
 
     Args:
         minos_vcf (Path): Path to the minos VCF file.
+        min_dp (int): Minimum DP to consider a call valid.
     Returns:
         set[int]: The positions to exclude.
     """
-    vcf = gumpy.VCFFile(minos_vcf.as_posix(), ignore_filter=True)
+    vcf = grumpy.VCFFile(minos_path.as_posix(), False, min_dp)
     positions = set()
-    for pos, m_type in vcf.calls:
-        if m_type != "indel":
-            # Non-indels need no more checking as they are exactly in the VCF
-            positions.add(pos)
-        else:
-            # Check if the indel is a deletion or insertion (deleted bases need excluding too)
-            for item in vcf.calls[(pos, m_type)]:
-                call, bases = item["call"]
-                if call == "ins":
-                    positions.add(pos)
-                else:
-                    positions.update(range(pos, pos + len(bases)))
+    for position in vcf.calls.keys():
+        calls = vcf.calls[position]
+        for call in calls:
+            if call.call_type == grumpy.AltType.DEL:
+                # Deletion - need to exclude all bases deleted
+                positions.update(range(position, position + len(call.alt)))
+            else:
+                positions.add(position)
     return positions
-            
+
+def check_gvcf_row(row: str, min_dp: int) -> bool:
+    """Check if a GVCF row is just a null call (and so should be included).
+
+    Args:
+        row (str): The VCF row.
+        min_dp (int): Minimum DP to consider a call valid.
+    Returns:
+        bool: True if the row is _just_ null calls, False otherwise.
+    """
+    with open(".temp_gvcf_row.vcf", "w") as f:
+        f.write("##fileformat=VCFv4.2\n")
+        f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample\n")
+        f.write(row + "\n")
+    vcf = grumpy.VCFFile(".temp_gvcf_row.vcf", False, min_dp)
+    valid = True
+    for position in vcf.calls:
+        for call in vcf.calls[position]:
+            if call.call_type != grumpy.AltType.NULL:
+                valid = False
+    Path(".temp_gvcf_row.vcf").unlink()
+    return valid
 
 
 if __name__ == "__main__":
@@ -38,6 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("--minos_vcf", help="The minos VCF filepath", required=True)
     parser.add_argument("--gvcf", help="The GVCF filepath", required=True)
     parser.add_argument("--resistant-positions", help="Path to list of resistant sites", required=True)
+    parser.add_argument("--min_dp", help="Minimum DP to consider a call valid", type=int, default=3)
     parser.add_argument("--output", help="The output VCF file path", required=True)
     args = parser.parse_args()
 
@@ -58,7 +79,7 @@ if __name__ == "__main__":
     with open(resistant_positions_path) as f:
         resistant_positions = set([int(line.strip()) for line in f])
     
-    minos_positions = fetch_minos_positions(minos_path)
+    minos_positions = fetch_minos_positions(minos_path, args.min_dp)
     to_fetch = sorted(list(resistant_positions - minos_positions))
     print(f"Fetching {len(to_fetch)} positions from the GVCF")
     # fetch_strs = set([str(pos) for pos in to_fetch])
@@ -136,11 +157,7 @@ if __name__ == "__main__":
             
             # GVCF doesn't explicitly call filter passes, so ensure the calls are picked up
             row[6] = "PASS" if row[6] == "." else row[6]
-            f.write("\t".join(row) + "\n")
-        
-
-
-
-    
-
-
+            row = "\t".join(row) + "\n"
+            if check_gvcf_row(row, args.min_dp):
+                # Only include null calls
+                f.write(row)
