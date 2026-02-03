@@ -289,7 +289,7 @@ def getGenes(
 
     else:
         # No catalogue, so just stick to genes in the sample
-        return sample.gene_names
+        return sample.genes_with_mutations
 
 
 def count_nucleotide_changes(ref: str | None, alt: str | None) -> int | None:
