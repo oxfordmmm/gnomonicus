@@ -31,4 +31,5 @@ from .gnomonicus_lib import (
     populateMutations,  # noqa: F401
     populateVariants,  # noqa: F401
     saveJSON,  # noqa: F401
+    getGenes,  # noqa: F401
 )

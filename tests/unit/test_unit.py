@@ -163,6 +163,11 @@ def test_misc():
 
     sample = grumpy.mutate(reference, vcf)
 
+    # Check that getGenes behaves the same with/without catalogue
+    assert sorted(gnomonicus.getGenes(sample, None, False)) == sorted(
+        gnomonicus.getGenes(sample, catalogue, False)
+    )
+
     diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
 
     # Populate the tables
