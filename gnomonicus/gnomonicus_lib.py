@@ -232,8 +232,8 @@ def get_minority_population_type(
         grumpy.MinorType: Enum for FRS or COV respectively
     """
     if catalogue is None:
-        # Nothing given, so default to FRS
-        return grumpy.MinorType.FRS
+        # Nothing given, so default to COV
+        return grumpy.MinorType.COV
     frs = 0
     cov = 0
     for minor in catalogue.catalogue.rules["MINOR"]:
@@ -289,7 +289,7 @@ def getGenes(
 
     else:
         # No catalogue, so just stick to genes in the sample
-        return sample.genes
+        return sample.gene_names
 
 
 def count_nucleotide_changes(ref: str | None, alt: str | None) -> int | None:
