@@ -2,6 +2,7 @@
 """Merge a minos VCF with a GVCF at certain positions (driven by the catalogue).
 Will only include null calls from the GVCF.
 """
+
 import argparse
 import grumpy
 
@@ -20,7 +21,7 @@ def fetch_minos_positions(minos_path: Path, min_dp: int) -> set[int]:
         set[int]: The positions to exclude.
     """
     vcf = grumpy.VCFFile(minos_path.as_posix(), False, min_dp)
-    positions = set()
+    positions: set[int] = set()
     for position in vcf.calls.keys():
         calls = vcf.calls[position]
         for call in calls:

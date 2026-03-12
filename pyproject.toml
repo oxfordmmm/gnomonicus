@@ -63,3 +63,5 @@ merge-vcfs = "gnomonicus.merge_vcfs:main"
 [tool.hatch.build.targets.wheel]
 include = ["gnomonicus/*"]
 
+[tool.mypy]
+disable_error_code = ["import-untyped", "import-not-found"]

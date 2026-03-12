@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 """Update existing gnomonicus tables with a new catalogue."""
+
 import argparse
 import piezo
 import pandas

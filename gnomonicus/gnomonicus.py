@@ -3,6 +3,7 @@
 produce variants, mutations and an antibiogram from a minos VCF, reference genome and a resistance
 catalogue
 """
+
 import argparse
 import logging
 import os
