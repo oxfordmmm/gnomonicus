@@ -9,6 +9,7 @@ from vcf_subset import subset_vcf
 
 from pathlib import Path
 
+
 def fetch_minos_positions(minos_path: Path, min_dp: int) -> set[int]:
     """Given a minos VCF, return the positions to exclude from the gvcf.
 
@@ -29,6 +30,7 @@ def fetch_minos_positions(minos_path: Path, min_dp: int) -> set[int]:
             else:
                 positions.add(position)
     return positions
+
 
 def check_gvcf_row(row: str, min_dp: int) -> bool:
     """Check if a GVCF row is just a null call (and so should be included).
@@ -57,8 +59,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--minos_vcf", help="The minos VCF filepath", required=True)
     parser.add_argument("--gvcf", help="The GVCF filepath", required=True)
-    parser.add_argument("--resistant-positions", help="Path to list of resistant sites", required=True)
-    parser.add_argument("--min_dp", help="Minimum DP to consider a call valid", type=int, default=3)
+    parser.add_argument(
+        "--resistant-positions", help="Path to list of resistant sites", required=True
+    )
+    parser.add_argument(
+        "--min_dp", help="Minimum DP to consider a call valid", type=int, default=3
+    )
     parser.add_argument("--output", help="The output VCF file path", required=True)
     args = parser.parse_args()
 
@@ -70,15 +76,19 @@ def main():
     output_path = Path(args.output)
 
     # Sanity checking arguments
-    if not minos_path.exists() or not gvcf_path.exists() or not resistant_positions_path.exists():
+    if (
+        not minos_path.exists()
+        or not gvcf_path.exists()
+        or not resistant_positions_path.exists()
+    ):
         raise FileNotFoundError("One or more of the input files does not exist!")
     if output_path.exists():
         raise FileExistsError("Output file already exists!")
-    
+
     # Read in the resistant positions
     with open(resistant_positions_path) as f:
         resistant_positions = set([int(line.strip()) for line in f])
-    
+
     minos_positions = fetch_minos_positions(minos_path, args.min_dp)
     to_fetch = sorted(list(resistant_positions - minos_positions))
     print(f"Fetching {len(to_fetch)} positions from the GVCF")
@@ -88,7 +98,7 @@ def main():
     gvcf_headers, subset = subset_vcf(gvcf_path.as_posix(), to_fetch)
 
     minos_headers, minos_values = subset_vcf(minos_path.as_posix(), [])
-    
+
     # Pull out header parts to catch parts which need adding
     minos_format = [header for header in minos_headers if "##FORMAT" in header]
     minos_info = [header for header in minos_headers if "##INFO" in header]
@@ -102,33 +112,39 @@ def main():
     missing_info = [header for header in gvcf_info if header not in minos_info]
     missing_filter = [header for header in gvcf_filter if header not in minos_filter]
 
-    
-    minos_misc_headers = [header for header in minos_headers if "##FORMAT" not in header and "##INFO" not in header and "##FILTER" not in header and "#CHROM" not in header]
+    minos_misc_headers = [
+        header
+        for header in minos_headers
+        if "##FORMAT" not in header
+        and "##INFO" not in header
+        and "##FILTER" not in header
+        and "#CHROM" not in header
+    ]
 
     chrom_line = [header for header in minos_headers if "#CHROM" in header][0]
 
     with open(output_path, "w") as f:
         for misc in minos_misc_headers:
             f.write(misc + "\n")
-        
+
         # Merged format
         for header in minos_format:
             f.write(header + "\n")
         for header in missing_format:
             f.write(header + "\n")
-        
+
         # Merged info
         for header in minos_info:
             f.write(header + "\n")
         for header in missing_info:
             f.write(header + "\n")
-        
+
         # Merged filter
         for header in minos_filter:
             f.write(header + "\n")
         for header in missing_filter:
             f.write(header + "\n")
-        
+
         f.write(chrom_line + "\n")
 
         # Minos rows
@@ -138,7 +154,7 @@ def main():
             pos = int(r[1])
             minos_positions.append(pos)
             f.write(row + "\n")
-            
+
         # GVCF rows
         for row in subset:
             # Replace DP with COV as GVCF doesn't have a COV-like field
@@ -154,13 +170,14 @@ def main():
                 # We should already be filtering out positions, but in cases of dels, the start can slip through
                 # Catch duplicates in these cases
                 continue
-            
+
             # GVCF doesn't explicitly call filter passes, so ensure the calls are picked up
             row[6] = "PASS" if row[6] == "." else row[6]
             row = "\t".join(row) + "\n"
             if check_gvcf_row(row, args.min_dp):
                 # Only include null calls
                 f.write(row)
+
 
 if __name__ == "__main__":
     main()

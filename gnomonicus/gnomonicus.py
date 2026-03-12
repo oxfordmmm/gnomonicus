@@ -1,7 +1,7 @@
 #!/usr/bin/python3
-"""gnomonicus is a script which links together the functions defined in gnomonicus.py as a CLI script to 
-    produce variants, mutations and an antibiogram from a minos VCF, reference genome and a resistance
-    catalogue
+"""gnomonicus is a script which links together the functions defined in gnomonicus.py as a CLI script to
+produce variants, mutations and an antibiogram from a minos VCF, reference genome and a resistance
+catalogue
 """
 import argparse
 import logging
@@ -18,6 +18,7 @@ from gnomonicus import (
     populateVariants,
     saveJSON,
 )
+
 
 def main():
     start = time.time()
@@ -162,7 +163,7 @@ def main():
         # Default to COV if no resistance catalogue is provided
         # not that it needs to be used, but minor populations are built into grumpy
         minor_type = grumpy.MinorType.COV
-    
+
     sample = grumpy.mutate(reference, vcf)
     logging.debug("Applied the VCF to the reference")
 
@@ -268,6 +269,7 @@ def main():
             options.genome_object,
             options.catalogue_file,
         )
+
 
 if __name__ == "__main__":
     main()

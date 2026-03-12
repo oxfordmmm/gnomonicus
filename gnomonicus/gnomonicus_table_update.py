@@ -1,6 +1,5 @@
 #!/usr/bin/python3
-"""Update existing gnomonicus tables with a new catalogue.
-"""
+"""Update existing gnomonicus tables with a new catalogue."""
 import argparse
 import piezo
 import pandas
@@ -8,10 +7,15 @@ import grumpy
 
 from gnomonicus import populateEffects
 
+
 def main():
     # Argparser setup
-    parser = argparse.ArgumentParser(description="Parse an existing mutations.csv and a catalogue to produce effects.csv and predictions.csv")
-    parser.add_argument("--mutations", required=True, help="Path to the existing mutations table")
+    parser = argparse.ArgumentParser(
+        description="Parse an existing mutations.csv and a catalogue to produce effects.csv and predictions.csv"
+    )
+    parser.add_argument(
+        "--mutations", required=True, help="Path to the existing mutations table"
+    )
     parser.add_argument(
         "--genome_object",
         required=True,
@@ -24,7 +28,9 @@ def main():
         help="Path to the resistance catalogue",
     )
     parser.add_argument("--output", default=".", help="Output path")
-    parser.add_argument("--progress", action="store_true", default=False, help="Show progress bar")
+    parser.add_argument(
+        "--progress", action="store_true", default=False, help="Show progress bar"
+    )
     options = parser.parse_args()
 
     mutations = pandas.read_csv(options.mutations)
@@ -32,7 +38,6 @@ def main():
 
     # Pull out original VCF stem from mutations filename
     vcf_stem = options.mutations.split("/")[-1].replace(".mutations.csv", "")
-
 
     populateEffects(
         options.output,
@@ -42,8 +47,9 @@ def main():
         True,
         True,
         grumpy.Genome(options.genome_object),
-        append=True
+        append=True,
     )
 
-if __name__ == "__main__":  
+
+if __name__ == "__main__":
     main()
