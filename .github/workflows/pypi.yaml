@@ -28,7 +28,7 @@ jobs:
     - name: Install Python dependencies
       run: |
         python3 -m pip install --upgrade pip
-        pip3 install .
+        pip3 install ".[dev]"
         pip3 install black ruff mypy pandas-stubs typing_extensions types-tqdm types-pytz
 
     - name: Run format checks

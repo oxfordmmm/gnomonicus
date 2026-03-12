@@ -53,7 +53,7 @@ def check_gvcf_row(row: str, min_dp: int) -> bool:
     return valid
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--minos_vcf", help="The minos VCF filepath", required=True)
     parser.add_argument("--gvcf", help="The GVCF filepath", required=True)
@@ -161,3 +161,6 @@ if __name__ == "__main__":
             if check_gvcf_row(row, args.min_dp):
                 # Only include null calls
                 f.write(row)
+
+if __name__ == "__main__":
+    main()

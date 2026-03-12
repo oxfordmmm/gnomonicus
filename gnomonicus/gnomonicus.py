@@ -19,7 +19,7 @@ from gnomonicus import (
     saveJSON,
 )
 
-if __name__ == "__main__":
+def main():
     start = time.time()
     # Argparser setup
     parser = argparse.ArgumentParser()
@@ -268,3 +268,6 @@ if __name__ == "__main__":
             options.genome_object,
             options.catalogue_file,
         )
+
+if __name__ == "__main__":
+    main()

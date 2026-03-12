@@ -8,7 +8,7 @@ import grumpy
 
 from gnomonicus import populateEffects
 
-if __name__ == "__main__":
+def main():
     # Argparser setup
     parser = argparse.ArgumentParser(description="Parse an existing mutations.csv and a catalogue to produce effects.csv and predictions.csv")
     parser.add_argument("--mutations", required=True, help="Path to the existing mutations table")
@@ -44,3 +44,6 @@ if __name__ == "__main__":
         grumpy.Genome(options.genome_object),
         append=True
     )
+
+if __name__ == "__main__":  
+    main()
