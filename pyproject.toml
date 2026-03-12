@@ -1,3 +1,67 @@
 [build-system]
-requires = ["setuptools>=42"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gnomonicus"
+version = "3.1.0"
+description = "Python code to integrate results of tb-pipeline and provide an antibiogram, mutations and variants"
+authors = [
+    { name = "Jeremy Westhead", email = "jeremy.westhead@ndm.ox.ac.uk" },
+    { name = "Philip W Fowler", email = "philip.fowler@ndm.ox.ac.uk" }
+    ]
+license = { file = "LICENSE" }
+readme = "README.md"
+url = "https://github.com/oxfordmmm/gnomonicus"
+requires-python = ">=3.10"
+keywords = [
+    "gnomonicus",
+    "piezo",
+    "lodestone",
+    "clockwork",
+    "TB",
+    "antimicrobial resistance",
+    "bioinformatics",
+]
+dependencies = [
+    "bio-grumpy>=1.1.4",
+    "piezo>=0.9.1",
+    "vcf_subset>=2.0.0",
+    "numpy==1.26.1",
+    "pandas==2.1.1",
+    "tqdm==4.66.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "recursive_diff==1.1.0",
+    "black",
+    "ruff",
+    "mypy",
+    "pandas-stubs",
+    "typing_extensions",
+    "types-tqdm",
+    "types-pytz",
+]
+docs = [
+    "requests==2.29.0",
+    "mkdocs",
+    "mkdocs-material>=9.1.8",
+    "mkdocs-include-markdown-plugin>=4.0.4",
+    "mkdocstrings>=0.21.2",
+    "mkdocstrings-python>=1.0.0",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-literate-nav>=0.6.0",
+    "mkdocs-section-index>=0.3.5",
+]
+
+[project.scripts]
+gnomonicus = "gnomonicus.gnomonicus:main"
+gnomonicus-table-update = "gnomonicus.gnomonicus_table_update:main"
+merge-vcfs = "gnomonicus.merge_vcfs:main"
+
+[tool.hatch.build.targets.wheel]
+include = ["gnomonicus/*"]
+
+[tool.mypy]
+disable_error_code = ["import-untyped", "import-not-found"]
