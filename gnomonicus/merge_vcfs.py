@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Merge a minos VCF with a GVCF at certain positions (driven by the catalogue).
 Will only include null calls from the GVCF.
 """
@@ -22,8 +21,7 @@ def fetch_minos_positions(minos_path: Path, min_dp: int) -> set[int]:
     """
     vcf = grumpy.VCFFile(minos_path.as_posix(), False, min_dp)
     positions: set[int] = set()
-    for position in vcf.calls.keys():
-        calls = vcf.calls[position]
+    for position, calls in vcf.calls.items():
         for call in calls:
             if call.call_type == grumpy.AltType.DEL:
                 # Deletion - need to exclude all bases deleted
@@ -48,8 +46,8 @@ def check_gvcf_row(row: str, min_dp: int) -> bool:
         f.write(row + "\n")
     vcf = grumpy.VCFFile(".temp_gvcf_row.vcf", False, min_dp)
     valid = True
-    for position in vcf.calls:
-        for call in vcf.calls[position]:
+    for position, calls in vcf.calls.items():
+        for call in calls:
             if call.call_type != grumpy.AltType.NULL:
                 valid = False
     Path(".temp_gvcf_row.vcf").unlink()
