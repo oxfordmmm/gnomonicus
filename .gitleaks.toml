@@ -1,0 +1,22 @@
+# -----------------------------------------------------------------------------
+# Gitleaks Configuration
+# -----------------------------------------------------------------------------
+title = "Gitleaks Configuration"
+
+# Extend the built-in default ruleset so we only add repo-specific allowlists.
+[extend]
+useDefault = true
+
+# -----------------------------------------------------------------------------
+# Allowlist (False Positives)
+# -----------------------------------------------------------------------------
+# Each allowlist is scoped to a single rule and a single exact file path.
+# This keeps the ignore surface minimal while allowing known test fixtures and
+# archived example content to pass secret scanning.
+
+[[allowlists]]
+description = "Allow GBK translation sequence false positive for Square access token"
+targetRules = ["square-access-token"]
+paths = [
+  '''^config/H37rV_v3\.gbk'''
+]
