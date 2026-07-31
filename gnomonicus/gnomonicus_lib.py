@@ -1134,7 +1134,8 @@ def saveJSON(
                         'gene': Gene name of the mutation,
                         'mutation': Gene level mutation in GARC,
                         'prediction': Prediction caused by this mutation,
-                        'evidence': Evidence to support this prediction. Currently placeholder
+                        'evidence': Evidence to support this prediction,
+                        ?'catalogue_name': Name of the catalogue used to make this prediction. Populated if >1 catalogue is used,
                     }, ...,
                     {
                         'phenotype': Resultant prediction for this drug based on prediciton heirarchy
@@ -1176,21 +1177,39 @@ def saveJSON(
             "vcf_file": vcf_path,
         }
     )
+    valid_values = True
     if catalogue is not None:
-        meta["catalogue_type"] = "".join(catalogue.catalogue.values)
-        meta["catalogue_name"] = catalogue.catalogue.name
-        meta["catalogue_version"] = catalogue.catalogue.version
+        if len(catalogue) == 1:
+            meta["catalogue_type"] = "".join(catalogue[0].catalogue.values)
+            meta["catalogue_name"] = catalogue[0].catalogue.name
+            meta["catalogue_version"] = catalogue[0].catalogue.version
+            values = list(catalogue[0].catalogue.values)
+        else:
+            meta["catalogue_type"] = [
+                "".join(cat.catalogue.values) for cat in catalogue
+            ]
+            meta["catalogue_name"] = [cat.catalogue.name for cat in catalogue]
+            meta["catalogue_version"] = [cat.catalogue.version for cat in catalogue]
+            values = list(catalogue[0].catalogue.values)
+            # Quick check that all catalogues have the same values or we will have issues with the antibiogram
+            for cat in catalogue:
+                if list(cat.catalogue.values) != values:
+                    logging.error(
+                        "Multiple catalogues used with different prediction values. The overall predicted phenotypes will be null!"
+                    )
+                    valid_values = False
     else:
         meta["catalogue_type"] = None
         meta["catalogue_name"] = None
         meta["catalogue_version"] = None
+        values = []
 
     # Main data collection
     data: Dict = OrderedDict()
 
     # Antibigram field
     data["antibiogram"] = OrderedDict(
-        [(key, phenotypes[key]) for key in sorted(phenotypes.keys())]
+        [(drug, phenotypes[drug]) for drug in sorted(phenotypes.keys())]
     )
 
     # Variants field
@@ -1280,6 +1299,8 @@ def saveJSON(
                     "evidence": effect["evidence"],
                 }
             )
+            if catalogue is not None and len(catalogue) > 1:
+                prediction["catalogue_name"] = effect["catalogue_name"]
             _effects[effect["drug"]].append(prediction)
 
     for drug in _effects.keys():
@@ -1287,7 +1308,44 @@ def saveJSON(
             _effects[drug],
             key=lambda x: (x["gene"] or "z", x["mutation"] or "z"),
         )
-        _effects[drug].append(OrderedDict({"phenotype": phenotypes[drug]}))
+        if len(catalogue) == 1:
+            _effects[drug].append(OrderedDict({"phenotype": phenotypes[drug]}))
+        else:
+            # Multiple catalogues, so give phenotypes for each catalogue
+            _effects[drug].append(
+                OrderedDict(
+                    {
+                        "phenotypes": [
+                            f'{phenotypes[f"{drug} {cat.catalogue.name}"]} {cat.catalogue.name}'
+                            for cat in catalogue
+                            if drug in cat.catalogue.drugs
+                        ]
+                    }
+                )
+            )
+
+            if not valid_values:
+                # Values aren't consistent between catalogues, so default to null for the overall phenotype
+                _effects[drug].append(OrderedDict({"phenotype": None}))
+            else:
+                # Also add the most significant phenotype for this drug across all catalogues
+                most_significant_phenotype = None
+                for cat in catalogue:
+                    if drug not in cat.catalogue.drugs:
+                        continue
+                    phenotype = phenotypes.get(f"{drug} {cat.catalogue.name}")
+                    if phenotype is not None:
+                        if most_significant_phenotype is None:
+                            most_significant_phenotype = phenotype
+                        else:
+                            # Compare significance of phenotypes
+                            if values.index(phenotype) > values.index(
+                                most_significant_phenotype
+                            ):
+                                most_significant_phenotype = phenotype
+                _effects[drug].append(
+                    OrderedDict({"phenotype": most_significant_phenotype})
+                )
 
     data["effects"] = OrderedDict(
         [(key, _effects[key]) for key in sorted(_effects.keys())]
