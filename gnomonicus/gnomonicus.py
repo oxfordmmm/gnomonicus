@@ -237,7 +237,7 @@ def main():
                 make_prediction_csv,
                 reference,
                 make_mutations_csv=make_mutations_csv,
-                append=True
+                append=True,
             )
             if len(resistanceCatalogue) > 1:
                 # Add catalogue name to the phenotype dictionary to distinguish between catalogues
