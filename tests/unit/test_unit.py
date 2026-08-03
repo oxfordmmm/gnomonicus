@@ -2871,7 +2871,7 @@ def test_15():
     expectedJSON = json.loads(json.dumps(expectedJSON, sort_keys=True))
 
     actualJSON = prep_json(
-        json.load(open(os.path.join(path, f"{vcfStem}.gnomonicus-out.json"), "r")) 
+        json.load(open(os.path.join(path, f"{vcfStem}.gnomonicus-out.json"), "r"))
     )
 
     # assert == does work here, but gives ugly errors if mismatch
