@@ -3,11 +3,10 @@ Will only include null calls from the GVCF.
 """
 
 import argparse
-import grumpy
-
-from vcf_subset import subset_vcf
-
 from pathlib import Path
+
+import grumpy
+from vcf_subset import subset_vcf
 
 
 def fetch_minos_positions(minos_path: Path, min_dp: int) -> set[int]:
@@ -46,7 +45,7 @@ def check_gvcf_row(row: str, min_dp: int) -> bool:
         f.write(row + "\n")
     vcf = grumpy.VCFFile(".temp_gvcf_row.vcf", False, min_dp)
     valid = True
-    for position, calls in vcf.calls.items():
+    for position, calls in vcf.calls.items():  # noqa: PERF102
         for call in calls:
             if call.call_type != grumpy.AltType.NULL:
                 valid = False
@@ -86,10 +85,10 @@ def main():
 
     # Read in the resistant positions
     with open(resistant_positions_path) as f:
-        resistant_positions = set([int(line.strip()) for line in f])
+        resistant_positions = {int(line.strip()) for line in f}
 
     minos_positions = fetch_minos_positions(minos_path, args.min_dp)
-    to_fetch = sorted(list(resistant_positions - minos_positions))
+    to_fetch = sorted(resistant_positions - minos_positions)
     print(f"Fetching {len(to_fetch)} positions from the GVCF")
     # fetch_strs = set([str(pos) for pos in to_fetch])
 
@@ -120,29 +119,22 @@ def main():
         and "#CHROM" not in header
     ]
 
-    chrom_line = [header for header in minos_headers if "#CHROM" in header][0]
+    chrom_line = next(header for header in minos_headers if "#CHROM" in header)
 
     with open(output_path, "w") as f:
-        for misc in minos_misc_headers:
-            f.write(misc + "\n")
+        f.writelines(misc + "\n" for misc in minos_misc_headers)
 
         # Merged format
-        for header in minos_format:
-            f.write(header + "\n")
-        for header in missing_format:
-            f.write(header + "\n")
+        f.writelines(header + "\n" for header in minos_format)
+        f.writelines(header + "\n" for header in missing_format)
 
         # Merged info
-        for header in minos_info:
-            f.write(header + "\n")
-        for header in missing_info:
-            f.write(header + "\n")
+        f.writelines(header + "\n" for header in minos_info)
+        f.writelines(header + "\n" for header in missing_info)
 
         # Merged filter
-        for header in minos_filter:
-            f.write(header + "\n")
-        for header in missing_filter:
-            f.write(header + "\n")
+        f.writelines(header + "\n" for header in minos_filter)
+        f.writelines(header + "\n" for header in missing_filter)
 
         f.write(chrom_line + "\n")
 

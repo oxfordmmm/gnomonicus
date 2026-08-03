@@ -10,8 +10,8 @@ import os
 import time
 
 import grumpy
-import piezo
 import pandas as pd
+import piezo
 
 import gnomonicus
 from gnomonicus import (
@@ -185,7 +185,7 @@ def main():
     # Complain if there are no variants
     if diff.variants is None:
         logging.error("No variants detected!")
-        raise Exception("No variants detected!")
+        raise Exception("No variants detected!")  # noqa: TRY002
 
     # Get the variations and mutations
     variants = populateVariants(
