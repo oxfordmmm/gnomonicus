@@ -88,9 +88,9 @@ def ordered(obj):
         object: Sorted JSON
     """
     if isinstance(obj, dict):
-        if "variants" in obj.keys():
+        if "variants" in obj:
             # We have the 'data' field which needs a little extra nudge
-            if "effects" in obj.keys():
+            if "effects" in obj:
                 # Case when we have effects populated
                 return [
                     ("antibiogram", ordered(obj["antibiogram"])),
@@ -101,7 +101,7 @@ def ordered(obj):
                         sorted([ordered(x) for x in obj["variants"]], key=variants_key),
                     ),
                 ]
-            elif "mutations" in obj.keys():
+            elif "mutations" in obj:
                 # Case for if we have mutations and variants but no effects
                 return [
                     ("mutations", ordered(obj["mutations"])),
@@ -119,14 +119,14 @@ def ordered(obj):
                     )
                 ]
         else:
-            return sorted((k, ordered(obj[k])) for k in sorted(list(obj.keys())))
+            return sorted((k, ordered(obj[k])) for k in sorted(obj.keys()))
 
-    if isinstance(obj, list) or isinstance(obj, tuple):
+    if isinstance(obj, (list, tuple)):
         return sorted(ordered(x) for x in obj)
 
     # Nones cause issues with ordering as there is no < operator.
     # Convert to string to avoid this
-    if isinstance(obj, type(None)):
+    if obj is None:
         return str(obj)
 
     # Because nan types are helpful, `float('nan') == float('nan') -> False`
@@ -255,7 +255,7 @@ def test_1():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -345,9 +345,9 @@ def test_1():
     variants = pd.read_csv(path + f"{vcfStem}.variants.csv")
     mutations = pd.read_csv(path + f"{vcfStem}.mutations.csv")
     # Neither of these should be populated
-    with pytest.raises(Exception):
+    with pytest.raises(FileNotFoundError):
         effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
-    with pytest.raises(Exception):
+    with pytest.raises(FileNotFoundError):
         predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
     gnomonicus.saveJSON(
@@ -473,7 +473,7 @@ def test_3():
 
     # Sort the mutations for comparing
     mutations_ = sorted(
-        list(zip(mutations_csv["gene"], mutations_csv["mutation"])),
+        zip(mutations_csv["gene"], mutations_csv["mutation"]),
         key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
     )
     assert mutations_ == sorted(
@@ -507,7 +507,7 @@ def test_3():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -687,7 +687,7 @@ def test_4():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -845,7 +845,7 @@ def test_5():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -998,7 +998,7 @@ def test_6():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -1164,7 +1164,7 @@ def test_7():
 
     # Sort the mutations for comparing
     mutations_ = sorted(
-        list(zip(mutations["gene"], mutations["mutation"])),
+        zip(mutations["gene"], mutations["mutation"]),
         key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
     )
 
@@ -1205,7 +1205,7 @@ def test_7():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -1407,7 +1407,7 @@ def test_8():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -1532,7 +1532,7 @@ def test_9():
 
     # Sort the mutations for comparing
     mutations_ = sorted(
-        list(zip(mutations["gene"], mutations["mutation"])),
+        zip(mutations["gene"], mutations["mutation"]),
         key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
     )
     assert mutations_ == sorted(
@@ -1575,7 +1575,7 @@ def test_9():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -1789,7 +1789,7 @@ def test_10():
 
     # Sort the mutations for comparing
     mutations_ = sorted(
-        list(zip(mutations["gene"], mutations["mutation"])),
+        zip(mutations["gene"], mutations["mutation"]),
         key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
     )
     assert mutations_ == sorted(
@@ -1832,7 +1832,7 @@ def test_10():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -2083,7 +2083,7 @@ def test_11():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -2275,7 +2275,7 @@ def test_12():
 
     # Sort the mutations for comparing
     mutations_ = sorted(
-        list(zip(mutations["gene"], mutations["mutation"])),
+        zip(mutations["gene"], mutations["mutation"]),
         key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
     )
 
@@ -2322,7 +2322,7 @@ def test_12():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -2551,7 +2551,7 @@ def test_13():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,
@@ -2664,7 +2664,7 @@ def test_14():
     mutations = gnomonicus.populateMutations(
         vcfStem, path, diff, reference, sample, catalogue, True, True
     )
-    e, phenotypes, _ = gnomonicus.populateEffects(
+    _e, _phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
     )
 
@@ -2722,7 +2722,7 @@ def test_15():
         phenotypes,
         path,
         vcfStem,
-        catalogue,
+        [catalogue],
         gnomonicus.__version__,
         -1,
         reference,

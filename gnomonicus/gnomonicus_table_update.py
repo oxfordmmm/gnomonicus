@@ -2,9 +2,10 @@
 """Update existing gnomonicus tables with a new catalogue."""
 
 import argparse
-import piezo
-import pandas
+
 import grumpy
+import pandas
+import piezo
 
 from gnomonicus import populateEffects
 

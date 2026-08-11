@@ -12,8 +12,7 @@ import logging
 import os
 import re
 import warnings
-from collections import defaultdict, OrderedDict
-from typing import Dict, List, Tuple
+from collections import OrderedDict, defaultdict
 
 import grumpy  # type: ignore
 import pandas as pd
@@ -71,7 +70,7 @@ def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
             else:
                 item = [int(v) for v in value]
         else:
-            if item is None or isinstance(item, int) or isinstance(item, float):
+            if item is None or isinstance(item, (int, float)):
                 # Should never happen but appease mypy
                 continue
             for v in value:
@@ -468,11 +467,10 @@ def write_mutations_csv(
                 row["codes_protein"]
                 and row["ref"] is not None
                 and row["alt"] is not None
+                and len(row["ref"]) == 1
             ):
-                # Protein coding so check if nucleotide within coding region
-                if len(row["ref"]) == 1:
-                    # Nucleotide SNP
-                    to_drop.append(idx2)
+                # Nucleotide SNP
+                to_drop.append(idx2)
         mutations_.drop(index=to_drop, inplace=True)
     # Save it as CSV
     mutations_.to_csv(path, index=False)
@@ -499,7 +497,7 @@ def subset_multis(
         if gene
         if not None
     ]
-    joined = set([gene + "@" + mut for (gene, mut, _) in mutations])
+    joined = {gene + "@" + mut for (gene, mut, _) in mutations}
     large_del_re = re.compile(
         r"""
         .*del_[01]\.[0-9]+.*
@@ -526,7 +524,7 @@ def subset_multis(
     )
 
     # Find these once so they aren't fetched on every iteration
-    existing_genes = set([gene for (gene, _, _) in mutations])
+    existing_genes = {gene for (gene, _, _) in mutations}
     large_dels = [
         (gene, mut, minor)
         for (gene, mut, minor) in mutations
@@ -569,17 +567,16 @@ def subset_multis(
                             promoter = False
                         matched = False
                         for g, m, minor in snps:
-                            if g == gene and (
+                            if g == gene and (  # noqa: SIM102
                                 (minor is None and not rule_is_minor)
                                 or (minor is not None and rule_is_minor)
                             ):
-                                if promoter and "-" in m:
-                                    matched = True
-                                    if minor is not None:
-                                        this_match.append(g + "@" + m + ":" + minor)
-                                    else:
-                                        this_match.append(g + "@" + m)
-                                elif not promoter and "-" not in m:
+                                if (
+                                    promoter
+                                    and "-" in m
+                                    or not promoter
+                                    and "-" not in m
+                                ):
                                     matched = True
                                     if minor is not None:
                                         this_match.append(g + "@" + m + ":" + minor)
@@ -635,9 +632,12 @@ def subset_multis(
                                     (minor is None and not rule_is_minor)
                                     or (minor is not None and rule_is_minor)
                                 ):
-                                    if promoter and "-" not in m:
-                                        continue
-                                    elif not promoter and "-" in m:
+                                    if (
+                                        promoter
+                                        and "-" not in m
+                                        or not promoter
+                                        and "-" in m
+                                    ):
                                         continue
                                     if searching in m:
                                         matched = True
@@ -668,16 +668,19 @@ def subset_multis(
                         else:
                             # Only mixed left
                             for g, m, minor in indels:
-                                if g == gene and (
-                                    (minor is None and not rule_is_minor)
-                                    or (minor is not None and rule_is_minor)
+                                if (
+                                    g == gene
+                                    and (
+                                        (minor is None and not rule_is_minor)
+                                        or (minor is not None and rule_is_minor)
+                                    )
+                                    and "mixed" in m
                                 ):
-                                    if "mixed" in m:
-                                        matched = True
-                                        if minor is not None:
-                                            this_match.append(g + "@" + m + ":" + minor)
-                                        else:
-                                            this_match.append(g + "@" + m)
+                                    matched = True
+                                    if minor is not None:
+                                        this_match.append(g + "@" + m + ":" + minor)
+                                    else:
+                                        this_match.append(g + "@" + m)
                         check = check and matched
 
                 elif "?" in mut:
@@ -752,7 +755,7 @@ def getMutations(
     mutations_df: pd.DataFrame | None,
     catalogue: piezo.ResistanceCatalogue,
     reference: grumpy.Genome,
-) -> List[Tuple[str | None, str]]:
+) -> list[tuple[str | None, str]]:
     """Get all of the mutations (including multi-mutations) from the mutations df
     Multi-mutations currently only exist within the converted WHO catalogue, and are a highly specific combination
         of mutations which must all be present for a single resistance value.
@@ -767,7 +770,7 @@ def getMutations(
     """
     if mutations_df is None:
         return []
-    mutations: List[Tuple[str | None, str]] = list(
+    mutations: list[tuple[str | None, str]] = list(
         zip(mutations_df["gene"], mutations_df["mutation"])
     )
     # Grab the multi-mutations from the catalogue
@@ -852,18 +855,17 @@ def epistasis(
     if len(epi_rules) > 0:
         # We have some epistasis rules so deal with them
         mutations = subset_multis(epi_rules, mutations, just_joined=True)
-        seen_multis = set([effects[key][2] for key in effects.keys()])
+        seen_multis = {effects[key][2] for key in effects}
         for _, mutation in mutations:
             prediction = resistanceCatalogue.predict(mutation, show_evidence=True)
             if isinstance(prediction, str):
                 # prediction == "S" but mypy doesn't like that
                 # Default prediction so ignore (not that this should happen here)
                 continue
-            for drug in prediction.keys():
+            for drug in prediction:
                 pred = prediction[drug]
                 if isinstance(pred, str):
                     # Shouldn't be hit but mypy complains
-                    pred = pred
                     evidence = None
                 else:
                     pred, evidence = pred
@@ -897,7 +899,7 @@ def populateEffects(
     reference: grumpy.Genome,
     make_mutations_csv: bool = False,
     append: bool = False,
-) -> Tuple[pd.DataFrame, Dict, pd.DataFrame] | None:
+) -> tuple[pd.DataFrame, dict, pd.DataFrame] | None:
     """Populate and save the effects DataFrame as a CSV
 
     Args:
@@ -952,13 +954,13 @@ def populateEffects(
 
         # If the prediction is interesting, iter through drugs to find predictions
         if prediction != "S" and not isinstance(prediction, str):
-            for drug in prediction.keys():
+            for drug in prediction:
                 drug_pred = prediction[drug]
                 if isinstance(drug_pred, str):
                     # This shouldn't happen because we're showing evidence
                     # Adding to appease mypy...
                     pred: str = drug_pred
-                    evidence: Dict = {}
+                    evidence: dict = {}
                 else:
                     pred, evidence = drug_pred
                 # Prioritise values based on order within the values list
@@ -1078,7 +1080,7 @@ def saveJSON(
     phenotypes: dict[str, str],
     path: str,
     guid: str,
-    catalogue: piezo.ResistanceCatalogue,
+    catalogue: list[piezo.ResistanceCatalogue],
     gnomonicusVersion: str,
     time_taken: float,
     reference: grumpy.Genome,
@@ -1134,7 +1136,8 @@ def saveJSON(
                         'gene': Gene name of the mutation,
                         'mutation': Gene level mutation in GARC,
                         'prediction': Prediction caused by this mutation,
-                        'evidence': Evidence to support this prediction. Currently placeholder
+                        'evidence': Evidence to support this prediction,
+                        ?'catalogue_name': Name of the catalogue used to make this prediction. Populated if >1 catalogue is used,
                     }, ...,
                     {
                         'phenotype': Resultant prediction for this drug based on prediciton heirarchy
@@ -1168,7 +1171,7 @@ def saveJSON(
             "workflow_version": gnomonicusVersion,  # gnomonicus version used
             "workflow_task": "resistance_prediction",  # TODO: Update this when we know how to detect a virulence catalogue
             "guid": guid,  # Sample GUID
-            "UTC-datetime-completed": datetime.datetime.utcnow().isoformat(),  # ISO datetime run
+            "UTC-datetime-completed": datetime.datetime.utcnow().isoformat(),  # ISO datetime run  # noqa: DTZ003
             "time_taken_s": time_taken,
             "reference": reference.name,
             "catalogue_file": catalogue_path,
@@ -1176,21 +1179,39 @@ def saveJSON(
             "vcf_file": vcf_path,
         }
     )
+    valid_values = True
     if catalogue is not None:
-        meta["catalogue_type"] = "".join(catalogue.catalogue.values)
-        meta["catalogue_name"] = catalogue.catalogue.name
-        meta["catalogue_version"] = catalogue.catalogue.version
+        if len(catalogue) == 1:
+            meta["catalogue_type"] = "".join(catalogue[0].catalogue.values)
+            meta["catalogue_name"] = catalogue[0].catalogue.name
+            meta["catalogue_version"] = catalogue[0].catalogue.version
+            values = list(catalogue[0].catalogue.values)
+        else:
+            meta["catalogue_type"] = [
+                "".join(cat.catalogue.values) for cat in catalogue
+            ]
+            meta["catalogue_name"] = [cat.catalogue.name for cat in catalogue]
+            meta["catalogue_version"] = [cat.catalogue.version for cat in catalogue]
+            values = list(catalogue[0].catalogue.values)
+            # Quick check that all catalogues have the same values or we will have issues with the antibiogram
+            for cat in catalogue:
+                if list(cat.catalogue.values) != values:
+                    logging.error(
+                        "Multiple catalogues used with different prediction values. The overall predicted phenotypes will be null!"
+                    )
+                    valid_values = False
     else:
         meta["catalogue_type"] = None
         meta["catalogue_name"] = None
         meta["catalogue_version"] = None
+        values = []
 
     # Main data collection
-    data: Dict = OrderedDict()
+    data: dict = OrderedDict()
 
     # Antibigram field
     data["antibiogram"] = OrderedDict(
-        [(key, phenotypes[key]) for key in sorted(phenotypes.keys())]
+        [(drug, phenotypes[drug]) for drug in sorted(phenotypes.keys())]
     )
 
     # Variants field
@@ -1280,14 +1301,53 @@ def saveJSON(
                     "evidence": effect["evidence"],
                 }
             )
+            if catalogue is not None and len(catalogue) > 1:
+                prediction["catalogue_name"] = effect["catalogue_name"]
             _effects[effect["drug"]].append(prediction)
 
-    for drug in _effects.keys():
+    for drug in _effects:
         _effects[drug] = sorted(
             _effects[drug],
             key=lambda x: (x["gene"] or "z", x["mutation"] or "z"),
         )
-        _effects[drug].append(OrderedDict({"phenotype": phenotypes[drug]}))
+        if len(catalogue) == 1:
+            _effects[drug].append(OrderedDict({"phenotype": phenotypes[drug]}))
+        else:
+            # Multiple catalogues, so give phenotypes for each catalogue
+            _effects[drug].append(
+                OrderedDict(
+                    {
+                        "phenotypes": [
+                            f'{phenotypes[f"{drug} {cat.catalogue.name}"]} {cat.catalogue.name}'
+                            for cat in catalogue
+                            if drug in cat.catalogue.drugs
+                        ]
+                    }
+                )
+            )
+
+            if not valid_values:
+                # Values aren't consistent between catalogues, so default to null for the overall phenotype
+                _effects[drug].append(OrderedDict({"phenotype": None}))
+            else:
+                # Also add the most significant phenotype for this drug across all catalogues
+                most_significant_phenotype = None
+                for cat in catalogue:
+                    if drug not in cat.catalogue.drugs:
+                        continue
+                    phenotype = phenotypes.get(f"{drug} {cat.catalogue.name}")
+                    if phenotype is not None:
+                        if most_significant_phenotype is None:
+                            most_significant_phenotype = phenotype
+                        else:
+                            # Compare significance of phenotypes
+                            if values.index(phenotype) > values.index(
+                                most_significant_phenotype
+                            ):
+                                most_significant_phenotype = phenotype
+                _effects[drug].append(
+                    OrderedDict({"phenotype": most_significant_phenotype})
+                )
 
     data["effects"] = OrderedDict(
         [(key, _effects[key]) for key in sorted(_effects.keys())]

@@ -65,3 +65,9 @@ include = ["gnomonicus/*"]
 
 [tool.mypy]
 disable_error_code = ["import-untyped", "import-not-found"]
+
+[tool.ruff]
+ignore = [
+    "LOG015",
+    "SIM115",
+]

@@ -10,6 +10,7 @@ import os
 import time
 
 import grumpy
+import pandas as pd
 import piezo
 
 import gnomonicus
@@ -43,6 +44,7 @@ def main():
         "--catalogue_file",
         default=None,
         required=False,
+        nargs="+",
         help="the path to the resistance catalogue",
     )
     parser.add_argument(
@@ -137,6 +139,7 @@ def main():
             "[WARNING]: No outputs selected. No files will be created. For help, try `gnomonicus --help`"
         )
         logging.warning("No outputs selected. No files will be created")
+        return
 
     # Get reference genome
     reference = grumpy.Genome(options.genome_object)
@@ -150,12 +153,19 @@ def main():
     )
 
     # Get resistance catalogue
-    if options.catalogue_file:
-        resistanceCatalogue = piezo.ResistanceCatalogue(
-            options.catalogue_file, prediction_subset_only=options.resistance_genes
-        )
+    if options.catalogue_file is not None:
+        resistanceCatalogue = [
+            piezo.ResistanceCatalogue(
+                catalogue, prediction_subset_only=options.resistance_genes
+            )
+            for catalogue in options.catalogue_file
+        ]
         logging.debug("Loaded resistance catalogue")
-        minor_type = gnomonicus.get_minority_population_type(resistanceCatalogue)
+        minor_types = [
+            gnomonicus.get_minority_population_type(catalogue)
+            for catalogue in resistanceCatalogue
+        ]
+        minor_type = minor_types[0]
     else:
         resistanceCatalogue = None
         logging.info(
@@ -163,7 +173,7 @@ def main():
         )
         # Default to COV if no resistance catalogue is provided
         # not that it needs to be used, but minor populations are built into grumpy
-        minor_type = grumpy.MinorType.COV
+        minor_type = [grumpy.MinorType.COV]
 
     sample = grumpy.mutate(reference, vcf)
     logging.debug("Applied the VCF to the reference")
@@ -175,7 +185,7 @@ def main():
     # Complain if there are no variants
     if diff.variants is None:
         logging.error("No variants detected!")
-        raise Exception("No variants detected!")
+        raise Exception("No variants detected!")  # noqa: TRY002
 
     # Get the variations and mutations
     variants = populateVariants(
@@ -185,7 +195,7 @@ def main():
         make_variants_csv,
         options.resistance_genes,
         sample,
-        catalogue=resistanceCatalogue,
+        catalogue=resistanceCatalogue[0] if resistanceCatalogue is not None else None,
     )
     logging.debug("Populated and saved variants.csv")
 
@@ -195,7 +205,7 @@ def main():
         diff,
         reference,
         sample,
-        resistanceCatalogue,
+        resistanceCatalogue[0] if resistanceCatalogue is not None else None,
         make_mutations_csv,
         options.resistance_genes,
     )
@@ -208,17 +218,40 @@ def main():
 
     # Get the effects and predictions of the mutations
     if resistanceCatalogue is not None:
-        effects, phenotypes, mutations = populateEffects(
-            options.output_dir,
-            resistanceCatalogue,
-            mutations,
-            vcfStem,
-            make_effects_csv,
-            make_prediction_csv,
-            reference,
-            make_mutations_csv=make_mutations_csv,
-        )
-        logging.debug("Populated and saved effects.csv and predictions.csv")
+        phenotypes = {}
+        effects_ = []
+        mutations_ = []
+        for idx, catalogue in enumerate(resistanceCatalogue):
+            if minor_types[idx] != minor_type:
+                logging.warning(
+                    f"Minor population type for catalogue {catalogue.catalogue.name} ({minor_types[idx]}) does not match the minor population type used to build the genome difference ({minor_type}). Re-running the genome difference with the correct minor population type."
+                )
+                diff = grumpy.GenomeDifference(reference, sample, minor_types[idx])
+                minor_type = minor_types[idx]
+            these_effects, pheno, these_mutations = populateEffects(
+                options.output_dir,
+                catalogue,
+                mutations,
+                vcfStem,
+                make_effects_csv,
+                make_prediction_csv,
+                reference,
+                make_mutations_csv=make_mutations_csv,
+                append=True,
+            )
+            if len(resistanceCatalogue) > 1:
+                # Add catalogue name to the phenotype dictionary to distinguish between catalogues
+                for drug in pheno:
+                    phenotypes[f"{drug} {catalogue.catalogue.name}"] = pheno[drug]
+            else:
+                phenotypes = pheno
+            logging.debug(
+                f"Populated and saved effects.csv and predictions.csv for {catalogue.catalogue.name}"
+            )
+            effects_.append(these_effects)
+            mutations_.append(these_mutations)
+        effects = pd.concat(effects_, ignore_index=True)
+        mutations = pd.concat(mutations_, ignore_index=True)
     else:
         phenotypes = {}
         effects = None
@@ -233,27 +266,21 @@ def main():
     logging.info(f"Reference genome file: {options.genome_object}")
 
     if resistanceCatalogue:
-        logging.info(
-            f"Catalogue reference genome: {resistanceCatalogue.catalogue.genbank_reference}"
-        )
-        logging.info(f"Catalogue name: {resistanceCatalogue.catalogue.name}")
-        logging.info(f"Catalogue version: {resistanceCatalogue.catalogue.version}")
-        logging.info(f"Catalogue grammar: {resistanceCatalogue.catalogue.grammar}")
-        logging.info(f"Catalogue values: {resistanceCatalogue.catalogue.values}")
-        logging.info(f"Catalogue path: {options.catalogue_file}")
+        logging.info(f"Ran with {len(resistanceCatalogue)} resistance catalogue(s)")
+        for idx, catalogue in enumerate(resistanceCatalogue):
+            logging.info(
+                f"Catalogue {idx+1} reference genome: {catalogue.catalogue.genbank_reference}"
+            )
+            logging.info(f"Catalogue {idx+1} name: {catalogue.catalogue.name}")
+            logging.info(f"Catalogue {idx+1} version: {catalogue.catalogue.version}")
+            logging.info(f"Catalogue {idx+1} grammar: {catalogue.catalogue.grammar}")
+            logging.info(f"Catalogue {idx+1} values: {catalogue.catalogue.values}")
+            logging.info(f"Catalogue {idx+1} path: {options.catalogue_file}")
     for drug in sorted(phenotypes.keys()):
         logging.info(f"{drug} {phenotypes[drug]}")
     logging.info(f"Completed in {time.time()-start}s")
 
     if options.json:
-        # Default prediction values are RFUS but use piezo catalogue's values if existing
-        values = (
-            resistanceCatalogue.catalogue.values
-            if resistanceCatalogue is not None
-            else None
-        )
-        if values is None:
-            values = list("RFUS")
         logging.info(f"Saving a JSON... See {options.output_dir}/gnomonicus-out.json")
         saveJSON(
             variants,
