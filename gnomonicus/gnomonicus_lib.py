@@ -230,12 +230,12 @@ def populateVariants(
 
 
 def get_minority_population_type(
-    catalogue: piezo.ResistanceCatalogue | None,
+    catalogue: list[piezo.ResistanceCatalogue] | None,
 ) -> grumpy.MinorType:
     """Figure out if a catalogue uses FRS or COV. If neither or both, default to FRS
 
     Args:
-        catalogue (piezo.ResistanceCatalogue | None): Catalogue
+        catalogue (list[piezo.ResistanceCatalogue] | None): Catalogue
 
     Returns:
         grumpy.MinorType: Enum for FRS or COV respectively
@@ -1057,7 +1057,6 @@ def populateEffects(
             try:
                 old_effects = pd.read_parquet(
                     os.path.join(outputDir, f"{vcfStem}.effects.parquet"),
-                    engine="pyarrow",
                 )
                 effects_df = pd.concat([old_effects, effects_df])
             except FileNotFoundError:
