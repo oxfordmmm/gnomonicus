@@ -67,10 +67,24 @@ def main():
         help="Flag to create a single JSON output as well as the CSVs",
     )
     parser.add_argument(
+        "--json_resistance_genes_only",
+        required=False,
+        action="store_true",
+        default=False,
+        help="Flag to filter the JSON output to only include genes present in the resistance catalogue",
+    )
+    parser.add_argument(
         "--csvs",
         required=False,
         nargs="+",
         help="Types of CSV to produce. Accepted values are [variants, mutations, effects, predictions, all]. `all` produces all of the CSVs",
+    )
+    parser.add_argument(
+        "--parquet",
+        required=False,
+        action="store_true",
+        default=False,
+        help="Flag to create CSV outputs in parquet file format instead.",
     )
     parser.add_argument(
         "--debug",
@@ -196,6 +210,7 @@ def main():
         options.resistance_genes,
         sample,
         catalogue=resistanceCatalogue[0] if resistanceCatalogue is not None else None,
+        parquet=options.parquet,
     )
     logging.debug("Populated and saved variants.csv")
 
@@ -208,6 +223,7 @@ def main():
         resistanceCatalogue[0] if resistanceCatalogue is not None else None,
         make_mutations_csv,
         options.resistance_genes,
+        parquet=options.parquet,
     )
     if mutations is None:
         logging.info(
@@ -237,7 +253,8 @@ def main():
                 make_prediction_csv,
                 reference,
                 make_mutations_csv=make_mutations_csv,
-                append=True,
+                append=idx > 0,
+                parquet=options.parquet,
             )
             if len(resistanceCatalogue) > 1:
                 # Add catalogue name to the phenotype dictionary to distinguish between catalogues
@@ -269,16 +286,16 @@ def main():
         logging.info(f"Ran with {len(resistanceCatalogue)} resistance catalogue(s)")
         for idx, catalogue in enumerate(resistanceCatalogue):
             logging.info(
-                f"Catalogue {idx+1} reference genome: {catalogue.catalogue.genbank_reference}"
+                f"Catalogue {idx + 1} reference genome: {catalogue.catalogue.genbank_reference}"
             )
-            logging.info(f"Catalogue {idx+1} name: {catalogue.catalogue.name}")
-            logging.info(f"Catalogue {idx+1} version: {catalogue.catalogue.version}")
-            logging.info(f"Catalogue {idx+1} grammar: {catalogue.catalogue.grammar}")
-            logging.info(f"Catalogue {idx+1} values: {catalogue.catalogue.values}")
-            logging.info(f"Catalogue {idx+1} path: {options.catalogue_file}")
+            logging.info(f"Catalogue {idx + 1} name: {catalogue.catalogue.name}")
+            logging.info(f"Catalogue {idx + 1} version: {catalogue.catalogue.version}")
+            logging.info(f"Catalogue {idx + 1} grammar: {catalogue.catalogue.grammar}")
+            logging.info(f"Catalogue {idx + 1} values: {catalogue.catalogue.values}")
+            logging.info(f"Catalogue {idx + 1} path: {options.catalogue_file}")
     for drug in sorted(phenotypes.keys()):
         logging.info(f"{drug} {phenotypes[drug]}")
-    logging.info(f"Completed in {time.time()-start}s")
+    logging.info(f"Completed in {time.time() - start}s")
 
     if options.json:
         logging.info(f"Saving a JSON... See {options.output_dir}/gnomonicus-out.json")

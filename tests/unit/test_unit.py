@@ -613,6 +613,194 @@ def test_3():
     recursive_eq(ordered(expectedJSON), ordered(actualJSON))
 
 
+def test_3_parquet():
+    """Input:
+        NC_045512.2-S_F2F-minos.vcf
+    Expect output:
+        variants:    21568t>c, 21763_del_t
+        mutations:   S@F2F, S@201_del_t
+        predictions: {'AAA': 'U', 'BBB': 'S'}
+    """
+    # Setup
+    setupOutput("3_parquet")
+    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    catalogue = piezo.ResistanceCatalogue(
+        "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
+    )
+
+    vcf = grumpy.VCFFile(
+        "tests/test-cases/NC_045512.2-S_F2F-minos.vcf",
+        True,
+        3,
+    )
+    vcfStem = "NC_045512.2-S_F2F-minos"
+
+    sample = grumpy.mutate(reference, vcf)
+
+    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+
+    # Populate the tables
+    path = "tests/outputs/3/"
+    gnomonicus.populateVariants(
+        vcfStem, path, diff, True, False, sample, catalogue=catalogue, parquet=True
+    )
+    mutations = gnomonicus.populateMutations(
+        vcfStem, path, diff, reference, sample, catalogue, True, False, parquet=True
+    )
+    e, phenotypes, _ = gnomonicus.populateEffects(
+        path, catalogue, mutations, vcfStem, True, True, reference, parquet=True
+    )
+    # Check for expected values within csvs
+    variants = pd.read_parquet(path + f"{vcfStem}.variants.parquet")
+    mutations_csv = pd.read_parquet(path + f"{vcfStem}.mutations.parquet")
+    effects = pd.read_parquet(path + f"{vcfStem}.effects.parquet")
+    predictions = pd.read_parquet(path + f"{vcfStem}.predictions.parquet")
+
+    assert variants["variant"][0] == "21568t>c"
+    assert variants["variant"][1] == "21763_del_t"
+
+    # Sort the mutations for comparing
+    mutations_ = sorted(
+        zip(mutations_csv["gene"], mutations_csv["mutation"]),
+        key=lambda x: x[0] + x[1] if x[0] is not None else x[1],
+    )
+    assert mutations_ == sorted(
+        [
+            ("S", "201_del_t"),
+            ("S", "F2F"),
+        ]
+    )
+
+    assert "AAA" in effects["drug"].to_list()
+
+    hits = []
+    for _, row in predictions.iterrows():
+        assert row["catalogue_name"] == "gnomonicus_test"
+        assert row["catalogue_version"] == "v1.0"
+        assert row["catalogue_values"] == "RFUS"
+        if row["drug"] == "AAA":
+            hits.append("AAA")
+            assert row["prediction"] == "U"
+        elif row["drug"] == "BBB":
+            hits.append("BBB")
+            assert row["prediction"] == "S"
+        else:
+            hits.append(None)
+    assert sorted(hits) == ["AAA", "BBB"]
+
+    gnomonicus.saveJSON(
+        variants,
+        mutations_csv,
+        e,
+        phenotypes,
+        path,
+        vcfStem,
+        [catalogue],
+        gnomonicus.__version__,
+        -1,
+        reference,
+        "",
+        "",
+        "",
+    )
+
+    expectedJSON = {
+        "meta": {
+            "workflow_version": gnomonicus.__version__,
+            "guid": vcfStem,
+            "status": "success",
+            "workflow_name": "gnomonicus",
+            "workflow_task": "resistance_prediction",
+            "reference": "NC_045512",
+            "catalogue_type": "RFUS",
+            "catalogue_name": "gnomonicus_test",
+            "catalogue_version": "v1.0",
+        },
+        "data": {
+            "variants": [
+                {
+                    "variant": "21568t>c",
+                    "nucleotide_index": 21568,
+                    "gene_name": "S",
+                    "gene_position": 2,
+                    "codon_idx": 2,
+                    "vcf_evidence": {
+                        "GT": [1, 1],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [0, 44],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 21568,
+                        "REF": "t",
+                        "ALTS": ["c"],
+                    },
+                    "vcf_idx": 1,
+                },
+                {
+                    "variant": "21763_del_t",
+                    "nucleotide_index": 21763,
+                    "gene_name": "S",
+                    "gene_position": 201,
+                    "codon_idx": 2,
+                    "vcf_evidence": {
+                        "GT": [1, 1],
+                        "DP": 44,
+                        "DPF": 0.991,
+                        "COV": [0, 44],
+                        "FRS": 1.0,
+                        "GT_CONF": 300.34,
+                        "GT_CONF_PERCENTILE": 54.73,
+                        "POS": 21762,
+                        "REF": "ct",
+                        "ALTS": ["c"],
+                    },
+                    "vcf_idx": 1,
+                },
+            ],
+            "mutations": [
+                {
+                    "mutation": "F2F",
+                    "gene": "S",
+                    "gene_position": 2,
+                    "ref": "ttt",
+                    "alt": "ttc",
+                },
+                {"mutation": "201_del_t", "gene": "S", "gene_position": 201},
+            ],
+            "effects": {
+                "AAA": [
+                    {
+                        "gene": "S",
+                        "mutation": "F2F",
+                        "prediction": "S",
+                        "evidence": {"row": 6},
+                    },
+                    {
+                        "gene": "S",
+                        "mutation": "201_del_t",
+                        "prediction": "U",
+                        "evidence": {"row": 23},
+                    },
+                    {"phenotype": "U"},
+                ],
+            },
+            "antibiogram": {"AAA": "U", "BBB": "S"},
+        },
+    }
+
+    expectedJSON = json.loads(json.dumps(expectedJSON, sort_keys=True))
+
+    actualJSON = prep_json(
+        json.load(open(os.path.join(path, f"{vcfStem}.gnomonicus-out.json"), "r"))
+    )
+
+    # assert == does work here, but gives ugly errors if mismatch
+    # Recursive_eq reports neat places they differ
+    recursive_eq(ordered(expectedJSON), ordered(actualJSON))
+
+
 def test_4():
     """Input:
         NC_045512.2-S_F2L-minos.vcf
