@@ -102,6 +102,7 @@ def populateVariants(
     resistanceGenesOnly: bool,
     sample: grumpy.Genome,
     catalogue: piezo.ResistanceCatalogue | None = None,
+    parquet: bool = False,
 ) -> pd.DataFrame:
     """Populate and save the variants DataFrame as a CSV
 
@@ -113,6 +114,7 @@ def populateVariants(
         resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
         sample (grumpy.Genome): Sample genome object
         catalogue (piezo.ResistanceCatalogue | None, optional): Catalogue for determining FRS or COV for minority populations. If None is given, FRS is assumed. Defaults to None
+        parquet (bool, optional): Whether to write the parquet of the dataframe instead of a CSV. Defaults to False.
 
     Returns:
         pd.DataFrame: DataFrame of the variants
@@ -209,12 +211,20 @@ def populateVariants(
     ]
     variants = variants.drop_duplicates()
     if make_csv:
-        # Save CSV
-        variants.to_csv(
-            os.path.join(outputDir, f"{vcfStem}.variants.csv"),
-            header=True,
-            index=False,
-        )
+        if parquet:
+            # Save Parquet
+            variants.to_parquet(
+                os.path.join(outputDir, f"{vcfStem}.variants.parquet"),
+                engine="pyarrow",
+                index=False,
+            )
+        else:
+            # Save CSV
+            variants.to_csv(
+                os.path.join(outputDir, f"{vcfStem}.variants.csv"),
+                header=True,
+                index=False,
+            )
     variants.reset_index(inplace=True)
     return variants
 
@@ -315,6 +325,7 @@ def populateMutations(
     resistanceCatalogue: piezo.ResistanceCatalogue,
     make_csv: bool,
     resistanceGenesOnly: bool,
+    parquet: bool = False,
 ) -> pd.DataFrame | None:
     """Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
 
@@ -327,6 +338,7 @@ def populateMutations(
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue (used to find which genes to check)
         make_csv (bool): Whether to write the CSV of the dataframe
         resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
+        parquet (bool, optional): Whether to write the parquet of the dataframe instead of CSV. Defaults to False.
 
     Raises:
         MissingFieldException: Raised when the mutations DataFrame does not contain the required fields
@@ -419,14 +431,18 @@ def populateMutations(
 
     if make_csv:
         write_mutations_csv(
-            mutations_df, os.path.join(outputDir, f"{vcfStem}.mutations.csv")
+            mutations_df,
+            os.path.join(
+                outputDir, f"{vcfStem}.mutations.{'parquet' if parquet else 'csv'}"
+            ),
+            parquet=parquet,
         )
 
     return mutations_df
 
 
 def write_mutations_csv(
-    mutations: pd.DataFrame, path: str, filter: bool = True
+    mutations: pd.DataFrame, path: str, filter: bool = True, parquet: bool = False
 ) -> None:
     """Prep and write the mutations CSV to the given filepath.
 
@@ -472,8 +488,12 @@ def write_mutations_csv(
                 # Nucleotide SNP
                 to_drop.append(idx2)
         mutations_.drop(index=to_drop, inplace=True)
-    # Save it as CSV
-    mutations_.to_csv(path, index=False)
+    if parquet:
+        # Save it as parquet
+        mutations_.to_parquet(path, index=False)
+    else:
+        # Save it as CSV
+        mutations_.to_csv(path, index=False)
 
 
 def subset_multis(
@@ -899,6 +919,7 @@ def populateEffects(
     reference: grumpy.Genome,
     make_mutations_csv: bool = False,
     append: bool = False,
+    parquet: bool = False,
 ) -> tuple[pd.DataFrame, dict, pd.DataFrame] | None:
     """Populate and save the effects DataFrame as a CSV
 
@@ -912,6 +933,7 @@ def populateEffects(
         reference (grumpy.Genome | None, optional): Reference genome. Defaults to None.
         make_mutations_csv (bool, optional): Whether to write the mutations CSV to disk with new mutations. Defaults to False.
         append (bool, optional): Whether to append data to an existing df at the location (if existing).
+        parquet (bool, optional): Whether to write the CSV as a parquet file instead. Defaults to False.
 
     Raises:
         InvalidMutationException: Raised if an invalid mutation is detected
@@ -1022,18 +1044,38 @@ def populateEffects(
     # Save as CSV
     if make_csv:
         if append:
+            print("Original")
+            print(effects_df.dtypes)
             # Check to see if there's anything there already
             try:
                 old_effects = pd.read_csv(
-                    os.path.join(outputDir, f"{vcfStem}.effects.csv")
+                    os.path.join(outputDir, f"{vcfStem}.effects.csv"),
+                    engine="pyarrow"
                 )
                 effects_df = pd.concat([old_effects, effects_df])
             except FileNotFoundError:
                 pass
 
-        effects_df.to_csv(
-            os.path.join(outputDir, f"{vcfStem}.effects.csv"), index=False
-        )
+            try:
+                old_effects = pd.read_parquet(
+                    os.path.join(outputDir, f"{vcfStem}.effects.parquet"),
+                    engine="pyarrow"
+                )
+                effects_df = pd.concat([old_effects, effects_df])
+            except FileNotFoundError:
+                pass
+        print(effects_df)
+        print(effects_df.dtypes)
+        effects_df.dtypes.convert_dtypes()
+        print(effects_df.dtypes)
+        if parquet:
+            effects_df.to_parquet(
+                os.path.join(outputDir, f"{vcfStem}.effects.parquet"), index=False
+            )
+        else:
+            effects_df.to_csv(
+                os.path.join(outputDir, f"{vcfStem}.effects.csv"), index=False
+            )
 
     effects_df.reset_index(inplace=True)
 
@@ -1058,9 +1100,21 @@ def populateEffects(
                 predictions_df = pd.concat([old_predictions, predictions_df])
             except FileNotFoundError:
                 pass
-        predictions_df.to_csv(
-            os.path.join(outputDir, f"{vcfStem}.predictions.csv"), index=False
-        )
+            try:
+                old_predictions = pd.read_parquet(
+                    os.path.join(outputDir, f"{vcfStem}.predictions.parquet")
+                )
+                predictions_df = pd.concat([old_predictions, predictions_df])
+            except FileNotFoundError:
+                pass
+        if parquet:
+            predictions_df.to_parquet(
+                os.path.join(outputDir, f"{vcfStem}.predictions.parquet"), index=False
+            )
+        else:
+            predictions_df.to_csv(
+                os.path.join(outputDir, f"{vcfStem}.predictions.csv"), index=False
+            )
     if len(effects) == 0:
         # We have no effects to report so populate empty df
         effects_df = pd.DataFrame.from_dict(effects)
@@ -1318,7 +1372,7 @@ def saveJSON(
                 OrderedDict(
                     {
                         "phenotypes": [
-                            f'{phenotypes[f"{drug} {cat.catalogue.name}"]} {cat.catalogue.name}'
+                            f"{phenotypes[f'{drug} {cat.catalogue.name}']} {cat.catalogue.name}"
                             for cat in catalogue
                             if drug in cat.catalogue.drugs
                         ]

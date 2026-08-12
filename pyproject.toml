@@ -30,6 +30,8 @@ dependencies = [
     "numpy==1.26.1",
     "pandas==2.1.1",
     "tqdm==4.66.1",
+    "pyarrow==25.0.1",
+    "fastparquet==2026.5.0",
 ]
 
 [project.optional-dependencies]
