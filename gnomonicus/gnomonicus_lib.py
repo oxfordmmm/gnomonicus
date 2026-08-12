@@ -1044,8 +1044,6 @@ def populateEffects(
     # Save as CSV
     if make_csv:
         if append:
-            print("Original")
-            print(effects_df.dtypes)
             # Check to see if there's anything there already
             try:
                 old_effects = pd.read_csv(
@@ -1063,10 +1061,6 @@ def populateEffects(
                 effects_df = pd.concat([old_effects, effects_df])
             except FileNotFoundError:
                 pass
-        print(effects_df)
-        print(effects_df.dtypes)
-        effects_df.dtypes.convert_dtypes()
-        print(effects_df.dtypes)
         if parquet:
             effects_df.to_parquet(
                 os.path.join(outputDir, f"{vcfStem}.effects.parquet"), index=False
