@@ -176,7 +176,7 @@ def main():
         ]
         logging.debug("Loaded resistance catalogue")
         minor_types = [
-            gnomonicus.get_minority_population_type(catalogue)
+            gnomonicus.get_minority_population_type([catalogue])
             for catalogue in resistanceCatalogue
         ]
         minor_type = minor_types[0]
@@ -209,7 +209,7 @@ def main():
         make_variants_csv,
         options.resistance_genes,
         sample,
-        catalogue=resistanceCatalogue[0] if resistanceCatalogue is not None else None,
+        catalogue=resistanceCatalogue,
         parquet=options.parquet,
     )
     logging.debug("Populated and saved variants.csv")
@@ -220,7 +220,7 @@ def main():
         diff,
         reference,
         sample,
-        resistanceCatalogue[0] if resistanceCatalogue is not None else None,
+        resistanceCatalogue,
         make_mutations_csv,
         options.resistance_genes,
         parquet=options.parquet,
@@ -300,6 +300,7 @@ def main():
     if options.json:
         logging.info(f"Saving a JSON... See {options.output_dir}/gnomonicus-out.json")
         saveJSON(
+            sample,
             variants,
             mutations,
             effects,
@@ -313,6 +314,7 @@ def main():
             options.vcf_file,
             options.genome_object,
             options.catalogue_file,
+            resistance_genes_only=options.json_resistance_genes_only,
         )
 
 

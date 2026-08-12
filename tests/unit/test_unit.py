@@ -165,7 +165,7 @@ def test_misc():
 
     # Check that getGenes behaves the same with/without catalogue
     assert sorted(gnomonicus.getGenes(sample, None, False)) == sorted(
-        gnomonicus.getGenes(sample, catalogue, False)
+        gnomonicus.getGenes(sample, [catalogue], False)
     )
 
     diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
@@ -174,7 +174,7 @@ def test_misc():
     path = "tests/outputs/0/"
     gnomonicus.populateVariants(vcfStem, path, diff, False, False, sample)
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, False, False
+        vcfStem, path, diff, reference, sample, [catalogue], False, False
     )
 
     # Check for differences if a catalogue is not given. Should be the same mutations
@@ -210,10 +210,10 @@ def test_1():
     # Populate the tables
     path = "tests/outputs/1/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, False, sample, catalogue=catalogue
+        vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -249,6 +249,7 @@ def test_1():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -351,6 +352,7 @@ def test_1():
         predictions = pd.read_csv(path + f"{vcfStem}.predictions.csv")
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         None,
@@ -454,10 +456,10 @@ def test_3():
     # Populate the tables
     path = "tests/outputs/3/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, False, sample, catalogue=catalogue
+        vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -501,6 +503,7 @@ def test_3():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations_csv,
         e,
@@ -642,10 +645,10 @@ def test_3_parquet():
     # Populate the tables
     path = "tests/outputs/3/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, False, sample, catalogue=catalogue, parquet=True
+        vcfStem, path, diff, True, False, sample, catalogue=[catalogue], parquet=True
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, False, parquet=True
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, parquet=True
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference, parquet=True
@@ -689,6 +692,7 @@ def test_3_parquet():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations_csv,
         e,
@@ -830,10 +834,10 @@ def test_4():
     # Populate the tables
     path = "tests/outputs/4/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, False, sample, catalogue=catalogue
+        vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -869,6 +873,7 @@ def test_4():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -983,10 +988,10 @@ def test_5():
     # Populate the tables
     path = "tests/outputs/5/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, False, sample, catalogue=catalogue
+        vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1027,6 +1032,7 @@ def test_5():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -1135,10 +1141,10 @@ def test_6():
     # Populate the tables
     path = "tests/outputs/6/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, False, sample, catalogue=catalogue
+        vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1180,6 +1186,7 @@ def test_6():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -1330,10 +1337,10 @@ def test_7():
     # Populate the tables
     path = "tests/outputs/7/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, False, sample, catalogue=catalogue
+        vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1387,6 +1394,7 @@ def test_7():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -1550,10 +1558,10 @@ def test_8():
     # Populate the tables
     path = "tests/outputs/8/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, False, sample, catalogue=catalogue
+        vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1589,6 +1597,7 @@ def test_8():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -1697,10 +1706,10 @@ def test_9():
     # Populate the tables
     path = "tests/outputs/9/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, True, sample, catalogue=catalogue
+        vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1757,6 +1766,7 @@ def test_9():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -1954,10 +1964,10 @@ def test_10():
     # Populate the tables
     path = "tests/outputs/10/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, True, sample, catalogue=catalogue
+        vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2014,6 +2024,7 @@ def test_10():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -2207,10 +2218,10 @@ def test_11():
     # Populate the tables
     path = "tests/outputs/11/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, True, sample, catalogue=catalogue
+        vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2265,6 +2276,7 @@ def test_11():
     assert sorted(hits) == ["AAA"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -2440,10 +2452,10 @@ def test_12():
     # Populate the tables
     path = "tests/outputs/12/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, True, sample, catalogue=catalogue
+        vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2504,6 +2516,7 @@ def test_12():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -2694,10 +2707,10 @@ def test_13():
     # Populate the tables
     path = "tests/outputs/13/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, True, sample, catalogue=catalogue
+        vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2733,6 +2746,7 @@ def test_13():
     assert sorted(hits) == ["AAA", "BBB"]
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
@@ -2847,10 +2861,10 @@ def test_14():
     # Populate the tables
     path = "tests/outputs/14/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, True, sample, catalogue=catalogue
+        vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True
     )
     _e, _phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2890,10 +2904,10 @@ def test_15():
     # Populate the tables
     path = "tests/outputs/15/"
     gnomonicus.populateVariants(
-        vcfStem, path, diff, True, True, sample, catalogue=catalogue
+        vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, catalogue, True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2904,6 +2918,7 @@ def test_15():
     effects = pd.read_csv(path + f"{vcfStem}.effects.csv")
 
     gnomonicus.saveJSON(
+        sample,
         variants,
         mutations,
         e,
