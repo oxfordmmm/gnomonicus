@@ -613,7 +613,6 @@ def test_3():
     recursive_eq(ordered(expectedJSON), ordered(actualJSON))
 
 
-
 def test_3_parquet():
     """Input:
         NC_045512.2-S_F2F-minos.vcf

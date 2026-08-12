@@ -1049,8 +1049,7 @@ def populateEffects(
             # Check to see if there's anything there already
             try:
                 old_effects = pd.read_csv(
-                    os.path.join(outputDir, f"{vcfStem}.effects.csv"),
-                    engine="pyarrow"
+                    os.path.join(outputDir, f"{vcfStem}.effects.csv"), engine="pyarrow"
                 )
                 effects_df = pd.concat([old_effects, effects_df])
             except FileNotFoundError:
@@ -1059,7 +1058,7 @@ def populateEffects(
             try:
                 old_effects = pd.read_parquet(
                     os.path.join(outputDir, f"{vcfStem}.effects.parquet"),
-                    engine="pyarrow"
+                    engine="pyarrow",
                 )
                 effects_df = pd.concat([old_effects, effects_df])
             except FileNotFoundError:
