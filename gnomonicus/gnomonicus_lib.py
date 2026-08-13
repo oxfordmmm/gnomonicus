@@ -101,7 +101,7 @@ def populateVariants(
     make_csv: bool,
     resistanceGenesOnly: bool,
     sample: grumpy.Genome,
-    catalogue: piezo.ResistanceCatalogue | None = None,
+    catalogue: list[piezo.ResistanceCatalogue] | None = None,
     parquet: bool = False,
 ) -> pd.DataFrame:
     """Populate and save the variants DataFrame as a CSV
@@ -113,7 +113,7 @@ def populateVariants(
         make_csv (bool): Whether to write the CSV of the dataframe
         resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
         sample (grumpy.Genome): Sample genome object
-        catalogue (piezo.ResistanceCatalogue | None, optional): Catalogue for determining FRS or COV for minority populations. If None is given, FRS is assumed. Defaults to None
+        catalogue (list[piezo.ResistanceCatalogue] | None, optional): Catalogue for determining FRS or COV for minority populations. If None is given, FRS is assumed. Defaults to None
         parquet (bool, optional): Whether to write the parquet of the dataframe instead of a CSV. Defaults to False.
 
     Returns:
@@ -230,12 +230,12 @@ def populateVariants(
 
 
 def get_minority_population_type(
-    catalogue: piezo.ResistanceCatalogue | None,
+    catalogue: list[piezo.ResistanceCatalogue] | None,
 ) -> grumpy.MinorType:
     """Figure out if a catalogue uses FRS or COV. If neither or both, default to FRS
 
     Args:
-        catalogue (piezo.ResistanceCatalogue | None): Catalogue
+        catalogue (list[piezo.ResistanceCatalogue] | None): Catalogue
 
     Returns:
         grumpy.MinorType: Enum for FRS or COV respectively
@@ -245,7 +245,7 @@ def get_minority_population_type(
         return grumpy.MinorType.COV
     frs = 0
     cov = 0
-    for minor in catalogue.catalogue.rules["MINOR"]:
+    for minor in catalogue[0].catalogue.rules["MINOR"]:
         for m in minor.split(","):
             if m:
                 m = float(m)
@@ -265,7 +265,7 @@ def get_minority_population_type(
 
 def getGenes(
     sample: grumpy.Genome,
-    resistanceCatalogue: piezo.ResistanceCatalogue,
+    resistanceCatalogue: list[piezo.ResistanceCatalogue] | None,
     resistanceGenesOnly: bool,
 ) -> set:
     """Get the genes we're interested in.
@@ -282,14 +282,15 @@ def getGenes(
     """
     if resistanceCatalogue:
         if resistanceGenesOnly:
-            resistanceGenes = set(resistanceCatalogue.catalogue.genes)
-            # Catch multi/epistasis rules which might not have specific instances
-            multis = set()
-            for _, rule in resistanceCatalogue.catalogue.rules.iterrows():
-                if rule["MUTATION_TYPE"] in ["MULTI", "EPISTASIS"]:
-                    mutations = rule["MUTATION"]
-                    for mut in mutations.split("&"):
-                        multis.add(mut.split("@")[0])
+            for catalogue in resistanceCatalogue:
+                resistanceGenes = set(catalogue.catalogue.genes)
+                # Catch multi/epistasis rules which might not have specific instances
+                multis = set()
+                for _, rule in catalogue.catalogue.rules.iterrows():
+                    if rule["MUTATION_TYPE"] in ["MULTI", "EPISTASIS"]:
+                        mutations = rule["MUTATION"]
+                        for mut in mutations.split("&"):
+                            multis.add(mut.split("@")[0])
             resistanceGenes = resistanceGenes.union(multis)
         else:
             resistanceGenes = set(sample.gene_names)
@@ -322,7 +323,7 @@ def populateMutations(
     genome_diff: grumpy.GenomeDifference,
     reference: grumpy.Genome,
     sample: grumpy.Genome,
-    resistanceCatalogue: piezo.ResistanceCatalogue,
+    resistanceCatalogue: list[piezo.ResistanceCatalogue] | None,
     make_csv: bool,
     resistanceGenesOnly: bool,
     parquet: bool = False,
@@ -335,7 +336,7 @@ def populateMutations(
         genome_diff (grumpy.GenomeDifference): GenomeDifference object between reference and this sample
         reference (grumpy.Genome): Reference genome
         sample (grumpy.Genome): Sample genome
-        resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue (used to find which genes to check)
+        resistanceCatalogue (list[piezo.ResistanceCatalogue] | None): Resistance catalogue (used to find which genes to check)
         make_csv (bool): Whether to write the CSV of the dataframe
         resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
         parquet (bool, optional): Whether to write the parquet of the dataframe instead of CSV. Defaults to False.
@@ -1056,7 +1057,6 @@ def populateEffects(
             try:
                 old_effects = pd.read_parquet(
                     os.path.join(outputDir, f"{vcfStem}.effects.parquet"),
-                    engine="pyarrow",
                 )
                 effects_df = pd.concat([old_effects, effects_df])
             except FileNotFoundError:
@@ -1121,6 +1121,7 @@ def populateEffects(
 
 
 def saveJSON(
+    sample,
     variants,
     mutations,
     effects,
@@ -1134,6 +1135,7 @@ def saveJSON(
     vcf_path: str,
     reference_path: str,
     catalogue_path: str,
+    resistance_genes_only: bool = False,
 ) -> None:
     """Create and save a single JSON output file for use within GPAS. JSON structure:
     {
@@ -1210,6 +1212,9 @@ def saveJSON(
         catalogue_path (str): Path to the catalogue used for this run
         minor_errors (dict): Mapping of gene name --> stack trace of any errors occurring when parsing minor mutations
     """
+    genesWithMutations = getGenes(sample, catalogue, resistance_genes_only)
+    variants = variants[variants["gene"].isin(genesWithMutations)]
+    mutations = mutations[mutations["gene"].isin(genesWithMutations)]
     # Define some metadata for the json
     meta = OrderedDict(
         {
