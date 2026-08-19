@@ -1901,7 +1901,9 @@ def test_9():
                         "gene": "S",
                         "mutation": "g-5a:0.045",
                         "prediction": "S",
-                        "evidence": {},
+                        "evidence": {
+                            "reporting_rule": "minor allele, no matching rule found"
+                        },
                     },
                     {
                         "gene": "S",
@@ -1913,7 +1915,9 @@ def test_9():
                         "gene": "S",
                         "mutation": "3690_ins_cc:0.045",
                         "prediction": "S",
-                        "evidence": {},
+                        "evidence": {
+                            "reporting_rule": "minor allele, no matching rule found"
+                        },
                     },
                     {"phenotype": "R"},
                 ],
@@ -2159,7 +2163,9 @@ def test_10():
                         "gene": "S",
                         "mutation": "g-5a:2",
                         "prediction": "S",
-                        "evidence": {},
+                        "evidence": {
+                            "reporting_rule": "minor allele, no matching rule found"
+                        },
                     },
                     {
                         "gene": "S",
@@ -2171,7 +2177,9 @@ def test_10():
                         "gene": "S",
                         "mutation": "3690_ins_cc:2",
                         "prediction": "S",
-                        "evidence": {},
+                        "evidence": {
+                            "reporting_rule": "minor allele, no matching rule found"
+                        },
                     },
                     {"phenotype": "R"},
                 ],
@@ -3058,13 +3066,17 @@ def test_15():
                         "gene": "S",
                         "mutation": "3691_del_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:99",
                         "prediction": "S",
-                        "evidence": {},
+                        "evidence": {
+                            "reporting_rule": "minor allele, no matching rule found"
+                        },
                     },
                     {
                         "gene": "S",
                         "mutation": "V1230V:99",
                         "prediction": "S",
-                        "evidence": {},
+                        "evidence": {
+                            "reporting_rule": "minor allele, no matching rule found"
+                        },
                     },
                     {"phenotype": "U"},
                 ]
@@ -3090,12 +3102,9 @@ def compare_effects(effects: pd.DataFrame, expected: [str]) -> None:
         expected ([str]): List of expected values (in order)
     """
     # Sort the effects for comparing
-    effects_ = [
-        i[1]
-        for i in sorted(
-            [(str(e), e) for _, e in effects.iterrows()], key=lambda x: x[0]
-        )
-    ]
+    effects_ = [e for _, e in effects.sort_values(by=["mutation"]).iterrows()]
+    expected = sorted(expected, key=lambda x: x[2])
+    
     assert len(expected) == len(effects_)
     # Iter expected and effects to check for equality
     for row, exp in zip(effects_, expected):
