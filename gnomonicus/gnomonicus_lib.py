@@ -986,6 +986,10 @@ def populateEffects(
                     evidence: dict = {}
                 else:
                     pred, evidence = drug_pred
+                if pred == "S" and evidence.get("reporting_rule", "") in ["minor allele, no matching rule found", "null call, no matching rule found"]:
+                    # This is a minor allele or null call with no matching rule, so ignore it
+                    # These aren't real predictions, and add nothing to the phenotype, so we can skip them
+                    continue
                 # Prioritise values based on order within the values list
                 if values.index(pred) < values.index(phenotype[drug]):
                     # The prediction is closer to the start of the values list, so should take priority
