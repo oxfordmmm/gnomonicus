@@ -3104,7 +3104,7 @@ def compare_effects(effects: pd.DataFrame, expected: [str]) -> None:
     # Sort the effects for comparing
     effects_ = [e for _, e in effects.sort_values(by=["mutation"]).iterrows()]
     expected = sorted(expected, key=lambda x: x[2])
-    
+
     assert len(expected) == len(effects_)
     # Iter expected and effects to check for equality
     for row, exp in zip(effects_, expected):
