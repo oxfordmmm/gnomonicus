@@ -84,16 +84,18 @@ When generating mutations, in cases of synonymous amino acid mutation, the nucel
 The nucelotide variation is included in the the `MUTATIONS`, but explictly removed from the `EFFECTS` unless it is specified within the catalogue.
 In order for this variation to be included, a line in the catalogue of `S@F2F&S@t6c` would have to be present.
 
-## User stories
-
-1. As a bioinformatician, I want to be able to run `gnomonicus` on the command line, passing it (i) a GenBank file ~~(or pickled `gumpy.Genome` object)~~, (ii) a resistance catalogue and (iii) a VCF file, and get back `pandas.DataFrames` of the genetic variants, mutations, effects and predictions/antibiogram. The latter is for all the drugs described in the passed resistance catalogue.
-
-2. As a GPAS developer, I want to be able to embed `gnomonicus` in a Docker image/NextFlow pipeline that consumes the outputs of [tb-pipeline](https://github.com/Pathogen-Genomics-Cymru/tb-pipeline) and emits a structured, well-designed `JSON` object describing the genetic variants, mutations, effects and predictions/antibiogram.
-
-3. In general, I would also like the option to output fixed- and variable-length FASTA files (the latter takes into account insertions and deletions described in any input VCF file).
-
 ## Unit testing
 
 For speed, rather than use NC_000962.3 (i.e. H37Rv *M. tuberculosis*), we shall use SARS-CoV-2 and have created a fictious drug resistance catalogue, along with some `vcf` files and the expected outputs in `tests/`.
 
 These can be run with `pytest -vv`
+
+## Citation
+If you use `gnomonicus` in your work, please cite:
+```
+Westhead J, Baker CS, Brouard M, Colpus M, Constantinides B, Hall A, Knaggs J, Lopes Alves M, Spies R, Thai H, Surrall S, Govender K, Peto TEA, Crook DW, Omar SV, Turner R, Fowler PW
+Characterising the performance of an antibiotic resistance prediction tool, gnomonicus, using a diverse testset of 2,663 Mycobacterium tuberculosis samples
+Microbial Genomics 11:001592 doi:10.1099/mgen.0.001592
+```
+
+A BibTeX citation is included [here](CITATION.bib)
