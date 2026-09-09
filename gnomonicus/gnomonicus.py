@@ -186,8 +186,7 @@ def main():
             "No resistance catalogue provided, producing variants and mutations only"
         )
         # Default to COV if no resistance catalogue is provided
-        # not that it needs to be used, but minor populations are built into grumpy
-        minor_type = [grumpy.MinorType.COV]
+        minor_type = grumpy.MinorType.COV
 
     sample = grumpy.mutate(reference, vcf)
     logging.debug("Applied the VCF to the reference")
