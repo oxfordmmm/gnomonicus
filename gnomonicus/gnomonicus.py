@@ -156,7 +156,7 @@ def main():
         return
 
     # Get reference genome
-    reference = grumpy.Genome(options.genome_object)
+    references = grumpy.parse_genbank(options.genome_object)
     logging.debug("Loaded reference genome")
 
     # Build the mutated genome
@@ -188,15 +188,18 @@ def main():
         # Default to COV if no resistance catalogue is provided
         minor_type = grumpy.MinorType.COV
 
-    sample = grumpy.mutate(reference, vcf)
+    samples = [grumpy.mutate(ref, vcf) for ref in references]
     logging.debug("Applied the VCF to the reference")
 
     # Get the GenomeDifference for extracting genome level mutations
-    diff = grumpy.GenomeDifference(reference, sample, minor_type)
+    diffs = [
+        grumpy.GenomeDifference(reference, sample, minor_type)
+        for reference, sample in zip(references, samples)
+    ]
     logging.debug("Got the genome difference")
 
     # Complain if there are no variants
-    if diff.variants is None:
+    if [diff.variants for diff in diffs] == [None for _ in diffs]:
         logging.error("No variants detected!")
         raise Exception("No variants detected!")  # noqa: TRY002
 
@@ -204,10 +207,10 @@ def main():
     variants = populateVariants(
         vcfStem,
         options.output_dir,
-        diff,
+        diffs,
         make_variants_csv,
         options.resistance_genes,
-        sample,
+        samples,
         catalogue=resistanceCatalogue,
         parquet=options.parquet,
     )
@@ -216,9 +219,9 @@ def main():
     mutations = populateMutations(
         vcfStem,
         options.output_dir,
-        diff,
-        reference,
-        sample,
+        diffs,
+        references,
+        samples,
         resistanceCatalogue,
         make_mutations_csv,
         options.resistance_genes,
@@ -241,7 +244,10 @@ def main():
                 logging.warning(
                     f"Minor population type for catalogue {catalogue.catalogue.name} ({minor_types[idx]}) does not match the minor population type used to build the genome difference ({minor_type}). Re-running the genome difference with the correct minor population type."
                 )
-                diff = grumpy.GenomeDifference(reference, sample, minor_types[idx])
+                diffs = [
+                    grumpy.GenomeDifference(reference, sample, minor_types[idx])
+                    for reference, sample in zip(references, samples)
+                ]
                 minor_type = minor_types[idx]
             these_effects, pheno, these_mutations = populateEffects(
                 options.output_dir,
@@ -250,7 +256,7 @@ def main():
                 vcfStem,
                 make_effects_csv,
                 make_prediction_csv,
-                reference,
+                references,
                 make_mutations_csv=make_mutations_csv,
                 append=idx > 0,
                 parquet=options.parquet,
@@ -299,7 +305,7 @@ def main():
     if options.json:
         logging.info(f"Saving a JSON... See {options.output_dir}/gnomonicus-out.json")
         saveJSON(
-            sample,
+            samples,
             variants,
             mutations,
             effects,
@@ -309,7 +315,7 @@ def main():
             resistanceCatalogue,
             gnomonicus.__version__,
             time.time() - start,
-            reference,
+            references,
             options.vcf_file,
             options.genome_object,
             options.catalogue_file,
