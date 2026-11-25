@@ -417,7 +417,7 @@ def populateMutations(
                         mutation.ref_nucleotides, mutation.alt_nucleotides
                     )
                 )
-    
+
     for genome in supplementary_genomes:
         for gene_name in genome.gene_names:
             gene = genome.get_gene(gene_name)
@@ -434,7 +434,6 @@ def populateMutations(
             mutations["amino_acid_number"].append(None)
             mutations["amino_acid_sequence"].append("")
             mutations["number_nucleotide_changes"].append(None)
-
 
     # Ensure correct datatypes
     mutations_df = pd.DataFrame(mutations).astype(
@@ -848,13 +847,15 @@ def getMutations(
     fixed = []
 
     # I know this looks insane, but if you pull `reference.genes` and iter or do `gene in reference.genes`
-    # below, it is ~1400x slower (~20 mins vs <1s). 
+    # below, it is ~1400x slower (~20 mins vs <1s).
     # Almost definitely the product of the underlying rust bindings doing something like
     # copying on every access or similar...
     ref_genes = [set(reference.genes) for reference in references]
     for gene, mutation in tqdm(mutations):
         if gene is not None and True in [
-            reference.get_gene(gene).coding for (reference, r_genes) in zip(references, ref_genes) if gene in r_genes
+            reference.get_gene(gene).coding
+            for (reference, r_genes) in zip(references, ref_genes)
+            if gene in r_genes
         ]:
             # Codes protein so check for nucleotide changes
             nucleotide = re.compile(

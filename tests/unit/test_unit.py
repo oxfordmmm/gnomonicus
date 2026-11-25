@@ -648,7 +648,16 @@ def test_3_parquet():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue], parquet=True
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False, [], parquet=True
+        vcfStem,
+        path,
+        diff,
+        reference,
+        sample,
+        [catalogue],
+        True,
+        False,
+        [],
+        parquet=True,
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference, parquet=True

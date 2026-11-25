@@ -44,7 +44,7 @@ def main():
         "--supplementary-genbank",
         required=False,
         default=None,
-        help="The path to a supplementary genbank file of an annotated assembly. This is used for calling gene presence mutations."
+        help="The path to a supplementary genbank file of an annotated assembly. This is used for calling gene presence mutations.",
     )
     parser.add_argument(
         "--catalogue_file",
