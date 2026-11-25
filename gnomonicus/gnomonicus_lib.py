@@ -333,6 +333,7 @@ def populateMutations(
     resistanceCatalogue: list[piezo.ResistanceCatalogue] | None,
     make_csv: bool,
     resistanceGenesOnly: bool,
+    supplementary_genomes: list[grumpy.Genome],
     parquet: bool = False,
 ) -> pd.DataFrame | None:
     """Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
@@ -346,6 +347,7 @@ def populateMutations(
         resistanceCatalogue (list[piezo.ResistanceCatalogue] | None): Resistance catalogue (used to find which genes to check)
         make_csv (bool): Whether to write the CSV of the dataframe
         resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
+        supplementary_genomes (list[grumpy.Genome]): Supplementary genomes to use for predictions
         parquet (bool, optional): Whether to write the parquet of the dataframe instead of CSV. Defaults to False.
 
     Raises:
@@ -415,6 +417,24 @@ def populateMutations(
                         mutation.ref_nucleotides, mutation.alt_nucleotides
                     )
                 )
+    
+    for genome in supplementary_genomes:
+        for gene_name in genome.gene_names:
+            gene = genome.get_gene(gene_name)
+            mutations["gene"].append(gene_name)
+            mutations["mutation"].append("")
+            mutations["ref"].append("")
+            mutations["alt"].append("")
+            mutations["nucleotide_number"].append(None)
+            mutations["nucleotide_index"].append(None)
+            mutations["gene_position"].append(None)
+            mutations["codes_protein"].append(gene.coding)
+            mutations["indel_length"].append(None)
+            mutations["indel_nucleotides"].append("")
+            mutations["amino_acid_number"].append(None)
+            mutations["amino_acid_sequence"].append("")
+            mutations["number_nucleotide_changes"].append(None)
+
 
     # Ensure correct datatypes
     mutations_df = pd.DataFrame(mutations).astype(
@@ -433,6 +453,9 @@ def populateMutations(
             "amino_acid_sequence": "str",
         }
     )
+    # Supplementary genomes can have >1 entry for each gene, so drop duplicates for simplicity
+    mutations_df.drop_duplicates(inplace=True)
+
     # If there were mutations, write them to a CSV
 
     # Add VCF stem as the uniqueID
@@ -823,9 +846,15 @@ def getMutations(
     # Filtering out *just* nucleotide changes for cases of synon mutations
     # The important part of these should have already been found by multi-mutations
     fixed = []
-    for gene, mutation in mutations:
+
+    # I know this looks insane, but if you pull `reference.genes` and iter or do `gene in reference.genes`
+    # below, it is ~1400x slower (~20 mins vs <1s). 
+    # Almost definitely the product of the underlying rust bindings doing something like
+    # copying on every access or similar...
+    ref_genes = [set(reference.genes) for reference in references]
+    for gene, mutation in tqdm(mutations):
         if gene is not None and True in [
-            reference.get_gene(gene).coding for reference in references
+            reference.get_gene(gene).coding for (reference, r_genes) in zip(references, ref_genes) if gene in r_genes
         ]:
             # Codes protein so check for nucleotide changes
             nucleotide = re.compile(
@@ -971,16 +1000,15 @@ def populateEffects(
     # only try and build an effects table if there are mutations
     sample_mutations = getMutations(mutations, resistanceCatalogue, references)
     for gene, mutation in tqdm(sample_mutations):
-        # Ensure its a valid mutation
-        # if gene is not None and not referenceGenes[gene].valid_variant(mutation):
-        #     logging.error(f"Not a valid mutation {gene}@{mutation}")
-        #     raise InvalidMutationException(gene, mutation)
-
         # Get the prediction
         if gene is not None:
-            prediction = resistanceCatalogue.predict(
-                gene + "@" + mutation, show_evidence=True
-            )
+            if mutation:
+                prediction = resistanceCatalogue.predict(
+                    gene + "@" + mutation, show_evidence=True
+                )
+            else:
+                # Gene or lineage is present but no mutation, so just use the gene name
+                prediction = resistanceCatalogue.predict(gene, show_evidence=True)
         else:
             # This is a multi-mutation so is already of required format
             prediction = resistanceCatalogue.predict(mutation, show_evidence=True)

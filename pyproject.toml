@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gnomonicus"
-version = "3.1.6"
+version = "3.2.0"
 description = "Python code to integrate results of tb-pipeline and provide an antibiogram, mutations and variants"
 authors = [
     { name = "Jeremy Westhead", email = "jeremy.westhead@ndm.ox.ac.uk" },
@@ -24,8 +24,8 @@ keywords = [
     "bioinformatics",
 ]
 dependencies = [
-    "bio-grumpy>=1.2.3",
-    "piezo>=0.9.2",
+    "bio-grumpy>=1.2.6",
+    "piezo>=0.10.0",
     "vcf_subset>=2.0.1",
     "numpy==1.26.1",
     "pandas==2.1.1",

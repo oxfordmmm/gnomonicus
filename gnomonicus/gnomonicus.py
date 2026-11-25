@@ -41,6 +41,12 @@ def main():
         help="the path to a genbank file",
     )
     parser.add_argument(
+        "--supplementary-genbank",
+        required=False,
+        default=None,
+        help="The path to a supplementary genbank file of an annotated assembly. This is used for calling gene presence mutations."
+    )
+    parser.add_argument(
         "--catalogue_file",
         default=None,
         required=False,
@@ -157,6 +163,9 @@ def main():
 
     # Get reference genome
     references = grumpy.parse_genbank(options.genome_object)
+    supplementary_genomes = []
+    if options.supplementary_genbank is not None:
+        supplementary_genomes = grumpy.parse_genbank(options.supplementary_genbank)
     logging.debug("Loaded reference genome")
 
     # Build the mutated genome
@@ -225,6 +234,7 @@ def main():
         resistanceCatalogue,
         make_mutations_csv,
         options.resistance_genes,
+        supplementary_genomes,
         parquet=options.parquet,
     )
     if mutations is None:

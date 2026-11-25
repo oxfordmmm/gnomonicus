@@ -174,12 +174,12 @@ def test_misc():
     path = "tests/outputs/0/"
     gnomonicus.populateVariants(vcfStem, path, diff, False, False, sample)
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], False, False
+        vcfStem, path, diff, reference, sample, [catalogue], False, False, []
     )
 
     # Check for differences if a catalogue is not given. Should be the same mutations
     mutations_ = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, None, False, False
+        vcfStem, path, diff, reference, sample, None, False, False, []
     )
 
     assert mutations.equals(mutations_)
@@ -213,7 +213,7 @@ def test_1():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -338,7 +338,7 @@ def test_1():
     setupOutput("1")
     gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample)
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, None, True, False
+        vcfStem, path, diff, reference, sample, None, True, False, []
     )
     gnomonicus.populateEffects(path, None, mutations, vcfStem, True, True, reference)
 
@@ -459,7 +459,7 @@ def test_3():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -648,7 +648,7 @@ def test_3_parquet():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue], parquet=True
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False, parquet=True
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, [], parquet=True
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference, parquet=True
@@ -837,7 +837,7 @@ def test_4():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -991,7 +991,7 @@ def test_5():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1144,7 +1144,7 @@ def test_6():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1340,7 +1340,7 @@ def test_7():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1561,7 +1561,7 @@ def test_8():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1709,7 +1709,7 @@ def test_9():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1953,7 +1953,7 @@ def test_10():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2195,7 +2195,7 @@ def test_11():
         )
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2429,7 +2429,7 @@ def test_12():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2684,7 +2684,7 @@ def test_13():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2838,7 +2838,7 @@ def test_14():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     _e, _phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2881,7 +2881,7 @@ def test_15():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
