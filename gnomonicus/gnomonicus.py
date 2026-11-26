@@ -33,11 +33,12 @@ def main():
         version=f"gnomonicus {gnomonicus.__version__}",
     )
     parser.add_argument(
-        "--vcf_file", required=True, help="the path to a single VCF file"
+        "--vcf_file", required=False, default=None, help="the path to a single VCF file"
     )
     parser.add_argument(
         "--genome_object",
-        required=True,
+        required=False,
+        default=None,
         help="the path to a genbank file",
     )
     parser.add_argument(
@@ -120,7 +121,16 @@ def main():
     os.makedirs(options.output_dir, exist_ok=True)
 
     # Get the stem of the VCF filename for use as a unique ID
-    vcfStem = os.path.split(options.vcf_file)[-1].replace(".vcf", "")
+    if options.vcf_file is not None:
+        vcfStem = os.path.split(options.vcf_file)[-1].replace(".vcf", "")
+    elif options.supplementary_genbank is not None:
+        vcfStem = os.path.split(options.supplementary_genbank)[-1].replace(
+            ".gbk", ""
+        )
+    else:
+        # We require at least 1 of the VCF or supplementary genbank to be provided, so this should never happen
+        # Throws an error further down if this is the case with extra checks.
+        vcfStem = "gnomonicus"
 
     # Logging setup
     if options.debug:
@@ -162,18 +172,50 @@ def main():
         return
 
     # Get reference genome
-    references = grumpy.parse_genbank(options.genome_object)
+    if options.genome_object is None and options.supplementary_genbank is None:
+        logging.error(
+            "No reference genome provided. Please provide a genbank file with --genome_object or --supplementary-genbank"
+        )
+        raise Exception(  # noqa: TRY002
+            "No reference genome provided. Please provide a genbank file with --genome_object or --supplementary-genbank"
+        )
+    
+    if options.genome_object is not None and options.vcf_file is None:
+        logging.error(
+            "No VCF file provided. Please provide a VCF file with --vcf_file"
+        )
+        raise Exception(  # noqa: TRY002
+            "No VCF file provided. Please provide a VCF file with --vcf_file"
+        )
+    
+    if options.vcf_file is not None and options.genome_object is None:
+        logging.error(
+            "No reference genome provided. Please provide a genbank file with --genome_object"
+        )
+        raise Exception(  # noqa: TRY002
+            "No reference genome provided. Please provide a genbank file with --genome_object"
+        )
+
+    references = []
+    if options.genome_object is not None:
+        references = grumpy.parse_genbank(options.genome_object)
+
     supplementary_genomes = []
     if options.supplementary_genbank is not None:
         supplementary_genomes = grumpy.parse_genbank(options.supplementary_genbank)
+
     logging.debug("Loaded reference genome")
 
     # Build the mutated genome
-    vcf = grumpy.VCFFile(
-        options.vcf_file,
-        options.ignore_vcf_filter,
-        options.min_dp,
-    )
+    if options.vcf_file is None:
+        vcf = None
+        logging.info("No VCF file provided, using supplementary genbank for gene rules")
+    else:
+        vcf = grumpy.VCFFile(
+            options.vcf_file,
+            options.ignore_vcf_filter,
+            options.min_dp,
+        )
 
     # Get resistance catalogue
     if options.catalogue_file is not None:
@@ -197,8 +239,11 @@ def main():
         # Default to COV if no resistance catalogue is provided
         minor_type = grumpy.MinorType.COV
 
-    samples = [grumpy.mutate(ref, vcf) for ref in references]
-    logging.debug("Applied the VCF to the reference")
+    if options.vcf_file is None:
+        samples = []
+    else:
+        samples = [grumpy.mutate(ref, vcf) for ref in references]
+        logging.debug("Applied the VCF to the reference")
 
     # Get the GenomeDifference for extracting genome level mutations
     diffs = [
@@ -207,8 +252,8 @@ def main():
     ]
     logging.debug("Got the genome difference")
 
-    # Complain if there are no variants
-    if [diff.variants for diff in diffs] == [None for _ in diffs]:
+    # Complain if there are no variants when a VCF is provided
+    if vcf is not None and [diff.variants for diff in diffs] == [None for _ in diffs]:
         logging.error("No variants detected!")
         raise Exception("No variants detected!")  # noqa: TRY002
 
