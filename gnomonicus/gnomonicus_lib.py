@@ -97,10 +97,10 @@ def parse_grumpy_evidence(evidence: grumpy.VCFRow) -> dict:
 def populateVariants(
     vcfStem: str,
     outputDir: str,
-    diff: grumpy.GenomeDifference,
+    diffs: list[grumpy.GenomeDifference],
     make_csv: bool,
     resistanceGenesOnly: bool,
-    sample: grumpy.Genome,
+    samples: list[grumpy.Genome],
     catalogue: list[piezo.ResistanceCatalogue] | None = None,
     parquet: bool = False,
 ) -> pd.DataFrame:
@@ -109,10 +109,10 @@ def populateVariants(
     Args:
         vcfStem (str): The stem of the filename for the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
-        diff (grumpy.GenomeDifference): GenomeDifference object between reference and the sample
+        diffs (list[grumpy.GenomeDifference]): GenomeDifference object between references and the samples
         make_csv (bool): Whether to write the CSV of the dataframe
         resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
-        sample (grumpy.Genome): Sample genome object
+        samples (list[grumpy.Genome]): Sample genome objects
         catalogue (list[piezo.ResistanceCatalogue] | None, optional): Catalogue for determining FRS or COV for minority populations. If None is given, FRS is assumed. Defaults to None
         parquet (bool, optional): Whether to write the parquet of the dataframe instead of a CSV. Defaults to False.
 
@@ -131,43 +131,48 @@ def populateVariants(
         "gene_position": [],
         "codon_idx": [],
     }
-    for variant in diff.variants:
-        vals["variant"].append(variant.variant)
-        vals["nucleotide_index"].append(variant.nucleotide_index)
-        vals["indel_length"].append(variant.indel_length)
-        vals["indel_nucleotides"].append(variant.indel_nucleotides)
-        evidence = sample.get_vcf_row(variant.evidence)
-        if evidence.is_complex:
-            vals["vcf_evidence"].append(
-                json.dumps(
-                    {"VCF row is complex": "Please refer to the VCF file for evidence."}
+    for diff, sample in zip(diffs, samples):
+        for variant in diff.variants:
+            vals["variant"].append(variant.variant)
+            vals["nucleotide_index"].append(variant.nucleotide_index)
+            vals["indel_length"].append(variant.indel_length)
+            vals["indel_nucleotides"].append(variant.indel_nucleotides)
+            evidence = sample.get_vcf_row(variant.evidence)
+            if evidence.is_complex:
+                vals["vcf_evidence"].append(
+                    json.dumps(
+                        {
+                            "VCF row is complex": "Please refer to the VCF file for evidence."
+                        }
+                    )
                 )
-            )
-        else:
-            vals["vcf_evidence"].append(json.dumps(parse_grumpy_evidence(evidence)))
-        vals["vcf_idx"].append(variant.vcf_idx)
-        vals["gene"].append(variant.gene_name)
-        vals["gene_position"].append(variant.gene_position)
-        vals["codon_idx"].append(variant.codon_idx)
+            else:
+                vals["vcf_evidence"].append(json.dumps(parse_grumpy_evidence(evidence)))
+            vals["vcf_idx"].append(variant.vcf_idx)
+            vals["gene"].append(variant.gene_name)
+            vals["gene_position"].append(variant.gene_position)
+            vals["codon_idx"].append(variant.codon_idx)
 
-    for variant in diff.minor_variants:
-        vals["variant"].append(variant.variant)
-        vals["nucleotide_index"].append(variant.nucleotide_index)
-        vals["indel_length"].append(variant.indel_length)
-        vals["indel_nucleotides"].append(variant.indel_nucleotides)
-        evidence = sample.get_vcf_row(variant.evidence)
-        if evidence.is_complex:
-            vals["vcf_evidence"].append(
-                json.dumps(
-                    {"VCF row is complex": "Please refer to the VCF file for evidence."}
+        for variant in diff.minor_variants:
+            vals["variant"].append(variant.variant)
+            vals["nucleotide_index"].append(variant.nucleotide_index)
+            vals["indel_length"].append(variant.indel_length)
+            vals["indel_nucleotides"].append(variant.indel_nucleotides)
+            evidence = sample.get_vcf_row(variant.evidence)
+            if evidence.is_complex:
+                vals["vcf_evidence"].append(
+                    json.dumps(
+                        {
+                            "VCF row is complex": "Please refer to the VCF file for evidence."
+                        }
+                    )
                 )
-            )
-        else:
-            vals["vcf_evidence"].append(json.dumps(parse_grumpy_evidence(evidence)))
-        vals["vcf_idx"].append(variant.vcf_idx)
-        vals["gene"].append(variant.gene_name)
-        vals["gene_position"].append(variant.gene_position)
-        vals["codon_idx"].append(variant.codon_idx)
+            else:
+                vals["vcf_evidence"].append(json.dumps(parse_grumpy_evidence(evidence)))
+            vals["vcf_idx"].append(variant.vcf_idx)
+            vals["gene"].append(variant.gene_name)
+            vals["gene_position"].append(variant.gene_position)
+            vals["codon_idx"].append(variant.codon_idx)
 
     # Use of Int64 rather than int is required here as pandas doesn't allow mixed int/None
     variants = pd.DataFrame(vals).astype(
@@ -183,7 +188,7 @@ def populateVariants(
 
     if catalogue is not None:
         # Figure out if we want to keep all of the variants
-        genes = getGenes(sample, catalogue, resistanceGenesOnly)
+        genes = getGenes(samples, catalogue, resistanceGenesOnly)
         to_drop = []
         for idx, row in variants.iterrows():
             if row["gene"] not in genes:
@@ -264,7 +269,7 @@ def get_minority_population_type(
 
 
 def getGenes(
-    sample: grumpy.Genome,
+    samples: list[grumpy.Genome],
     resistanceCatalogue: list[piezo.ResistanceCatalogue] | None,
     resistanceGenesOnly: bool,
 ) -> set:
@@ -273,33 +278,35 @@ def getGenes(
     This is either just resistance genes which have variants, or all which have variants
 
     Args:
-        sample (grumpy.Genome): Sample's genome object
+        samples (list[grumpy.Genome]): Sample's genome objects
         resistanceCatalogue (piezo.ResistanceCatalogue): Resistance catalogue
         resistanceGenesOnly (bool): Whether to just use genes within the catalogue
 
     Returns:
         set[str]: Set of gene names
     """
-    if resistanceCatalogue:
-        if resistanceGenesOnly:
-            for catalogue in resistanceCatalogue:
-                resistanceGenes = set(catalogue.catalogue.genes)
-                # Catch multi/epistasis rules which might not have specific instances
-                multis = set()
-                for _, rule in catalogue.catalogue.rules.iterrows():
-                    if rule["MUTATION_TYPE"] in ["MULTI", "EPISTASIS"]:
-                        mutations = rule["MUTATION"]
-                        for mut in mutations.split("&"):
-                            multis.add(mut.split("@")[0])
-            resistanceGenes = resistanceGenes.union(multis)
-        else:
-            resistanceGenes = set(sample.gene_names)
+    genes_with_mutations: set[str] = set()
+    for sample in samples:
+        genes_with_mutations = genes_with_mutations.union(sample.genes_with_mutations)
 
-        return sample.genes_with_mutations.intersection(resistanceGenes)
+    if resistanceCatalogue and resistanceGenesOnly:
+        resistanceGenes: set[str] = set()
+        for catalogue in resistanceCatalogue:
+            resistanceGenes = resistanceGenes.union(set(catalogue.catalogue.genes))
+            # Catch multi/epistasis rules which might not have specific instances
+            multis = set()
+            for _, rule in catalogue.catalogue.rules.iterrows():
+                if rule["MUTATION_TYPE"] in ["MULTI", "EPISTASIS"]:
+                    mutations = rule["MUTATION"]
+                    for mut in mutations.split("&"):
+                        multis.add(mut.split("@")[0])
+            resistanceGenes = resistanceGenes.union(multis)
+
+        return genes_with_mutations.intersection(resistanceGenes)
 
     else:
         # No catalogue, so just stick to genes in the sample
-        return sample.genes_with_mutations
+        return genes_with_mutations
 
 
 def count_nucleotide_changes(ref: str | None, alt: str | None) -> int | None:
@@ -320,12 +327,13 @@ def count_nucleotide_changes(ref: str | None, alt: str | None) -> int | None:
 def populateMutations(
     vcfStem: str,
     outputDir: str,
-    genome_diff: grumpy.GenomeDifference,
-    reference: grumpy.Genome,
-    sample: grumpy.Genome,
+    genome_diffs: list[grumpy.GenomeDifference],
+    references: list[grumpy.Genome],
+    samples: list[grumpy.Genome],
     resistanceCatalogue: list[piezo.ResistanceCatalogue] | None,
     make_csv: bool,
     resistanceGenesOnly: bool,
+    supplementary_genomes: list[grumpy.Genome],
     parquet: bool = False,
 ) -> pd.DataFrame | None:
     """Popuate and save the mutations DataFrame as a CSV, then return it for use in predictions
@@ -333,12 +341,13 @@ def populateMutations(
     Args:
         vcfStem (str): The stem of the filename of the VCF file. Used as a uniqueID
         outputDir (str): Path to the desired output directory
-        genome_diff (grumpy.GenomeDifference): GenomeDifference object between reference and this sample
-        reference (grumpy.Genome): Reference genome
-        sample (grumpy.Genome): Sample genome
+        genome_diffs (list[grumpy.GenomeDifference]): GenomeDifference object between references and samples
+        references (list[grumpy.Genome]): Reference genomes
+        samples (list[grumpy.Genome]): Sample genomes
         resistanceCatalogue (list[piezo.ResistanceCatalogue] | None): Resistance catalogue (used to find which genes to check)
         make_csv (bool): Whether to write the CSV of the dataframe
         resistanceGenesOnly (bool): Whether to use just genes present in the resistance catalogue
+        supplementary_genomes (list[grumpy.Genome]): Supplementary genomes to use for predictions
         parquet (bool, optional): Whether to write the parquet of the dataframe instead of CSV. Defaults to False.
 
     Raises:
@@ -347,7 +356,7 @@ def populateMutations(
     Returns:
         pd.DataFrame: The mutations DataFrame
     """
-    genesWithMutations = getGenes(sample, resistanceCatalogue, resistanceGenesOnly)
+    genesWithMutations = getGenes(samples, resistanceCatalogue, resistanceGenesOnly)
 
     # Iter resistance genes with variation to produce gene level mutations - concating into a single dataframe
     mutations: dict[str, list] = {
@@ -366,47 +375,65 @@ def populateMutations(
         "number_nucleotide_changes": [],
     }
     for gene_name in sorted(genesWithMutations):
-        gene_diff = grumpy.GeneDifference(
-            reference.get_gene(gene_name),
-            sample.get_gene(gene_name),
-            get_minority_population_type(resistanceCatalogue),
-        )
-        for mutation in gene_diff.mutations:
-            mutations["gene"].append(gene_name)
-            mutations["mutation"].append(mutation.mutation)
-            mutations["ref"].append(mutation.ref_nucleotides)
-            mutations["alt"].append(mutation.alt_nucleotides)
-            mutations["nucleotide_number"].append(mutation.nucleotide_number)
-            mutations["nucleotide_index"].append(mutation.nucleotide_index)
-            mutations["gene_position"].append(mutation.gene_position)
-            mutations["codes_protein"].append(mutation.codes_protein)
-            mutations["indel_length"].append(mutation.indel_length)
-            mutations["indel_nucleotides"].append(mutation.indel_nucleotides)
-            mutations["amino_acid_number"].append(mutation.amino_acid_number)
-            mutations["amino_acid_sequence"].append(mutation.amino_acid_sequence)
-            mutations["number_nucleotide_changes"].append(
-                count_nucleotide_changes(
-                    mutation.ref_nucleotides, mutation.alt_nucleotides
-                )
+        for reference, sample in zip(references, samples):
+            gene_diff = grumpy.GeneDifference(
+                reference.get_gene(gene_name),
+                sample.get_gene(gene_name),
+                get_minority_population_type(resistanceCatalogue),
             )
-        for mutation in gene_diff.minor_mutations:
-            mutations["gene"].append(gene_name)
-            mutations["mutation"].append(mutation.mutation)
-            mutations["ref"].append(mutation.ref_nucleotides)
-            mutations["alt"].append(mutation.alt_nucleotides)
-            mutations["nucleotide_number"].append(mutation.nucleotide_number)
-            mutations["nucleotide_index"].append(mutation.nucleotide_index)
-            mutations["gene_position"].append(mutation.gene_position)
-            mutations["codes_protein"].append(mutation.codes_protein)
-            mutations["indel_length"].append(mutation.indel_length)
-            mutations["indel_nucleotides"].append(mutation.indel_nucleotides)
-            mutations["amino_acid_number"].append(mutation.amino_acid_number)
-            mutations["amino_acid_sequence"].append(mutation.amino_acid_sequence)
-            mutations["number_nucleotide_changes"].append(
-                count_nucleotide_changes(
-                    mutation.ref_nucleotides, mutation.alt_nucleotides
+            for mutation in gene_diff.mutations:
+                mutations["gene"].append(gene_name)
+                mutations["mutation"].append(mutation.mutation)
+                mutations["ref"].append(mutation.ref_nucleotides)
+                mutations["alt"].append(mutation.alt_nucleotides)
+                mutations["nucleotide_number"].append(mutation.nucleotide_number)
+                mutations["nucleotide_index"].append(mutation.nucleotide_index)
+                mutations["gene_position"].append(mutation.gene_position)
+                mutations["codes_protein"].append(mutation.codes_protein)
+                mutations["indel_length"].append(mutation.indel_length)
+                mutations["indel_nucleotides"].append(mutation.indel_nucleotides)
+                mutations["amino_acid_number"].append(mutation.amino_acid_number)
+                mutations["amino_acid_sequence"].append(mutation.amino_acid_sequence)
+                mutations["number_nucleotide_changes"].append(
+                    count_nucleotide_changes(
+                        mutation.ref_nucleotides, mutation.alt_nucleotides
+                    )
                 )
-            )
+            for mutation in gene_diff.minor_mutations:
+                mutations["gene"].append(gene_name)
+                mutations["mutation"].append(mutation.mutation)
+                mutations["ref"].append(mutation.ref_nucleotides)
+                mutations["alt"].append(mutation.alt_nucleotides)
+                mutations["nucleotide_number"].append(mutation.nucleotide_number)
+                mutations["nucleotide_index"].append(mutation.nucleotide_index)
+                mutations["gene_position"].append(mutation.gene_position)
+                mutations["codes_protein"].append(mutation.codes_protein)
+                mutations["indel_length"].append(mutation.indel_length)
+                mutations["indel_nucleotides"].append(mutation.indel_nucleotides)
+                mutations["amino_acid_number"].append(mutation.amino_acid_number)
+                mutations["amino_acid_sequence"].append(mutation.amino_acid_sequence)
+                mutations["number_nucleotide_changes"].append(
+                    count_nucleotide_changes(
+                        mutation.ref_nucleotides, mutation.alt_nucleotides
+                    )
+                )
+
+    for genome in supplementary_genomes:
+        for gene_name in genome.gene_names:
+            gene = genome.get_gene(gene_name)
+            mutations["gene"].append(gene_name)
+            mutations["mutation"].append("")
+            mutations["ref"].append("")
+            mutations["alt"].append("")
+            mutations["nucleotide_number"].append(None)
+            mutations["nucleotide_index"].append(None)
+            mutations["gene_position"].append(None)
+            mutations["codes_protein"].append(gene.coding)
+            mutations["indel_length"].append(None)
+            mutations["indel_nucleotides"].append("")
+            mutations["amino_acid_number"].append(None)
+            mutations["amino_acid_sequence"].append("")
+            mutations["number_nucleotide_changes"].append(None)
 
     # Ensure correct datatypes
     mutations_df = pd.DataFrame(mutations).astype(
@@ -425,6 +452,9 @@ def populateMutations(
             "amino_acid_sequence": "str",
         }
     )
+    # Supplementary genomes can have >1 entry for each gene, so drop duplicates for simplicity
+    mutations_df.drop_duplicates(inplace=True)
+
     # If there were mutations, write them to a CSV
 
     # Add VCF stem as the uniqueID
@@ -775,7 +805,7 @@ def subset_multis(
 def getMutations(
     mutations_df: pd.DataFrame | None,
     catalogue: piezo.ResistanceCatalogue,
-    reference: grumpy.Genome,
+    references: list[grumpy.Genome],
 ) -> list[tuple[str | None, str]]:
     """Get all of the mutations (including multi-mutations) from the mutations df
     Multi-mutations currently only exist within the converted WHO catalogue, and are a highly specific combination
@@ -784,7 +814,7 @@ def getMutations(
     Args:
         mutations_df (pd.DataFrame): Mutations dataframe
         catalogue (piezo.ResistanceCatalogue): The resistance catalogue. Used to find which multi-mutations we care about
-        reference (grumpy.Genome): Reference genome object. Used for checking if mutations are in coding regions
+        reference (list[grumpy.Genome]): Reference genome objects. Used for checking if mutations are in coding regions
 
     Returns:
         List[Tuple[str | None, str]]: List of [gene, mutation] or in the case of multi-mutations, [None, multi-mutation]
@@ -815,8 +845,18 @@ def getMutations(
     # Filtering out *just* nucleotide changes for cases of synon mutations
     # The important part of these should have already been found by multi-mutations
     fixed = []
-    for gene, mutation in mutations:
-        if gene is not None and reference.get_gene(gene).coding:
+
+    # I know this looks insane, but if you pull `reference.genes` and iter or do `gene in reference.genes`
+    # below, it is ~1400x slower (~20 mins vs <1s).
+    # Almost definitely the product of the underlying rust bindings doing something like
+    # copying on every access or similar...
+    ref_genes = [set(reference.genes) for reference in references]
+    for gene, mutation in tqdm(mutations):
+        if gene is not None and True in [
+            reference.get_gene(gene).coding
+            for (reference, r_genes) in zip(references, ref_genes)
+            if gene in r_genes
+        ]:
             # Codes protein so check for nucleotide changes
             nucleotide = re.compile(
                 r"""
@@ -917,7 +957,7 @@ def populateEffects(
     vcfStem: str,
     make_csv: bool,
     make_prediction_csv: bool,
-    reference: grumpy.Genome,
+    references: list[grumpy.Genome],
     make_mutations_csv: bool = False,
     append: bool = False,
     parquet: bool = False,
@@ -931,7 +971,7 @@ def populateEffects(
         vcfStem (str): The basename of the given VCF - used as the sample name
         make_csv (bool): Whether to write the CSV of the dataframe
         make_prediction_csv (bool): Whether to write the CSV of the antibiogram
-        reference (grumpy.Genome | None, optional): Reference genome. Defaults to None.
+        references (list[grumpy.Genome]): Reference genomes
         make_mutations_csv (bool, optional): Whether to write the mutations CSV to disk with new mutations. Defaults to False.
         append (bool, optional): Whether to append data to an existing df at the location (if existing).
         parquet (bool, optional): Whether to write the CSV as a parquet file instead. Defaults to False.
@@ -959,18 +999,17 @@ def populateEffects(
     values = resistanceCatalogue.catalogue.values
 
     # only try and build an effects table if there are mutations
-    sample_mutations = getMutations(mutations, resistanceCatalogue, reference)
+    sample_mutations = getMutations(mutations, resistanceCatalogue, references)
     for gene, mutation in tqdm(sample_mutations):
-        # Ensure its a valid mutation
-        # if gene is not None and not referenceGenes[gene].valid_variant(mutation):
-        #     logging.error(f"Not a valid mutation {gene}@{mutation}")
-        #     raise InvalidMutationException(gene, mutation)
-
         # Get the prediction
         if gene is not None:
-            prediction = resistanceCatalogue.predict(
-                gene + "@" + mutation, show_evidence=True
-            )
+            if mutation:
+                prediction = resistanceCatalogue.predict(
+                    gene + "@" + mutation, show_evidence=True
+                )
+            else:
+                # Gene or lineage is present but no mutation, so just use the gene name
+                prediction = resistanceCatalogue.predict(gene, show_evidence=True)
         else:
             # This is a multi-mutation so is already of required format
             prediction = resistanceCatalogue.predict(mutation, show_evidence=True)
@@ -1128,17 +1167,17 @@ def populateEffects(
 
 
 def saveJSON(
-    sample,
-    variants,
-    mutations,
-    effects,
+    samples: list[grumpy.Genome],
+    variants: pd.DataFrame,
+    mutations: pd.DataFrame,
+    effects: pd.DataFrame | None,
     phenotypes: dict[str, str],
     path: str,
     guid: str,
     catalogue: list[piezo.ResistanceCatalogue],
     gnomonicusVersion: str,
     time_taken: float,
-    reference: grumpy.Genome,
+    references: list[grumpy.Genome],
     vcf_path: str,
     reference_path: str,
     catalogue_path: str,
@@ -1219,7 +1258,7 @@ def saveJSON(
         catalogue_path (str): Path to the catalogue used for this run
         minor_errors (dict): Mapping of gene name --> stack trace of any errors occurring when parsing minor mutations
     """
-    genesWithMutations = getGenes(sample, catalogue, resistance_genes_only)
+    genesWithMutations = getGenes(samples, catalogue, resistance_genes_only)
     variants = variants[variants["gene"].isin(genesWithMutations)]
     mutations = mutations[mutations["gene"].isin(genesWithMutations)]
     # Define some metadata for the json
@@ -1232,7 +1271,7 @@ def saveJSON(
             "guid": guid,  # Sample GUID
             "UTC-datetime-completed": datetime.datetime.utcnow().isoformat(),  # ISO datetime run  # noqa: DTZ003
             "time_taken_s": time_taken,
-            "reference": reference.name,
+            "reference": [reference.name for reference in references],
             "catalogue_file": catalogue_path,
             "reference_file": reference_path,
             "vcf_file": vcf_path,

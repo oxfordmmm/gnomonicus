@@ -152,7 +152,7 @@ def ordered(obj):
 def test_misc():
     """Testing misc things which should be raised/edge case behaviour not confined neatly to a whole flow test case"""
     setupOutput("0")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
 
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
@@ -161,25 +161,25 @@ def test_misc():
     vcf = grumpy.VCFFile("tests/test-cases/NC_045512.2-S_E484K-minos.vcf", True, 3)
     vcfStem = "NC_045512.2-S_E484K-minos"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
     # Check that getGenes behaves the same with/without catalogue
     assert sorted(gnomonicus.getGenes(sample, None, False)) == sorted(
         gnomonicus.getGenes(sample, [catalogue], False)
     )
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/0/"
     gnomonicus.populateVariants(vcfStem, path, diff, False, False, sample)
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], False, False
+        vcfStem, path, diff, reference, sample, [catalogue], False, False, []
     )
 
     # Check for differences if a catalogue is not given. Should be the same mutations
     mutations_ = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, None, False, False
+        vcfStem, path, diff, reference, sample, None, False, False, []
     )
 
     assert mutations.equals(mutations_)
@@ -195,7 +195,7 @@ def test_1():
     """
     # Setup
     setupOutput("1")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
@@ -203,9 +203,9 @@ def test_1():
     vcf = grumpy.VCFFile("tests/test-cases/NC_045512.2-S_E484K-minos.vcf", True, 3)
     vcfStem = "NC_045512.2-S_E484K-minos"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/1/"
@@ -213,7 +213,7 @@ def test_1():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -272,7 +272,7 @@ def test_1():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -338,7 +338,7 @@ def test_1():
     setupOutput("1")
     gnomonicus.populateVariants(vcfStem, path, diff, True, False, sample)
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, None, True, False
+        vcfStem, path, diff, reference, sample, None, True, False, []
     )
     gnomonicus.populateEffects(path, None, mutations, vcfStem, True, True, reference)
 
@@ -375,7 +375,7 @@ def test_1():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": None,
             "catalogue_name": None,
             "catalogue_version": None,
@@ -437,7 +437,7 @@ def test_3():
     """
     # Setup
     setupOutput("3")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
@@ -449,9 +449,9 @@ def test_3():
     )
     vcfStem = "NC_045512.2-S_F2F-minos"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/3/"
@@ -459,7 +459,7 @@ def test_3():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -526,7 +526,7 @@ def test_3():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -626,7 +626,7 @@ def test_3_parquet():
     """
     # Setup
     setupOutput("3_parquet")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
@@ -638,9 +638,9 @@ def test_3_parquet():
     )
     vcfStem = "NC_045512.2-S_F2F-minos"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/3/"
@@ -648,7 +648,16 @@ def test_3_parquet():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue], parquet=True
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False, parquet=True
+        vcfStem,
+        path,
+        diff,
+        reference,
+        sample,
+        [catalogue],
+        True,
+        False,
+        [],
+        parquet=True,
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference, parquet=True
@@ -715,7 +724,7 @@ def test_3_parquet():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -815,7 +824,7 @@ def test_4():
     """
     # Setup
     setupOutput("4")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
@@ -827,9 +836,9 @@ def test_4():
     )
     vcfStem = "NC_045512.2-S_F2L-minos"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/4/"
@@ -837,7 +846,7 @@ def test_4():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -896,7 +905,7 @@ def test_4():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -969,7 +978,7 @@ def test_5():
     """
     # Setup
     setupOutput("5")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
@@ -981,9 +990,9 @@ def test_5():
     )
     vcfStem = "NC_045512.2-S_200_indel-minos"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/5/"
@@ -991,7 +1000,7 @@ def test_5():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1055,7 +1064,7 @@ def test_5():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -1122,7 +1131,7 @@ def test_6():
     """
     # Setup
     setupOutput("6")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
@@ -1134,9 +1143,9 @@ def test_6():
     )
     vcfStem = "NC_045512.2-double-minos"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/6/"
@@ -1144,7 +1153,7 @@ def test_6():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1209,7 +1218,7 @@ def test_6():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -1318,7 +1327,7 @@ def test_7():
     """
     # Setup
     setupOutput("7")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
@@ -1330,9 +1339,9 @@ def test_7():
     )
     vcfStem = "NC_045512.2-S_E484K&1450_ins_a-minos"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/7/"
@@ -1340,7 +1349,7 @@ def test_7():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1417,7 +1426,7 @@ def test_7():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -1527,18 +1536,18 @@ def test_8():
     """
     # Setup
     setupOutput("8")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     # Force non coding (as all genes included are coding)
-    genes = [gene for gene in reference.gene_definitions if gene.name != "S"]
+    genes = [gene for gene in reference[0].gene_definitions if gene.name != "S"]
     s = None
-    for gene in reference.gene_definitions:
+    for gene in reference[0].gene_definitions:
         if gene.name == "S":
             s = gene
             s.coding = False
             break
     assert s is not None
     genes.append(s)
-    reference.gene_definitions = genes
+    reference[0].gene_definitions = genes
 
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
@@ -1551,9 +1560,9 @@ def test_8():
     )
     vcfStem = "NC_045512.2-S_E484K-minos"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/8/"
@@ -1561,7 +1570,7 @@ def test_8():
         vcfStem, path, diff, True, False, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, False
+        vcfStem, path, diff, reference, sample, [catalogue], True, False, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1620,7 +1629,7 @@ def test_8():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -1686,7 +1695,7 @@ def test_9():
     """
     # Setup
     setupOutput("9")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
 
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
@@ -1699,9 +1708,9 @@ def test_9():
     )
     vcfStem = "NC_045512.2-minors"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.FRS)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.FRS)]
 
     # Populate the tables
     path = "tests/outputs/9/"
@@ -1709,7 +1718,7 @@ def test_9():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -1787,7 +1796,7 @@ def test_9():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -1929,7 +1938,7 @@ def test_10():
     """
     # Setup
     setupOutput("10")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
 
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue-COV.csv",
@@ -1943,9 +1952,9 @@ def test_10():
     )
     vcfStem = "NC_045512.2-minors"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/10/"
@@ -1953,7 +1962,7 @@ def test_10():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2031,7 +2040,7 @@ def test_10():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -2174,7 +2183,7 @@ def test_11():
     """
     # Setup
     setupOutput("11")
-    reference = grumpy.Genome("tests/test-cases/TEST-DNA.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/TEST-DNA.gbk")
 
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/TEST-DNA-catalogue.csv", prediction_subset_only=True
@@ -2183,17 +2192,19 @@ def test_11():
     vcf = grumpy.VCFFile("tests/test-cases/TEST-DNA-large-del.vcf", True, 1)
     vcfStem = "TEST-DNA-large-del"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/11/"
-    gnomonicus.populateVariants(
-        vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
+    print(
+        gnomonicus.populateVariants(
+            vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
+        )
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2271,7 +2282,7 @@ def test_11():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "TEST_DNA",
+            "reference": ["TEST_DNA.1"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test_dna",
             "catalogue_version": "v1.0",
@@ -2408,7 +2419,7 @@ def test_12():
     """
     # Setup
     setupOutput("12")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue-epistasis.csv",
         prediction_subset_only=True,
@@ -2417,9 +2428,9 @@ def test_12():
     vcf = grumpy.VCFFile("tests/test-cases/NC_045512.2-epistasis.vcf", True, 2)
     vcfStem = "NC_045512.2-epistasis"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/12/"
@@ -2427,7 +2438,7 @@ def test_12():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2511,7 +2522,7 @@ def test_12():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -2660,7 +2671,7 @@ def test_13():
     """
     # Setup
     setupOutput("13")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
@@ -2672,9 +2683,9 @@ def test_13():
     )
     vcfStem = "NC_045512.2-S_E484K-minos"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/13/"
@@ -2682,7 +2693,7 @@ def test_13():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2741,7 +2752,7 @@ def test_13():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",
@@ -2814,7 +2825,7 @@ def test_14():
     """
     # Setup
     setupOutput("14")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue.csv", prediction_subset_only=True
     )
@@ -2826,9 +2837,9 @@ def test_14():
     )
     vcfStem = "NC_045512.2-no-variants"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/14/"
@@ -2836,7 +2847,7 @@ def test_14():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     _e, _phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2856,7 +2867,7 @@ def test_15():
     """VCF with a complex row which shouldn't get any evidence for the variant"""
     # Setup
     setupOutput("15")
-    reference = grumpy.Genome("tests/test-cases/NC_045512.2.gbk")
+    reference = grumpy.parse_genbank("tests/test-cases/NC_045512.2.gbk")
     catalogue = piezo.ResistanceCatalogue(
         "tests/test-cases/NC_045512.2-test-catalogue-COV.csv",
         prediction_subset_only=True,
@@ -2869,9 +2880,9 @@ def test_15():
     )
     vcfStem = "NC_045512.2-complex"
 
-    sample = grumpy.mutate(reference, vcf)
+    sample = [grumpy.mutate(reference[0], vcf)]
 
-    diff = grumpy.GenomeDifference(reference, sample, grumpy.MinorType.COV)
+    diff = [grumpy.GenomeDifference(reference[0], sample[0], grumpy.MinorType.COV)]
 
     # Populate the tables
     path = "tests/outputs/15/"
@@ -2879,7 +2890,7 @@ def test_15():
         vcfStem, path, diff, True, True, sample, catalogue=[catalogue]
     )
     mutations = gnomonicus.populateMutations(
-        vcfStem, path, diff, reference, sample, [catalogue], True, True
+        vcfStem, path, diff, reference, sample, [catalogue], True, True, []
     )
     e, phenotypes, _ = gnomonicus.populateEffects(
         path, catalogue, mutations, vcfStem, True, True, reference
@@ -2946,7 +2957,7 @@ def test_15():
             "status": "success",
             "workflow_name": "gnomonicus",
             "workflow_task": "resistance_prediction",
-            "reference": "NC_045512",
+            "reference": ["NC_045512.2"],
             "catalogue_type": "RFUS",
             "catalogue_name": "gnomonicus_test",
             "catalogue_version": "v1.0",

@@ -48,7 +48,7 @@ def main():
         vcf_stem,
         True,
         True,
-        grumpy.Genome(options.genome_object),
+        grumpy.parse_genbank(options.genome_object),
         append=True,
     )
 
