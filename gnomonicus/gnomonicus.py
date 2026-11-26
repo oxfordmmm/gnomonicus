@@ -124,9 +124,7 @@ def main():
     if options.vcf_file is not None:
         vcfStem = os.path.split(options.vcf_file)[-1].replace(".vcf", "")
     elif options.supplementary_genbank is not None:
-        vcfStem = os.path.split(options.supplementary_genbank)[-1].replace(
-            ".gbk", ""
-        )
+        vcfStem = os.path.split(options.supplementary_genbank)[-1].replace(".gbk", "")
     else:
         # We require at least 1 of the VCF or supplementary genbank to be provided, so this should never happen
         # Throws an error further down if this is the case with extra checks.
@@ -179,15 +177,13 @@ def main():
         raise Exception(  # noqa: TRY002
             "No reference genome provided. Please provide a genbank file with --genome_object or --supplementary-genbank"
         )
-    
+
     if options.genome_object is not None and options.vcf_file is None:
-        logging.error(
-            "No VCF file provided. Please provide a VCF file with --vcf_file"
-        )
+        logging.error("No VCF file provided. Please provide a VCF file with --vcf_file")
         raise Exception(  # noqa: TRY002
             "No VCF file provided. Please provide a VCF file with --vcf_file"
         )
-    
+
     if options.vcf_file is not None and options.genome_object is None:
         logging.error(
             "No reference genome provided. Please provide a genbank file with --genome_object"
